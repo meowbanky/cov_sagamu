@@ -1,0 +1,53 @@
+<?php
+	
+	// PHP5 Implementation - uses MySQLi.
+	// mysqli('localhost', 'yourUsername', 'yourPassword', 'yourDatabase');
+	$db = new mysqli('localhost', 'emmaggic_root' ,'Oluwaseyi', 'emmaggic_cofv');
+	
+	if(!$db) {
+		// Show error if we cannot connect.
+		echo 'ERROR: Could not connect to the database.';
+	} else {
+		// Is there a posted query string?
+		if(isset($_POST['queryString'])) {
+			$queryString = $db->real_escape_string($_POST['queryString']);
+			$test = ($_POST['queryString']);
+			// Is the string length greater than 0?
+			
+			if(strlen($queryString) >0) {
+				// Run the query: We use LIKE '$queryString%'
+				// The percentage sign is a wild-card, in my example of countries it works like this...
+				// $queryString = 'Uni';
+				// Returned data = 'United States, United Kindom';
+				
+				// YOU NEED TO ALTER THE QUERY TO MATCH YOUR DATABASE.
+				// eg: SELECT yourColumnName FROM yourTable WHERE yourColumnName LIKE '$queryString%' LIMIT 10
+				
+				$query = $db->query("SELECT tbl_personalinfo.memberid, tbl_personalinfo.Fname, tbl_personalinfo.Mname, tbl_personalinfo.Lname, tbl_personalinfo.MobilePhone FROM tbl_personalinfo WHERE tbl_personalinfo.patientid LIKE '%$queryString%' OR tbl_personalinfo.Fname LIKE '%$queryString%' OR tbl_personalinfo.Mname LIKE '%$queryString%' OR tbl_personalinfo.Lname LIKE '%$queryString%' OR tbl_personalinfo.MobilePhone LIKE '%$queryString%' LIMIT 5");
+//				$query2 = $db->query("SELECT tlb_mastertransaction.memberid, (sum(tlb_mastertransaction.commodityAmount)- sum(tlb_mastertransaction.commodityRepayment)) as 'balance' FROM tlb_mastertransaction WHERE memberid = '$queryString'");
+//				$result2 = $query2 ->fetch_object();
+				if($query) {
+					// While there are results loop through them - fetching an Object (i like PHP5 btw!).
+					while ($result = $query ->fetch_object()) {
+							
+						// Format the results, im using <li> for the list, you can change it.
+						// The onClick function fills the textbox with the result.
+						
+						// YOU MUST CHANGE: $result->value to $result->your_colum
+	         			echo '<li onClick="fill2(\''.$result->Lname.' '. $result->Fname . ' '. $result->Mname .'\');fill(\''.$result->memberid.'\')">'.$result->memberid. "<br>" .$result->Lname. " " . $result->Fname . " " . $result->Mname .'</li>';
+	         		
+					
+					}
+				
+				
+				} else {
+					echo 'ERROR: There was a problem with the query.';
+				}
+			} else {
+				// Dont do anything.
+			} // There is a queryString.
+		} else {
+			echo 'There should be no direct access to this script!';
+		}
+	}
+?>

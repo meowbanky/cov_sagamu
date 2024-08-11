@@ -1,0 +1,1 @@
+[08-Nov-2019 17:07:07 UTC] PHP Deprecated:  mysql_pconnect(): The mysql extension is deprecated and will be removed in the future: use mysqli or PDO instead in /home/emmaggic/public_html/cov/Connections/cov.php on line 9

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SshConfigs">
+    <configs>
+      <sshConfig authType="PASSWORD" host="ftp.emmaggi.com" id="af124cad-c4ed-40ba-9bd1-0103d488de16" port="22" customName="cov_admin" nameFormat="CUSTOM" username="emmaggic" useOpenSSHConfig="true">
+        <option name="customName" value="cov_admin" />
+      </sshConfig>
+    </configs>
+  </component>
+</project>

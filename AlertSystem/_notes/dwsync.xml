@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<dwsync>
+<file name="commodity.php" server="C:/wamp/www/coopAlertSystem/" local="130202718742144951" remote="130202718740000000" Dst="-1" />
+<file name="skye.php" server="C:/wamp/www/coopAlertSystem/" local="130298621254463614" remote="130298621250000000" Dst="-1" />
+<file name="counter.php" server="C:/wamp/www/coopAlertSystem/" local="130319318235565386" remote="130319318230000000" Dst="-1" />
+<file name="progressbar.php" server="C:/wamp/www/coopAlertSystem/" local="130319252480434408" remote="130319252480000000" Dst="-1" />
+<file name="pbar-ani.gif" server="C:/wamp/www/coopAlertSystem/" local="130319165430675446" remote="130319165430000000" Dst="-1" />
+<file name="buffer.php" server="C:/wamp/www/coopAlertSystem/" local="130345224266195681" remote="130345224260000000" Dst="-1" />
+<file name="quarterlyreport.php" server="C:/wamp/www/coopAlertSystem/" local="130348129190377349" remote="130348129190000000" Dst="-1" />
+<file name="mail.php" server="C:/wamp/www/coopAlertSystem/" local="130350486850879525" remote="130350486850000000" Dst="-1" />
+<file name="quarterlyreport2.php" server="C:/wamp/www/coopAlertSystem/" local="130367095306727866" remote="130367095300000000" Dst="0" />
+<file name="50kobo.js" server="67.220.185.18" local="131367583520920183" remote="131828598600000000" Dst="0" />
+<file name="50web - Copy.php" server="67.220.185.18" local="131367414546899914" remote="131670576000000000" Dst="0" />
+<file name="contact_form.css" server="67.220.185.18" local="131367588771222106" remote="131828598000000000" Dst="0" />
+<file name="50web.php" server="67.220.185.18" local="131424592434596080" remote="131828598000000000" Dst="0" />
+<file name="buffer.php" server="67.220.185.18" local="130345224260000000" remote="131670576000000000" Dst="0" />
+<file name="PHPMailerAutoload.php" server="67.220.185.18" local="130347597240000000" remote="131670576000000000" Dst="0" />
+<file name="class.phpmailer.php" server="67.220.185.18" local="130347597240000000" remote="131670576000000000" Dst="0" />
+<file name="class.smtp.php" server="67.220.185.18" local="130347597240000000" remote="131670576000000000" Dst="0" />
+<file name="commodity.php" server="67.220.185.18" local="130202718740000000" remote="131670576000000000" Dst="0" />
+<file name="class.pop3.php" server="67.220.185.18" local="130347597240000000" remote="131670576000000000" Dst="0" />
+<file name="contact.php" server="67.220.185.18" local="131424592428541072" remote="131670576000000000" Dst="0" />
+<file name="contact_form.js" server="67.220.185.18" local="131367598858122462" remote="131670576000000000" Dst="0" />
+<file name="contact_form.php" server="67.220.185.18" local="131366726465632174" remote="131670576000000000" Dst="0" />
+<file name="coop2.php" server="67.220.185.18" local="130316519490000000" remote="131670576000000000" Dst="0" />
+<file name="coop_original.php" server="67.220.185.18" local="130319375220000000" remote="131670576000000000" Dst="0" />
+<file name="Copy of smsAlert.php" server="67.220.185.18" local="130028489910000000" remote="131670576000000000" Dst="0" />
+<file name="mm_health_nutr.css" server="67.220.185.18" local="131507350223397555" remote="131670576000000000" Dst="0" />
+<file name="mm_health_photo.jpg" server="67.220.185.18" local="127698843810000000" remote="131670576000000000" Dst="0" />
+<file name="mm_spacer.gif" server="67.220.185.18" local="127698843810000000" remote="131670576000000000" Dst="0" />
+<file name="mm_dashed_line.gif" server="67.220.185.18" local="127698843810000000" remote="131670576000000000" Dst="0" />
+<file name="counter.php" server="67.220.185.18" local="130319337830000000" remote="131670576000000000" Dst="0" />
+<file name="index.php" server="67.220.185.18" local="131670794823807314" remote="131670579000000000" Dst="0" />
+<file name="sendsms.php" server="67.220.185.18" local="131934416133795449" remote="131934417600000000" Dst="0" />
+<file name="index1.php" server="67.220.185.18" local="131459694766736766" remote="131670576000000000" Dst="0" />
+<file name="index_old.php" server="67.220.185.18" local="131507370015286192" remote="131670576000000000" Dst="0" />
+<file name="mail.php" server="67.220.185.18" local="130350486850000000" remote="131670576000000000" Dst="0" />
+<file name="messagetoall.php" server="67.220.185.18" local="131424592412620887" remote="131670576000000000" Dst="0" />
+<file name="prepare_sms.php" server="67.220.185.18" local="131366713843946257" remote="131670576000000000" Dst="0" />
+<file name="progressbar.php" server="67.220.185.18" local="130319348110000000" remote="131670576000000000" Dst="0" />
+<file name="public_message.php" server="67.220.185.18" local="131424592407722819" remote="131670576600000000" Dst="0" />
+<file name="quarterlyreport.php" server="67.220.185.18" local="130367053760000000" remote="131670576600000000" Dst="0" />
+<file name="quarterlyreport2.php" server="67.220.185.18" local="130367533980000000" remote="131670576600000000" Dst="0" />
+<file name="pbar-ani.gif" server="67.220.185.18" local="130319256890000000" remote="131670576600000000" Dst="0" />
+<file name="quarterlyreport3.php" server="67.220.185.18" local="130367555920000000" remote="131670576600000000" Dst="0" />
+<file name="selectedMonth.php" server="67.220.185.18" local="131934412922756762" remote="131934414000000000" Dst="0" />
+<file name="sendsms_50kobo.php" server="67.220.185.18" local="131614326865579417" remote="131670576600000000" Dst="0" />
+<file name="send_all - Copy.php" server="67.220.185.18" local="131424592402078476" remote="131670576600000000" Dst="0" />
+<file name="skye.php" server="67.220.185.18" local="130298621250000000" remote="131670576600000000" Dst="0" />
+<file name="smsAlert2.php" server="67.220.185.18" local="130037895890000000" remote="131670576600000000" Dst="0" />
+<file name="send_all.php" server="67.220.185.18" local="131828782268051830" remote="131828602200000000" Dst="0" />
+<file name="test2.php" server="67.220.185.18" local="130202026350000000" remote="131670576600000000" Dst="0" />
+<file name="testsms.php" server="67.220.185.18" local="131367608186693097" remote="131670576600000000" Dst="0" />
+<file name="twoColFixLtHdr.css" server="67.220.185.18" local="130394631850000000" remote="131670576600000000" Dst="0" />
+<file name="untitled.php" server="67.220.185.18" local="130015411730000000" remote="131670576600000000" Dst="0" />
+<file name="variablestest.php" server="67.220.185.18" local="130135516200000000" remote="131670576600000000" Dst="0" />
+<file name="50kobo.js" server="cov.emmaggi.com//" local="131367583520920183" remote="132017316600000000" Dst="0" />
+<file name="50web - Copy.php" server="cov.emmaggi.com//" local="131967918589868110" remote="132017316600000000" Dst="0" />
+<file name="contact_form.css" server="cov.emmaggi.com//" local="131367588771222106" remote="132017316600000000" Dst="0" />
+<file name="50web.php" server="cov.emmaggi.com//" local="131967918590288112" remote="132017316600000000" Dst="0" />
+<file name="buffer.php" server="cov.emmaggi.com//" local="130345224260000000" remote="132017316600000000" Dst="0" />
+<file name="PHPMailerAutoload.php" server="cov.emmaggi.com//" local="130347597240000000" remote="132017316600000000" Dst="0" />
+<file name="class.pop3.php" server="cov.emmaggi.com//" local="130347597240000000" remote="132017316600000000" Dst="0" />
+<file name="class.phpmailer.php" server="cov.emmaggi.com//" local="130347597240000000" remote="132017316600000000" Dst="0" />
+<file name="class.smtp.php" server="cov.emmaggi.com//" local="130347597240000000" remote="132017316600000000" Dst="0" />
+<file name="commodity.php" server="cov.emmaggi.com//" local="130202718740000000" remote="132017316600000000" Dst="0" />
+<file name="contact.php" server="cov.emmaggi.com//" local="131424592428541072" remote="132017316600000000" Dst="0" />
+<file name="contact_form.js" server="cov.emmaggi.com//" local="131367598858122462" remote="132017316600000000" Dst="0" />
+<file name="contact_form.php" server="cov.emmaggi.com//" local="131366726465632174" remote="132017317200000000" Dst="0" />
+<file name="coop2.php" server="cov.emmaggi.com//" local="130316519490000000" remote="132017317200000000" Dst="0" />
+<file name="coop_original.php" server="cov.emmaggi.com//" local="130319375220000000" remote="132017317200000000" Dst="0" />
+<file name="Copy of smsAlert.php" server="cov.emmaggi.com//" local="130028489910000000" remote="132017317200000000" Dst="0" />
+<file name="mm_health_nutr.css" server="cov.emmaggi.com//" local="131507350223397555" remote="132017317200000000" Dst="0" />
+<file name="mm_health_photo.jpg" server="cov.emmaggi.com//" local="127698843810000000" remote="132017317200000000" Dst="0" />
+<file name="mm_spacer.gif" server="cov.emmaggi.com//" local="127698843810000000" remote="132017317200000000" Dst="0" />
+<file name="mm_dashed_line.gif" server="cov.emmaggi.com//" local="127698843810000000" remote="132017317200000000" Dst="0" />
+<file name="counter.php" server="cov.emmaggi.com//" local="130319337830000000" remote="132017317200000000" Dst="0" />
+<file name="cov.php" server="cov.emmaggi.com//" local="131967074587600141" remote="132017317200000000" Dst="0" />
+<file name="getStatus_reducing.php" server="cov.emmaggi.com//" local="131966755858361600" remote="132017317200000000" Dst="0" />
+<file name="index.php" server="cov.emmaggi.com//" local="131998958944838324" remote="132017317200000000" Dst="0" />
+<file name="sendsms.php" server="cov.emmaggi.com//" local="132017313338273708" remote="132017317200000000" Dst="0" />
+<file name="index1.php" server="cov.emmaggi.com//" local="131459694766736766" remote="132017317200000000" Dst="0" />
+<file name="index_old.php" server="cov.emmaggi.com//" local="131507370015286192" remote="132017317200000000" Dst="0" />
+<file name="mail.php" server="cov.emmaggi.com//" local="130350486850000000" remote="132017317200000000" Dst="0" />
+<file name="messagetoall.php" server="cov.emmaggi.com//" local="131424592412620887" remote="132017317200000000" Dst="0" />
+<file name="prepare_sms.php" server="cov.emmaggi.com//" local="131366713843946257" remote="132017317200000000" Dst="0" />
+<file name="progressbar.php" server="cov.emmaggi.com//" local="130319348110000000" remote="132017317200000000" Dst="0" />
+<file name="quarterlyreport.php" server="cov.emmaggi.com//" local="130367053760000000" remote="132017317200000000" Dst="0" />
+<file name="public_message.php" server="cov.emmaggi.com//" local="131424592407722819" remote="132017317200000000" Dst="0" />
+<file name="quarterlyreport2.php" server="cov.emmaggi.com//" local="130367533980000000" remote="132017317200000000" Dst="0" />
+<file name="quarterlyreport3.php" server="cov.emmaggi.com//" local="130367555920000000" remote="132017317200000000" Dst="0" />
+<file name="selectedMonth.php" server="cov.emmaggi.com//" local="132017313732987299" remote="132017317200000000" Dst="0" />
+<file name="pbar-ani.gif" server="cov.emmaggi.com//" local="130319256890000000" remote="132017317200000000" Dst="0" />
+<file name="send_all - Copy.php" server="cov.emmaggi.com//" local="131424592402078476" remote="132017317200000000" Dst="0" />
+<file name="send_all.php" server="cov.emmaggi.com//" local="131828782268051830" remote="132017317200000000" Dst="0" />
+<file name="sendsms_50kobo.php" server="cov.emmaggi.com//" local="131614326865579417" remote="132017317200000000" Dst="0" />
+<file name="sendMail.php" server="cov.emmaggi.com//" local="131998983207203894" remote="132017317200000000" Dst="0" />
+<file name="skye.php" server="cov.emmaggi.com//" local="130298621250000000" remote="132017317200000000" Dst="0" />
+<file name="test2.php" server="cov.emmaggi.com//" local="130202026350000000" remote="132017317200000000" Dst="0" />
+<file name="smsAlert2.php" server="cov.emmaggi.com//" local="130037895890000000" remote="132017317200000000" Dst="0" />
+<file name="testsms.php" server="cov.emmaggi.com//" local="131367608186693097" remote="132017317200000000" Dst="0" />
+<file name="twoColFixLtHdr.css" server="cov.emmaggi.com//" local="130394631850000000" remote="132017317200000000" Dst="0" />
+<file name="untitled.php" server="cov.emmaggi.com//" local="130015411730000000" remote="132017317200000000" Dst="0" />
+<file name="variablestest.php" server="cov.emmaggi.com//" local="130135516200000000" remote="132017317200000000" Dst="0" />
+<file name="sendsms.php" server="C:/wamp/www/OneDrive/chapel_victory_sagamu/" local="132337767403299239" remote="132337767400000000" Dst="0" />
+</dwsync>

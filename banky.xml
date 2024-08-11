@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="#"?>
+<xsl:stylesheet version="1.0"
+                xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:agnes="http://www.amdtelemedicine.com/devicexml/1.0/">
+
+
+    <!-- Output HTML doctype with text/html content-type and without XML declaration-->
+    <xsl:output method="xml" encoding="utf-8" version="" indent="yes" standalone="no" media-type="text/html" omit-xml-declaration="yes" doctype-system="about:legacy-compat" />
+
+
+    <!-- Read the children of the stylesheet itself -->
+    <xsl:template match="xsl:stylesheet">
+        <xsl:apply-templates/>
+    </xsl:template>
+
+    <!-- Output the HTML markup-->
+    <xsl:template match="/">
+        <html>
+            <head>
+                <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+            </head>
+            <body>
+                <h2>Vital Signs</h2>
+                <table style="border: 1px solid black; border-collapse: collapse;">
+                    <tr><th>Vital</th><th>Value</th></tr>
+                    <xsl:apply-templates />
+                </table>
+            </body>
+        </html>
+    </xsl:template>
+
+    <!-- Don't reprint text nodes within the xsl:stylesheet node -->
+    <xsl:template match="text()"/>
+
+    <!-- Read non-namespaced nodes within the xsl:stylesheet node -->
+    <xsl:template match="//agnes:AgnesDevices">
+        <xsl:for-each select="//agnes:Device">
+            <tr>
+                <td style="border: 1px solid black; width: 250px;"><xsl:value-of select="agnes:Description"/></td>
+                <td style="border: 1px solid black; width: 100px;"><xsl:value-of select="agnes:displayValue"/>&#160;<xsl:value-of select="agnes:displayUnits"/></td>
+            </tr>
+        </xsl:for-each>
+        <xsl:apply-templates/>
+    </xsl:template>
+
+    <AgnesDevices xmlns="http://www.amdtelemedicine.com/devicexml/1.0/">
+       <Device>
+			<Description>SpO2</Description>
+			<DeviceName>spo2</DeviceName>
+			<units>%</units>
+			<displayUnits>%</displayUnits>
+			<value>0</value>
+			<displayValue>0</displayValue>
+	   </Device>
+	  <Device>
+			<Description>Pulse</Description>
+			<DeviceName>pulse</DeviceName>
+			<units>bpm</units>
+			<displayUnits>bpm</displayUnits>
+			<value>0</value>
+			<displayValue>0</displayValue>
+	    </Device>
+	    <Device>
+			 <Description>Blood Pressure</Description>
+			 <DeviceName>bloodpressure</DeviceName>
+			 <units>mmHg</units>
+			 <displayUnits>mmHg</displayUnits>
+			 <value>94/65</value>
+			 <displayValue>94/65</displayValue>
+		</Device>
+		<Device>
+			<Description>Temperature</Description>
+			<DeviceName>temperature</DeviceName>
+			<units>Celsius</units>
+			<displayUnits>Celsius</displayUnits>
+			<value>0</value>
+			<displayValue>0</displayValue>
+		</Device>
+		<Device>
+			<Description>Height</Description>
+			<DeviceName>height</DeviceName>
+			<units>cm</units>
+			<displayUnits>cm</displayUnits>
+			<value>65</value>
+			<displayValue>65</displayValue>
+		</Device>
+		<Device>
+			<Description>Weight</Description>
+			<DeviceName>weight</DeviceName>
+			<units>kg</units>
+			<displayUnits>kg</displayUnits>
+			<value>70</value>
+			<displayValue>70</displayValue>
+		</Device>
+    </AgnesDevices>
+
+    <AgnesDevicesText xmlns="http://www.amdtelemedicine.com/devicexml/1.0/">
+        <![CDATA[
+SpO2: 0 %
+Pulse: 0 bpm
+Blood Pressure: 94/65 mmHg
+Temperature: 0 Celsius
+Height: 65 cm
+Weight: 70 kg
+
+       ]]>
+    </AgnesDevicesText>
+    <AgnesDevicesJson xmlns="http://www.amdtelemedicine.com/devicexml/1.0/">
+        <![CDATA[
+{"spo2":{"name":"spo2","description":"SpO2","units":"%","displayUnits":"%","value":"0","displayValue":"0"},"pulse":{"name":"pulse","description":"Pulse","units":"bpm","displayUnits":"bpm","value":"0","displayValue":"0"},"bloodpressure":{"name":"bloodpressure","description":"Blood Pressure","units":"mmHg","displayUnits":"mmHg","value":"94/65","displayValue":"94/65"},"temperature":{"name":"temperature","description":"Temperature","units":"Celsius","displayUnits":"Celsius","value":"0","displayValue":"0"},"height":{"name":"height","description":"Height","units":"cm","displayUnits":"cm","value":"65","displayValue":"65"},"weight":{"name":"weight","description":"Weight","units":"kg","displayUnits":"kg","value":"70","displayValue":"70"}}
+       ]]>
+    </AgnesDevicesJson>
+
+
+</xsl:stylesheet>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<dwsync>
+<file name=".gitignore" server="cov.emmaggi.com//" local="130541796289850504" remote="132017315400000000" Dst="0" />
+<file name=".travis.yml" server="cov.emmaggi.com//" local="130541796294860791" remote="132017315400000000" Dst="0" />
+<file name=".scrutinizer.yml" server="cov.emmaggi.com//" local="130541796292510657" remote="132017315400000000" Dst="0" />
+<file name="changelog.md" server="cov.emmaggi.com//" local="130541796324092463" remote="132017315400000000" Dst="0" />
+<file name="class.pop3.php" server="cov.emmaggi.com//" local="130541794526969673" remote="132017315400000000" Dst="0" />
+<file name="class.smtp.php" server="cov.emmaggi.com//" local="130541794657857160" remote="132017315400000000" Dst="0" />
+<file name="class.phpmailer.php" server="cov.emmaggi.com//" local="130541796326652609" remote="132017315400000000" Dst="0" />
+<file name="composer.json" server="cov.emmaggi.com//" local="130541794664027513" remote="132017315400000000" Dst="0" />
+<file name="PHPMailerAutoload.php" server="cov.emmaggi.com//" local="130541796300091090" remote="132017315400000000" Dst="0" />
+<file name="LICENSE" server="cov.emmaggi.com//" local="130541796297850962" remote="132017316600000000" Dst="0" />
+<file name="README.md" server="cov.emmaggi.com//" local="130541796302941253" remote="132017316600000000" Dst="0" />
+<file name="travis.phpunit.xml.dist" server="cov.emmaggi.com//" local="130541794667277699" remote="132017316600000000" Dst="0" />
+</dwsync>

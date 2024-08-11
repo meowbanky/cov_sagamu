@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="ad6ea151-e8b3-46f4-93ec-7eb5a4f47212" name="cov_admin" url="http://emmaggi.com/cov">
+        <fileTransfer rootFolder="/home/emmaggic/public_html/cov" accessType="SFTP" host="ftp.emmaggi.com" port="22" sshConfigId="af124cad-c4ed-40ba-9bd1-0103d488de16" sshConfig="cov_admin">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
