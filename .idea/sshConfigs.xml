@@ -2,8 +2,8 @@
 <project version="4">
   <component name="SshConfigs">
     <configs>
-      <sshConfig authType="PASSWORD" host="ftp.emmaggi.com" id="af124cad-c4ed-40ba-9bd1-0103d488de16" port="22" customName="cov_admin" nameFormat="CUSTOM" username="emmaggic" useOpenSSHConfig="true">
-        <option name="customName" value="cov_admin" />
+      <sshConfig authType="PASSWORD" host="ftp.emmaggi.com" id="e2b97ef4-904a-431e-97fc-76b0a31326b9" port="22" customName="emmaggi_cov" nameFormat="CUSTOM" username="emmaggic" useOpenSSHConfig="true">
+        <option name="customName" value="emmaggi_cov" />
       </sshConfig>
     </configs>
   </component>

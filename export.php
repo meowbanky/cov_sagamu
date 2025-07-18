@@ -3,9 +3,16 @@ require 'vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $tableHtml = $_POST['html'];
+    if(isset($_POST['email']) && $_POST['email'] != ''){
+        $email = $_POST['email'];
+        $filename = $_POST['filename'];
+    }
+
 
     // Create a new Spreadsheet object
     $spreadsheet = new Spreadsheet();
@@ -38,14 +45,46 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $fileName = tempnam(sys_get_temp_dir(), 'xlsx');
     $writer->save($fileName);
 
-    // Return the file as a response
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment;filename="export.xlsx"');
-    header('Cache-Control: max-age=0');
-    readfile($fileName);
 
-    // Remove the temporary file
-    unlink($fileName);
+    // Prepare to send the file as an email attachment
+    $mail = new PHPMailer(true);
+    try {
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host = 'mail.emmaggi.com' ; //$_ENV['SMTP_HOST'];  // Set the SMTP server to send through
+        $mail->SMTPAuth = true;
+        $mail->Username = 'cov@emmaggi.com' ; //$_ENV['SMTP_USER'];  // SMTP username
+        $mail->Password = 'Banzoo@7980'; // $_ENV['SMTP_PASS'];  // SMTP password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = '587'; // $_ENV['SMTP_PORT'];
+
+        // Recipients
+        $mail->setFrom('cov@emmaggi.com', 'VCMS');
+        $mail->addAddress($email, '');
+
+        // Attachments
+        $mail->addAttachment($fileName, $filename.'.xlsx');  // Add attachments
+
+        // Content
+        $mail->isHTML(true);  // Set email format to HTML
+        $mail->Subject = 'Master Transaction';
+        $mail->Body    = 'Master Transaction file '.$filename.' excel file is attached';
+
+        $mail->send();
+//        echo 'Message has been sent';
+
+        // Return the file as a response
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="export.xlsx"');
+        header('Cache-Control: max-age=0');
+        readfile($fileName);
+
+        // Remove the temporary file
+        unlink($fileName);
+
+    } catch (Exception $e) {
+        echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+    }
     exit;
 }
 ?>

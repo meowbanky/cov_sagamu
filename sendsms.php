@@ -282,21 +282,6 @@ $totalRows_title = mysqli_num_rows($title);
                 }while ($row_oneSignal = mysqli_fetch_assoc($result_oneSignal));
             }
 
-#Uncomment the next line and comment the one above if you want to use HTTP POST with XML
-    //$result = useXML($xml_url, $username, $apikey, $flash, $sendername, $message, $recipients);
-
-	
-//doSendMessage($recipients = $row_coopid2['MobilePhone'], $message = 'Your NASUWEL ACCT. BAL., MONTHLY CONTR. : '.number_format($row_getContriubtion['contri_input'],2,'.',','). ' WELFARE SAVINGS: '.number_format($row_coopid2['Contribution'],2,'.',','). ' LOAN BAL: '.number_format($row_coopid2['Loanbalance'],2,'.',',').'  AS AT: '. $row_payperiod['PayrollPeriod']);
-
-
-// Javascript for updating the progress bar and information
-//   echo '<script language="javascript">
-//         document.getElementById("progress").innerHTML="<div style=\"width:'.$percent.';background-color:#ddd; //background-image:url(pbar-ani.gif)\">&nbsp;</div>";
-//    document.getElementById("information").innerHTML="'.$i.' row(s) processed.";
-//    </script>';
-
-    
-// This is for the buffer achieve the minimum size in order to flush data
     echo str_repeat(' ',1024*64);
 
     
@@ -305,30 +290,16 @@ $totalRows_title = mysqli_num_rows($title);
     flush();
 
     
-// Sleep one second so we can see the delay
-    //sleep(1);
-	
 
-//echo $i . "  messages sent <br>" ;
-      
-//	   if ($result == 'SUCCESS') {
- //     echo "SMS Sent to :- " . $row_coopid2['MobilePhone'] . "<br>" ;
-//	  echo $percent;
-// }else {echo $result; echo 'error';}
-	  
-	  //echo "SMS Sent to :- " . $row_coopid2['MobilePhone'] . "<br>" ;
 	  ob_start();
-//}  
+
 $i++;
 
 //} while ($row_masterTransaction = mysqli_fetch_assoc($masterTransaction)); 
  } while ($row_coopid2 = mysqli_fetch_assoc($coopid2)); 
-// echo $result;
-// echo '<script language="javascript">document.getElementById("information").innerHTML="Process completed"</script>';
 
 }
  
-//}
-// Tell user that the process is completed
+
 
 }

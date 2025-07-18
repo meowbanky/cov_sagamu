@@ -107,9 +107,9 @@ $totalRows_compare = mysqli_num_rows($compare);
                 <td><?php echo $i; ?></td>
                 <td height="35"><?php echo $row_compare['membersid']; ?></td>
                 <td colspan="5"><?php echo $row_compare['namee']; ?></td>
-                <td align="right"><?php echo number_format($row_loanBalance['balance'], 2); ?></td>
-                <td align="right"><?php echo number_format($row_compare['contribu'], 2); ?></td>
-                <td align="right"><?php echo number_format($row_compare['special_savings'], 2); ?></td>
+                <td align="right"><?php echo number_format($row_loanBalance['balance'] ?? 0, 2); ?></td>
+                <td align="right"><?php echo number_format($row_compare['contribu'] ?? 0, 2); ?></td>
+                <td align="right"><?php echo number_format($row_compare['special_savings'] ?? 0, 2); ?></td>
                 <td align="center"><?php if ($row_compare['pay_method'] == 0) { ?><a href="editContributions.php?deleteid=<?php echo $row_compare['contriId'] ?>">Delete</a><?php } ?></td>
                 <td align="right"><?php echo $row_compare['PayrollPeriod']; ?></td>
             </tr>

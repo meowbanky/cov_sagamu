@@ -1,7 +1,19 @@
-<?php require_once('Connections/cov.php'); 
-require_once('sendmail.php'); 
-require_once('sendsms.php'); 
+<?php global $cov;
+require_once('Connections/cov.php');
+//require_once('sendmail.php');
+//require_once('sendsms.php');
 
+require_once('Connections/cov.php');
+require_once __DIR__ . '/libs/services/NotificationService.php';
+
+use App\Services\NotificationService;
+
+// Initialize notification service
+try {
+    $notificationService = new NotificationService($cov);
+} catch (Exception $e) {
+    error_log("Failed to initialize notification service: " . $e->getMessage());
+}
 
 if (isset($_GET['equality'])){
 $equality = $_GET['equality'];} 
@@ -22,8 +34,17 @@ do{
 
 echo $row_member['memberid'].'<Br>';
 
-sendmail($row_member['memberid'],$period);
-sendsms($row_member['memberid'],$period);
+
+        try {
+            $notificationService = new NotificationService($cov);
+            $notificationService->sendTransactionNotification(
+                $row_member['memberid'],
+                $period
+            );
+        } catch (Exception $e) {
+            error_log("Failed to send notification: " . $e->getMessage());
+        }
+
 
 } while ($row_member = mysqli_fetch_assoc($member)); 
 

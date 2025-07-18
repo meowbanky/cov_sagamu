@@ -59,7 +59,7 @@ FROM
 tlb_mastertransaction
 INNER JOIN tbl_personalinfo ON tbl_personalinfo.memberid = tlb_mastertransaction.memberid
 LEFT JOIN tblaccountno ON tblaccountno.COOPNO = tbl_personalinfo.memberid
-left JOIN tblbankcode ON tblbankcode.bankcode = tblaccountno.bankcode
+left JOIN tblbankcode ON tblbankcode.bankcode = tblaccountno.bank_code
 WHERE periodid <= %s  and status = 'Active' GROUP BY tlb_mastertransaction.memberid", 
 GetSQLValueString($cov,$percentage, "double"),GetSQLValueString($cov,$period, "int"));	
 	

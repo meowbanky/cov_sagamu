@@ -1,6 +1,21 @@
-<?php require_once('Connections/cov.php');
-require_once('sendmail.php');
-require_once('sendsms.php');
+<?php
+session_start();
+$sessionId = session_id();
+$progressFile = __DIR__ . "/progress_$sessionId.json";
+
+global $cov;
+require_once('Connections/cov.php');
+
+require_once __DIR__ . '/libs/services/NotificationService.php';
+
+use App\Services\NotificationService;
+
+// Initialize notification service
+try {
+    $notificationService = new NotificationService($cov);
+} catch (Exception $e) {
+    error_log("Failed to initialize notification service: " . $e->getMessage());
+}
 ?>
 <?php
 if (!function_exists("GetSQLValueString")) {
@@ -64,6 +79,11 @@ $totalRows_entrySettings  = mysqli_num_rows($entrySettings);
 
 $entryFees = (int)($row_entrySettings['value']);
 
+// session_start();
+// $progressFile = __DIR__ . '/progress_' . session_id() . '.json';
+
+
+
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -102,6 +122,12 @@ $entryFees = (int)($row_entrySettings['value']);
 	$row_member = mysqli_fetch_assoc($member);
 	$totalRows_member = mysqli_num_rows($member);
 
+		file_put_contents($progressFile, json_encode([
+			"percent" => "0%",
+			"current" => 0,
+			"total" => $totalRows_member,
+			"message" => "Initializing..."
+		]));
 
 	if (($totalRows_member > 0)) {
 		$i = 1;
@@ -115,6 +141,9 @@ $entryFees = (int)($row_entrySettings['value']);
 			//for( $i=0; $i <= $total; $i++ ){
 			// Calculate the percentation
 			$percent = intval($i / $total * 100) . "%";
+
+			$loans_early = [];
+        	$loans_late = [];
 
 			mysqli_select_db($cov, $database_cov);
 			$balancesSQL = sprintf("SELECT tbl_personalinfo.memberid, concat(tbl_personalinfo.Lname,' , ', tbl_personalinfo.Fname,' ', ifnull( tbl_personalinfo.Mname,'')) AS namess, IFNULL((sum(tlb_mastertransaction.loanAmount)),0) AS Loan, IFNULL(((sum(tlb_mastertransaction.loanAmount))- sum(tlb_mastertransaction.loanRepayment)),0) AS Loanbalance, IFNULL((sum(tlb_mastertransaction.interest)-sum(tlb_mastertransaction.interestPaid)),0) as interestBalance
@@ -215,7 +244,49 @@ $entryFees = (int)($row_entrySettings['value']);
 
 
 			if ($totalRows_completed > 0) {
+
+				file_put_contents($progressFile, json_encode([
+					'percent' => $percent,
+					'current' => $i,
+					'total' => $totalRows_member,
+					'message' => "{$row_member['memberid']} already processed. Skipping..."
+				]));
+				continue;
 			} else {
+
+				$query_Batch = sprintf(
+					"SELECT tbl_loan.loanamount, tbl_loan.loanid, tbl_loan.periodid, tbl_loan.memberid, tbl_loan.loan_date
+					 FROM tbl_loan 
+					 WHERE tbl_loan.memberid = %s AND periodid = %s",
+					GetSQLValueString($cov, $row_member['memberid'], "text"),
+					GetSQLValueString($cov, $_GET["PeriodID"], "int")
+				);
+				$Batch = mysqli_query($cov, $query_Batch) or die(mysqli_error($cov));
+				while ($row_Batch = mysqli_fetch_assoc($Batch)) {
+					$loanDay = intval(date('d', strtotime($row_Batch['loan_date'])));
+					if ($loanDay <= 20) {
+						$loans_early[] = $row_Batch;
+					} else {
+						$loans_late[] = $row_Batch;
+					}
+				}
+				mysqli_free_result($Batch);
+
+				if (count($loans_early) > 0) {
+					$total_early_loan = 0;
+					foreach ($loans_early as $loan) {
+						
+						$insertSQL_MasterTransaction = sprintf(
+						"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid,loanAmount) VALUES (%s, %s, %s, %s)",
+						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+						GetSQLValueString($cov, $row_member['memberid'], "text"),
+						GetSQLValueString($cov, $loans_early[0]['loanid'], "int"),
+						GetSQLValueString($cov, doubleval($loan['loanamount']), "double")
+					);
+
+					}
+				}
+
                 if ($totalRows_deductions > 0) {
                     if ($row_deductions['special_savings'] > 0) {
                         $insertSQLspecialSaving = sprintf(
@@ -307,33 +378,32 @@ $entryFees = (int)($row_entrySettings['value']);
 					mysqli_select_db($cov, $database_cov);
 					$Result1 = mysqli_query($cov, $shareSavings) or die(mysqli_error($cov));
 				}
-				mysqli_select_db($cov, $database_cov);
-				$query_Batch = sprintf("SELECT (tbl_loan.loanamount) as loanamount, tbl_loan.loanid, tbl_loan.periodid, tbl_loan.memberid FROM tbl_loan WHERE tbl_loan.memberid= %s and periodid = %s", GetSQLValueString($cov, $row_member['memberid'], "text"), GetSQLValueString($cov, $_GET["PeriodID"], "int"));
-				$Batch = mysqli_query($cov, $query_Batch) or die(mysqli_error($cov));
-				$row_Batch = mysqli_fetch_assoc($Batch);
-				$totalRows_Batch = mysqli_num_rows($Batch);
+				
+				
 
-				if ($totalRows_Batch > 0) {
-
-					$insertSQL_MasterTransaction = sprintf(
-						"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid,loanAmount) VALUES (%s, %s, %s, %s)",
+				foreach ($loans_late as $loan) {
+					$insertSQL_LateLoan = sprintf(
+						"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid, loanAmount) VALUES (%s, %s, %s, %s)",
 						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
 						GetSQLValueString($cov, $row_member['memberid'], "text"),
-						GetSQLValueString($cov, $row_Batch['loanid'], "int"),
-						GetSQLValueString($cov, doubleval($row_Batch['loanamount']), "double")
+						GetSQLValueString($cov, $loan['loanid'], "int"),
+						GetSQLValueString($cov, doubleval($loan['loanamount']), "double")
 					);
-					//GetSQLValueString($cov,$_POST['txtInterest'], "double"));
-
 					mysqli_select_db($cov, $database_cov);
-					$Result1 = mysqli_query($cov, $insertSQL_MasterTransaction) or die(mysqli_error($cov));
+					mysqli_query($cov, $insertSQL_LateLoan) or die(mysqli_error($cov));
 				}
 
-				if (isset($_GET['sms'])) {
-					if ($_GET['sms'] == 1) {
-						sendmail($row_member['memberid'], $_GET["PeriodID"]);
-						sendsms($row_member['memberid'], $_GET["PeriodID"]);
-					}
-				}
+                if (isset($_GET['sms']) && $_GET['sms'] == 1) {
+                    try {
+                        $notificationService = new NotificationService($cov);
+                        $notificationService->sendTransactionNotification(
+                            $row_member['memberid'],
+                            $_GET["PeriodID"]
+                        );
+                    } catch (Exception $e) {
+                        error_log("Failed to send notification: " . $e->getMessage());
+                    }
+                }
 			}
 
 
@@ -359,8 +429,26 @@ $entryFees = (int)($row_entrySettings['value']);
 
 			ob_start();
 			//  sleep(3);
+
+			// Write progress to JSON file for AJAX polling
+			file_put_contents($progressFile, json_encode([
+				'percent' => $percent,
+				'current' => $i,
+				'total' => $totalRows_member,
+				'message' => "Processing member: {$row_member['memberid']}"
+			]));
+			// Increment the counter		
 			$i++;
 		} while ($row_member = mysqli_fetch_assoc($member));
+
+		file_put_contents($progressFile, json_encode([
+			'percent' => '100%',
+			'current' => $totalRows_member,
+			'total' => $totalRows_member,
+			'message' => 'Process completed.',
+			'done' => true
+		]));
+		
 		echo '<script language="javascript">document.getElementById("information").innerHTML="Process completed"</script>';
 		echo '<script language="javascript">setTimeout(function (){window.location.href = \'mastertransaction.php\';}, 5000);</script>';
 	}

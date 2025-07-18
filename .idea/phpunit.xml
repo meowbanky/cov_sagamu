@@ -3,10 +3,7 @@
   <component name="PHPUnit">
     <option name="directories">
       <list>
-        <option value="$PROJECT_DIR$/AlertSystem/PhpMailer/tests" />
-        <option value="$PROJECT_DIR$/cov_update/mail/phpmailer/tests" />
-        <option value="$PROJECT_DIR$/mail/phpmailer/tests" />
-        <option value="$PROJECT_DIR$/adminer/tests" />
+        <option value="$PROJECT_DIR$/onesignal/vendor/maennchen/zipstream-php/test" />
       </list>
     </option>
   </component>

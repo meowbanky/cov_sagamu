@@ -1,165 +1,104 @@
-<?php require_once('Connections/cov.php'); ?>
 <?php
-if (!function_exists("GetSQLValueString")) {
-function GetSQLValueString($conn_vote, $theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "") 
-    {
-     
-      $theValue = function_exists("mysqli_real_escape_string") ? mysqli_real_escape_string($conn_vote, $theValue) : mysqli_escape_string($conn_vote, $theValue);
+require_once('Connections/cov.php');
+mysqli_select_db($cov, $database_cov);
 
-      switch ($theType) {
-        case "text":
-          $theValue = ($theValue != "") ? "'" . $theValue . "'" : "NULL";
-          break;    
-        case "long":
-        case "int":
-          $theValue = ($theValue != "") ? intval($theValue) : "NULL";
-          break;
-        case "double":
-          $theValue = ($theValue != "") ? "'" . doubleval($theValue) . "'" : "NULL";
-          break;
-        case "date":
-          $theValue = ($theValue != "") ? "'" . $theValue . "'" : "NULL";
-          break;
-        case "defined":
-          $theValue = ($theValue != "") ? $theDefinedValue : $theNotDefinedValue;
-          break;
-      }
-      return $theValue;
-    }
-   
+// Get member id and period from query string
+$col_status = isset($_GET['id']) ? $_GET['id'] : "-1";
+$col_period = isset($_GET['period']) ? $_GET['period'] : "-1";
+
+// Validate inputs
+$col_status = preg_replace('/\D/', '', $col_status); // Only numbers
+$col_period = preg_replace('/\D/', '', $col_period); // Only numbers
+
+// Prepare query (status)
+$query = "
+SELECT
+    pi.memberid,
+    CONCAT(pi.Lname,' , ', pi.Fname,' ', IFNULL(pi.Mname,'')) AS namess,
+    IFNULL(SUM(mt.loanAmount),0) AS loan,
+    IFNULL(SUM(mt.loanRepayment),0) AS loanrepayments,
+    IFNULL(SUM(mt.withdrawal),0) AS withdrawals,
+    (
+        IFNULL(SUM(mt.loanRepayment),0) +
+        IFNULL(SUM(mt.entryFee),0) +
+        IFNULL(SUM(mt.savings),0) +
+        IFNULL(SUM(mt.shares),0) +
+        IFNULL(SUM(mt.interestPaid),0)
+    ) AS total,
+    pp.PayrollPeriod,
+    (IFNULL(SUM(mt.loanAmount),0) - IFNULL(SUM(mt.loanRepayment),0)) AS loanBalance,
+    IFNULL(SUM(mt.entryFee),0) AS entryFee,
+    IFNULL(SUM(mt.savings),0) AS savings,
+    IFNULL(SUM(mt.shares),0) AS shares,
+    IFNULL(SUM(mt.interestPaid),0) AS interestPaid,
+    IFNULL(SUM(mt.interest),0) AS interest
+FROM tbl_personalinfo pi
+INNER JOIN tlb_mastertransaction mt ON pi.memberid = mt.memberid
+INNER JOIN tbpayrollperiods pp ON pp.Periodid = mt.periodid
+LEFT JOIN tbl_refund tr ON tr.membersid = pi.memberid AND tr.periodid = pp.Periodid
+WHERE pi.memberid = ? AND mt.periodid <= ?
+GROUP BY pi.memberid
+LIMIT 1
+";
+
+// Prepare and execute
+$stmt = $cov->prepare($query);
+$stmt->bind_param("ii", $col_status, $col_period);
+$stmt->execute();
+$result = $stmt->get_result();
+$row_status = $result->fetch_assoc();
+
+// Get Payroll Period string
+$periodLabel = '';
+if ($col_period && $col_period > 0) {
+    $stmt2 = $cov->prepare("SELECT PayrollPeriod FROM tbpayrollperiods WHERE Periodid = ?");
+    $stmt2->bind_param("i", $col_period);
+    $stmt2->execute();
+    $res2 = $stmt2->get_result();
+    $periodLabel = ($periodRow = $res2->fetch_assoc()) ? $periodRow['PayrollPeriod'] : '';
+    $stmt2->close();
 }
 
-$col_status = "-1";
-if (isset($_GET['id'])) {
-  $col_status = $_GET['id'];
+// Field function for pretty card display
+function field($label, $value, $align='right', $currency=false) {
+    $formatted = $currency ? number_format(floatval($value),2,'.',',') : htmlspecialchars($value ?? '-');
+    return "
+    <div class='flex justify-between items-center py-2 border-b last:border-b-0'>
+        <div class='text-gray-500 font-medium'>$label</div>
+        <div class='text-gray-900 font-bold text-$align'>" . ($currency ? '₦ ' : '') . "$formatted</div>
+    </div>";
 }
-
-$col_period = "-1";
-if (isset($_GET['period'])) {
-  $col_period = $_GET['period'];
-}
-
-//mysql_select_db($database_cov, $cov);
-//$query_status = sprintf("SELECT tbl_personalinfo.patientid, concat(tbl_personalinfo.Lname,' , ', tbl_personalinfo.Fname,' ', ifnull( tbl_personalinfo.Mname,'')) as namess, (sum(tlb_mastertransaction.Contribution)+sum(tlb_mastertransaction.withdrawal)) as Contribution, (sum(tlb_mastertransaction.loanAmount)+ sum(tlb_mastertransaction.interest)) as Loan, ((sum(tlb_mastertransaction.loanAmount)+ sum(tlb_mastertransaction.interest))- (sum(tlb_mastertransaction.loanRepayment)+ifnull(sum(tlb_mastertransaction.repayment_bank),0))) as Loanbalance, sum(tlb_mastertransaction.withdrawal) as withdrawal FROM tlb_mastertransaction INNER JOIN tbl_personalinfo ON tbl_personalinfo.patientid = tlb_mastertransaction.memberid where patientid = %s AND tlb_mastertransaction.periodid <= %s GROUP BY patientid", GetSQLValueString($col_status, "text"),GetSQLValueString($col_period, "int"));
-//$status = mysql_query($query_status, $cov) or die(mysql_error());
-//$row_status = mysql_fetch_assoc($status);
-//$totalRows_status = mysql_num_rows($status);
-
-
-mysqli_select_db($cov,$database_cov);
-$query_status = sprintf("SELECT
-tbl_personalinfo.memberid,
-tlb_mastertransaction.transactionid,
-concat(tbl_personalinfo.Lname,' , ', tbl_personalinfo.Fname,' ', ifnull( tbl_personalinfo.Mname,'')) AS namess,
-ifnull((Sum(tlb_mastertransaction.loanAmount)),0) AS loan,
-ifnull(Sum(tlb_mastertransaction.loanRepayment),0) AS loanrepayments,
-ifnull(Sum(tlb_mastertransaction.withdrawal),0) AS withrawals,
-((ifnull(Sum(tlb_mastertransaction.loanRepayment),0)+ifnull(sum(tlb_mastertransaction.entryFee),0)+ifnull(sum(tlb_mastertransaction.savings),0)+
-ifnull(sum(tlb_mastertransaction.shares),0)+ifnull(sum(tlb_mastertransaction.interestPaid),0))) AS total,
-tbpayrollperiods.PayrollPeriod,(ifnull((Sum(tlb_mastertransaction.loanAmount)),0) - ifnull(Sum(tlb_mastertransaction.loanRepayment),0)) as loanBalance,
-tlb_mastertransaction.periodid,
-ifnull(sum(tlb_mastertransaction.entryFee),0) as entryFee,
-ifnull(sum(tlb_mastertransaction.savings),0) as savings,
-ifnull(sum(tlb_mastertransaction.shares),0) as shares,
-ifnull(sum(tlb_mastertransaction.interestPaid),0) as interestPaid,ifnull(sum(tlb_mastertransaction.interest),0) as interest
-FROM
-tbl_personalinfo
-INNER JOIN tlb_mastertransaction ON tbl_personalinfo.memberid = tlb_mastertransaction.memberid
-INNER JOIN tbpayrollperiods ON tbpayrollperiods.Periodid = tlb_mastertransaction.periodid
-LEFT JOIN tbl_refund ON tbl_refund.membersid = tbl_personalinfo.memberid AND tbl_refund.periodid = tbpayrollperiods.Periodid
-where tbl_personalinfo.memberid = %s AND tlb_mastertransaction.periodid <= %s GROUP BY memberid", GetSQLValueString($cov,$col_status, "text"),GetSQLValueString($cov,$col_period, "int"));
-$status = mysqli_query($cov,$query_status) or die(mysql_error());
-$row_status = mysqli_fetch_assoc($status);
-$totalRows_status = mysqli_num_rows($status);
-
-$query_totalsum = sprintf("SELECT
-tbl_personalinfo.memberid,
-tlb_mastertransaction.transactionid,
-concat(tbl_personalinfo.Lname,' , ', tbl_personalinfo.Fname,' ', ifnull( tbl_personalinfo.Mname,'')) AS namess,
-ifnull((Sum(tlb_mastertransaction.loanAmount)),0) AS loan,
-ifnull(Sum(tlb_mastertransaction.loanRepayment),0) AS loanrepayments,
-ifnull(Sum(tlb_mastertransaction.withdrawal),0) AS withrawals,
-((ifnull(Sum(tlb_mastertransaction.loanRepayment),0)+ifnull(sum(tlb_mastertransaction.entryFee),0)+ifnull(sum(tlb_mastertransaction.savings),0)+
-ifnull(sum(tlb_mastertransaction.shares),0)+ifnull(sum(tlb_mastertransaction.interestPaid),0))) AS total,
-tbpayrollperiods.PayrollPeriod,
-tlb_mastertransaction.periodid,
-ifnull(sum(tlb_mastertransaction.entryFee),0) as entryFee,
-ifnull(sum(tlb_mastertransaction.savings),0) as savings,
-ifnull(sum(tlb_mastertransaction.shares),0) as shares,
-ifnull(sum(tlb_mastertransaction.interestPaid),0) as interestPaid,ifnull(sum(tlb_mastertransaction.interest),0) as interest
-FROM
-tbl_personalinfo
-INNER JOIN tlb_mastertransaction ON tbl_personalinfo.memberid = tlb_mastertransaction.memberid
-INNER JOIN tbpayrollperiods ON tbpayrollperiods.Periodid = tlb_mastertransaction.periodid
-LEFT JOIN tbl_refund ON tbl_refund.membersid = tbl_personalinfo.memberid AND tbl_refund.periodid = tbpayrollperiods.Periodid
-where tbl_personalinfo.memberid = %s AND tlb_mastertransaction.periodid <= %s GROUP BY memberid", GetSQLValueString($cov,$col_status, "text"),GetSQLValueString($cov,$col_period, "int"));
-
-$totalsum = mysqli_query($cov,$query_totalsum) or die(mysql_error());
-$row_totalsum = mysqli_fetch_assoc($totalsum);
-$totalRows_totalsum = mysqli_num_rows($totalsum);
-
-
-mysqli_select_db($cov,$database_cov);
-$query_period = sprintf("SELECT tbpayrollperiods.PayrollPeriod, tbpayrollperiods.Periodid FROM tbpayrollperiods WHERE Periodid = %s",GetSQLValueString($cov,$col_period, "int"));
-$period = mysqli_query($cov,$query_period) or die(mysql_error());
-$row_period = mysqli_fetch_assoc($period);
-$totalRows_period = mysqli_num_rows($period);
-
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>Untitled Document</title>
-</head>
 
-<body><table width="100%" border="1" cellpadding="1" cellspacing="0" class="greyBgdHeader">
-                                 <tr class="table_header_new">
-                                   <th width="37%" scope="col"><strong>Member's Id</strong></th>
-                                   <th width="25%" scope="col">Period</th>
-                                   <th width="25%" scope="col">Name</th>
-                                   <th width="25%" scope="col">Savings</th>
-                                   <th width="25%" scope="col">Shares</th>
-                                   <th width="25%" scope="col">Withdrawal</th>
-                                   <th width="25%" scope="col">Loan</th>
-                                   <th width="25%" scope="col">Loan Repayment</th>
-                                   <th width="25%" scope="col">Loan Balance</th>
-                                   <th width="25%" scope="col">Interest</th>
-                                   <th width="25%" scope="col">Interest Paid</th>
-                                   <th width="25%" scope="col">Unpaid Interest</th>
-                                   </tr>
-                                <?php if($totalRows_status > 0 ) { do { ?>   <tr>
-                                  <th align="left" scope="col"><?php echo $row_status['memberid']; ?></th>
-                                   <th align="left" scope="col"><?php echo $row_period['PayrollPeriod']; ?></th>
-                                   <th align="left" scope="col"><?php echo $row_status['namess']; ?></th>
-                                   <th align="right" scope="col"><?php echo number_format($row_status['savings'] ,2,'.',','); ?></th>
-                                   <th align="right" scope="col"><?php echo number_format($row_status['shares'] ,2,'.',','); ?></th>
-                                   <th align="right" scope="col"><?php echo number_format($row_status['withrawals'] ,2,'.',','); ?></th>
-                                   <th align="right" scope="col"><?php echo number_format($row_status['loan'] ,2,'.',','); ?></th>
-                                   <th align="right" scope="col"><?php echo number_format($row_status['loanrepayments'] ,2,'.',','); ?></th>
-                                   <th align="right" scope="col"><?php echo number_format($row_status['loanBalance'] ,2,'.',','); ?></th>
-                                   <th align="right" scope="col"><?php echo number_format($row_status['interest'],2,'.',','); ?></th>
-                                   <th align="right" scope="col"><?php echo number_format($row_status['interestPaid'] ,2,'.',','); ?></th>
-                                   <th align="right" scope="col"><?php echo number_format(($row_status['interest'])-($row_status['interestPaid']),2); ?></th>
-                                   </tr> <?php } while ($row_status = mysqli_fetch_assoc($status));} ?>
-                                    <tr>
-                                      <th align="left" scope="col">Total</th>
-                                      <th align="left" scope="col">&nbsp;</th>
-                                      <th align="left" scope="col">&nbsp;</th>
-                                      <th align="right" scope="col"><?php echo number_format($row_totalsum['savings'] ,2,'.',','); ?></th>
-                                      <th align="right" scope="col"><?php echo number_format($row_totalsum['shares'] ,2,'.',','); ?></th>
-                                      <th align="right" scope="col">&nbsp;</th>
-                                      <th align="right" scope="col"><?php echo number_format($row_totalsum['loan'] ,2,'.',','); ?></th>
-                                      <th align="right" scope="col"><?php echo number_format($row_totalsum['loanrepayments'] ,2,'.',','); ?></th>
-                                      <th align="right" scope="col">&nbsp;</th>
-                                      <th align="right" scope="col"><?php echo number_format($row_totalsum['interest'],2,'.',','); ?></th>
-                                      <th align="right" scope="col"><?php echo number_format($row_totalsum['interestPaid'],2,'.',','); ?></th>
-                                      <th align="right" scope="col"><?php echo number_format(($row_totalsum['interest'])-($row_totalsum['interestPaid']),2); ?></th>
-                                    </tr> 
-                                 
-                               </table>
-</body>
-</html>
+<div class="w-full max-w-lg mx-auto bg-gradient-to-tr from-blue-50 to-white border border-blue-100 rounded-2xl shadow-lg p-6 mt-3">
+<?php if ($row_status): ?>
+    <div class="mb-2">
+      <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Member</div>
+      <div class="text-lg font-extrabold text-blue-900"><?= htmlspecialchars($row_status['namess']) ?></div>
+      <div class="flex gap-2 items-center text-gray-600 text-sm mb-2">
+        <span class="font-semibold">ID:</span> <?= htmlspecialchars($row_status['memberid']) ?>
+        <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded ml-4"><?= htmlspecialchars($periodLabel) ?></span>
+      </div>
+    </div>
+    <div class="divide-y divide-blue-50">
+        <?= field("Savings", $row_status['savings'], 'right', true) ?>
+        <?= field("Shares", $row_status['shares'], 'right', true) ?>
+        <?= field("Withdrawals", $row_status['withdrawals'], 'right', true) ?>
+        <?= field("Loan", $row_status['loan'], 'right', true) ?>
+        <?= field("Loan Repayment", $row_status['loanrepayments'], 'right', true) ?>
+        <?= field("Loan Balance", $row_status['loanBalance'], 'right', true) ?>
+        <?= field("Interest", $row_status['interest'], 'right', true) ?>
+        <?= field("Interest Paid", $row_status['interestPaid'], 'right', true) ?>
+        <?= field("Unpaid Interest", floatval($row_status['interest']) - floatval($row_status['interestPaid']), 'right', true) ?>
+    </div>
+<?php else: ?>
+    <div class="text-center text-gray-500 py-12">
+        <svg class="mx-auto h-12 w-12 text-blue-200 mb-4" fill="none" stroke="currentColor" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke-width="3" class="opacity-30"/><path stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M16 24l6 6 10-10"/></svg>
+        <div class="text-xl font-semibold text-blue-900 mb-2">No Status Found</div>
+        <div class="text-gray-400">No records available for this member and period.</div>
+    </div>
+<?php endif; ?>
+</div>
 <?php
-mysqli_free_result($status);
+$stmt->close();
 ?>

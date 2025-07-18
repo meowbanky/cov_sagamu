@@ -16,7 +16,7 @@ tbl_personalinfo.fname, ifnull(tbl_personalinfo.mname,'') as 'mname',tbl_persona
 tblaccountno.accountno,
 tbl_personalinfo.mobilephone,
 tbl_personalinfo.emailaddress,
-tblaccountno.bankcode
+tblaccountno.bank_code
 FROM
 tbl_personalinfo
 LEFT JOIN tblaccountno ON tblaccountno.coopno = tbl_personalinfo.memberid
@@ -30,7 +30,7 @@ while ($row = $query->fetch_assoc()) {
 	  $data['phone'] = $row['mobilephone'];
 	  $data['emailaddress'] = $row['emailaddress'];
 	  $data['accountno'] = $row['accountno'];
-	  $data['bankcode'] = $row['bankcode'];
+	  $data['bankcode'] = $row['bank_code'];
 	  $data['fname'] = $row['fname'];
 	  $data['lname'] = $row['lname'];
 	  $data['mname'] = $row['mname'];

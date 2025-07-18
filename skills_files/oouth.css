@@ -1,18 +1,3 @@
-BODY {
-	BACKGROUND-IMAGE: url(../images/mtnPgBgd.jpg); PADDING-BOTTOM: 0px; BACKGROUND-COLOR: #3399FF; FONT-STYLE: normal; MARGIN: 0px; PADDING-LEFT: 0px; PADDING-RIGHT: 0px; BACKGROUND-REPEAT: repeat; FONT-FAMILY: Arial, Helvetica, sans-serif; COLOR: #333333; FONT-SIZE: 10px; PADDING-TOP: 0px
-}
-.mainNav {
-	BACKGROUND-IMAGE: url(../images/mainNavBgd.jpg); TEXT-ALIGN: center; BACKGROUND-COLOR: #33CCFF; FONT-STYLE: normal; BACKGROUND-REPEAT: repeat-x; FONT-FAMILY: Arial, Helvetica, sans-serif; FONT-SIZE: 12px
-}
-.centerAligned {
-	TEXT-ALIGN: center
-}
-.globalNav {
-	BACKGROUND-IMAGE: url(../images/globalLinksBgd.jpg); TEXT-ALIGN: center; BACKGROUND-COLOR: #3399FF; BACKGROUND-REPEAT: repeat-x; FONT-FAMILY: Arial, Helvetica, sans-serif; COLOR: #ffffff; FONT-SIZE: 10px; VERTICAL-ALIGN: middle
-}
-.dividerCenterAligned {
-	BACKGROUND-IMAGE: url(../images/index_r3_c1.jpg); TEXT-ALIGN: center; BACKGROUND-COLOR: #3399FF; BACKGROUND-REPEAT: repeat-x
-}
 .dividerCenterAligned2 {
 	TEXT-ALIGN: center; BACKGROUND-COLOR: #ffffff
 }

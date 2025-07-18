@@ -66,7 +66,7 @@ foreach ($res as $row => $link) {
 	$password = $link["PlainPassword"];
 	$first_name = $link["firstname"];
 
-	$sendmessage = "Dear {$first_name}, thank you for updating your information. Your login details can be found below: <br>username = {$username}<br> Password = {$password} <br />To download the app to your phone, click the link below:<br /> <a href='https://emmaggi.com/download/vcms.apk'>Download vcms mobile App here</a>";
+	$sendmessage = "Dear {$first_name}, thank you for updating your information. Your login details can be found below: <br>username = {$username}<br> Password = {$password} <br />To download the app to your phone, click the link below:<br /> <a href='https://emmaggi.com/cov/download.html'>Download vcms mobile App here</a>";
 
 	require "mail/mail/vendor/autoload.php";
 

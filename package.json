@@ -1,0 +1,11 @@
+{
+  "name": "cov",
+  "version": "1.0.0",
+  "description": "Chapel of Victory Coop Society",
+  "main": "50kobo.js",
+  "scripts": {
+    "build": "postcss css/input.css -o css/output.css --watch --verbose"
+  },
+  "author": "Emmaggi",
+  "license": "ISC"
+}
