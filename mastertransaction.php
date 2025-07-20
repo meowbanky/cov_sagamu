@@ -37,6 +37,7 @@ if ($res) $periods = $res->fetch_all(MYSQLI_ASSOC);
             <div class="flex flex-col sm:flex-row gap-3 mb-4">
                 <div class="flex gap-2 w-full sm:w-1/2">
                     <input type="text" id="search" placeholder="Search member..." class="border rounded px-2 py-1 flex-1 w-full" autocomplete="off">
+                    <button type="button" id="clearMemberBtn" title="Clear member" class="text-gray-500 hover:text-red-600 text-xl px-2">&#10006;</button>
                     <input type="hidden" id="memberid">
                 </div>
             </div>
@@ -253,6 +254,12 @@ $(function(){
     });
     $("#fromPeriodId").on('change', function () {
         $("#toPeriodId").val($(this).val());
+    });
+    // Clear member button
+    $('#clearMemberBtn').on('click', function() {
+        $('#search').val('');
+        $('#memberid').val('');
+        $('#search').focus();
     });
 });
 </script>

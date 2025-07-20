@@ -1,4 +1,8 @@
 <?php
+session_start();
+$sessionId = session_id();
+$progressFile = __DIR__ . "/progress_$sessionId.json";
+error_log("Progress file: " . $progressFile);
 global $cov;
 require_once('Connections/cov.php');
 
@@ -75,40 +79,43 @@ $totalRows_entrySettings  = mysqli_num_rows($entrySettings);
 
 $entryFees = (int)($row_entrySettings['value']);
 
+// session_start();
+// $progressFile = __DIR__ . '/progress_' . session_id() . '.json';
 
 
 
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html
+    PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<title><?php echo $row_title['value']; ?> - Member Contribution Processing</title>
-	<style>
-		.overlay {
-			opacity: 0.8;
-			background-color: #ccc;
-			position: fixed;
-			width: 100%;
-			height: 100%;
-			top: 0px;
-			left: 0px;
-			z-index: 1000;
-			text-align: center;
-			display: table-cell;
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title><?php echo $row_title['value']; ?> - Member Contribution Processing</title>
+    <style>
+    .overlay {
+        opacity: 0.8;
+        background-color: #ccc;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+        z-index: 1000;
+        text-align: center;
+        display: table-cell;
 
-		}
-	</style>
+    }
+    </style>
 
 </head>
 
 <body>
-	<div id="progress" style="width:500px;border:1px solid #ccc;"></div>
-	<!-- Progress information -->
-	<div id="information" style="width:0"></div>
-	<div id="information2" style="width:0"></div>
-	<?php
+    <div id="progress" style="width:500px;border:1px solid #ccc;"></div>
+    <!-- Progress information -->
+    <div id="information" style="width:0"></div>
+    <div id="information2" style="width:0"></div>
+    <?php
 
 	mysqli_select_db($cov, $database_cov);
 	$query_member = "SELECT * FROM tbl_personalinfo where status = 'Active'";
@@ -116,6 +123,12 @@ $entryFees = (int)($row_entrySettings['value']);
 	$row_member = mysqli_fetch_assoc($member);
 	$totalRows_member = mysqli_num_rows($member);
 
+		file_put_contents($progressFile, json_encode([
+			"percent" => "0%",
+			"current" => 0,
+			"total" => $totalRows_member,
+			"message" => "Initializing..."
+		]));
 
 	if (($totalRows_member > 0)) {
 		$i = 1;
@@ -130,16 +143,12 @@ $entryFees = (int)($row_entrySettings['value']);
 			// Calculate the percentation
 			$percent = intval($i / $total * 100) . "%";
 
+			error_log("Processing member: " . $row_member['memberid']);
+
 			$loans_early = [];
         	$loans_late = [];
 
-			mysqli_select_db($cov, $database_cov);
-			$balancesSQL = sprintf("SELECT tbl_personalinfo.memberid, concat(tbl_personalinfo.Lname,' , ', tbl_personalinfo.Fname,' ', ifnull( tbl_personalinfo.Mname,'')) AS namess, IFNULL((sum(tlb_mastertransaction.loanAmount)),0) AS Loan, IFNULL(((sum(tlb_mastertransaction.loanAmount))- sum(tlb_mastertransaction.loanRepayment)),0) AS Loanbalance, IFNULL((sum(tlb_mastertransaction.interest)-sum(tlb_mastertransaction.interestPaid)),0) as interestBalance
-            FROM tlb_mastertransaction RIGHT JOIN tbl_personalinfo ON tbl_personalinfo.memberid = tlb_mastertransaction.memberid
-            WHERE tbl_personalinfo.memberid = %s GROUP BY memberid", GetSQLValueString($cov, $row_member['memberid'], "text"));
-
-			$Result2 = mysqli_query($cov, $balancesSQL) or die(mysqli_error($cov));
-			$row_balances = mysqli_fetch_assoc($Result2);
+			
 
 
 			mysqli_select_db($cov, $database_cov);
@@ -219,20 +228,20 @@ $entryFees = (int)($row_entrySettings['value']);
 			//contribution
 
 			$contribution =  $contribution_entry;
-			$interestBalance = $row_balances['interestBalance'];
-			$loanBalance = $row_balances['Loanbalance'];
-			$interestRate = $row_interestRate['value'] * $row_member['interest'];
-			if ($totalRows_OnlinePaymentCheck > 0) {
-				$currentInterest = 0;
-			} else {
-				$currentInterest = $row_balances['Loanbalance'] * $interestRate;
-			}
-
-			$interest = $interestBalance + $currentInterest;
+			
 
 
 			if ($totalRows_completed > 0) {
+				error_log("Member {$row_member['memberid']} already processed. Skipping...");
+				file_put_contents($progressFile, json_encode([
+					'percent' => $percent,
+					'current' => $i,
+					'total' => $totalRows_member,
+					'message' => "{$row_member['memberid']} already processed. Skipping..."
+				]));
+				continue;
 			} else {
+				error_log("Member {$row_member['memberid']} not processed yet. Entering processing block.");
 
 				$query_Batch = sprintf(
 					"SELECT tbl_loan.loanamount, tbl_loan.loanid, tbl_loan.periodid, tbl_loan.memberid, tbl_loan.loan_date
@@ -241,16 +250,23 @@ $entryFees = (int)($row_entrySettings['value']);
 					GetSQLValueString($cov, $row_member['memberid'], "text"),
 					GetSQLValueString($cov, $_GET["PeriodID"], "int")
 				);
+				error_log('query_Batch: ' . $query_Batch);
 				$Batch = mysqli_query($cov, $query_Batch) or die(mysqli_error($cov));
 				while ($row_Batch = mysqli_fetch_assoc($Batch)) {
 					$loanDay = intval(date('d', strtotime($row_Batch['loan_date'])));
 					if ($loanDay <= 20) {
 						$loans_early[] = $row_Batch;
+						error_log("LoanID {$row_Batch['loanid']} for MemberID {$row_Batch['memberid']} classified as EARLY (Date: {$row_Batch['loan_date']})");
 					} else {
 						$loans_late[] = $row_Batch;
+						error_log("LoanID {$row_Batch['loanid']} for MemberID {$row_Batch['memberid']} classified as LATE (Date: {$row_Batch['loan_date']})");
 					}
 				}
 				mysqli_free_result($Batch);
+				error_log('loans_early: ' . count($loans_early));
+				error_log('loans_late: ' . count($loans_late));
+				error_log('Content of loans_early: ' . print_r($loans_early, true));	
+				error_log('Content of loans_late: ' . print_r($loans_late, true));	
 
 				if (count($loans_early) > 0) {
 					$total_early_loan = 0;
@@ -263,7 +279,13 @@ $entryFees = (int)($row_entrySettings['value']);
 						GetSQLValueString($cov, $loans_early[0]['loanid'], "int"),
 						GetSQLValueString($cov, doubleval($loan['loanamount']), "double")
 					);
-
+					error_log("Attempting EARLY loan insert: MemberID {$row_member['memberid']}, LoanID {$loan['loanid']}, Amount {$loan['loanamount']}");
+					$result = mysqli_query($cov, $insertSQL_MasterTransaction);
+					if ($result) {
+						error_log("SUCCESS: Inserted EARLY loan for MemberID {$row_member['memberid']}, LoanID {$loan['loanid']}");
+					} else {
+						error_log("FAIL: Insert EARLY loan for MemberID {$row_member['memberid']}, LoanID {$loan['loanid']} - " . mysqli_error($cov));
+					}
 					}
 				}
 
@@ -283,6 +305,29 @@ $entryFees = (int)($row_entrySettings['value']);
 
                     }
                 }
+
+				mysqli_select_db($cov, $database_cov);
+				$balancesSQL = sprintf("SELECT tbl_personalinfo.memberid, concat(tbl_personalinfo.Lname,' , ', tbl_personalinfo.Fname,' ', ifnull( tbl_personalinfo.Mname,'')) AS namess, IFNULL((sum(tlb_mastertransaction.loanAmount)),0) AS Loan, IFNULL(((sum(tlb_mastertransaction.loanAmount))- sum(tlb_mastertransaction.loanRepayment)),0) AS Loanbalance, IFNULL((sum(tlb_mastertransaction.interest)-sum(tlb_mastertransaction.interestPaid)),0) as interestBalance
+            	FROM tlb_mastertransaction RIGHT JOIN tbl_personalinfo ON tbl_personalinfo.memberid = tlb_mastertransaction.memberid
+            	WHERE tbl_personalinfo.memberid = %s GROUP BY memberid", GetSQLValueString($cov, $row_member['memberid'], "text"));
+
+				$Result2 = mysqli_query($cov, $balancesSQL) or die(mysqli_error($cov));
+				$row_balances = mysqli_fetch_assoc($Result2);
+
+				
+
+				$interestBalance = $row_balances['interestBalance'];
+				$loanBalance = $row_balances['Loanbalance'];
+				$interestRate = $row_interestRate['value'] * $row_member['interest'];
+				if ($totalRows_OnlinePaymentCheck > 0) {
+				$currentInterest = 0;
+				} else {
+				$currentInterest = $row_balances['Loanbalance'] * $interestRate;
+				}
+
+				$interest = $interestBalance + $currentInterest;
+
+				
 
 				if ($loanBalance  > 0) {
 
@@ -369,8 +414,13 @@ $entryFees = (int)($row_entrySettings['value']);
 						GetSQLValueString($cov, $loan['loanid'], "int"),
 						GetSQLValueString($cov, doubleval($loan['loanamount']), "double")
 					);
-					mysqli_select_db($cov, $database_cov);
-					mysqli_query($cov, $insertSQL_LateLoan) or die(mysqli_error($cov));
+					error_log("Attempting LATE loan insert: MemberID {$row_member['memberid']}, LoanID {$loan['loanid']}, Amount {$loan['loanamount']}");
+					$result = mysqli_query($cov, $insertSQL_LateLoan);
+					if ($result) {
+						error_log("SUCCESS: Inserted LATE loan for MemberID {$row_member['memberid']}, LoanID {$loan['loanid']}");
+					} else {
+						error_log("FAIL: Insert LATE loan for MemberID {$row_member['memberid']}, LoanID {$loan['loanid']} - " . mysqli_error($cov));
+					}
 				}
 
                 if (isset($_GET['sms']) && $_GET['sms'] == 1) {
@@ -409,8 +459,26 @@ $entryFees = (int)($row_entrySettings['value']);
 
 			ob_start();
 			//  sleep(3);
+
+			// Write progress to JSON file for AJAX polling
+			file_put_contents($progressFile, json_encode([
+				'percent' => $percent,
+				'current' => $i,
+				'total' => $totalRows_member,
+				'message' => "Processing member: {$row_member['memberid']}"
+			]));
+			// Increment the counter		
 			$i++;
 		} while ($row_member = mysqli_fetch_assoc($member));
+
+		file_put_contents($progressFile, json_encode([
+			'percent' => '100%',
+			'current' => $totalRows_member,
+			'total' => $totalRows_member,
+			'message' => 'Process completed.',
+			'done' => true
+		]));
+		
 		echo '<script language="javascript">document.getElementById("information").innerHTML="Process completed"</script>';
 		echo '<script language="javascript">setTimeout(function (){window.location.href = \'mastertransaction.php\';}, 5000);</script>';
 	}

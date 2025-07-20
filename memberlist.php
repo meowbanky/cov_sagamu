@@ -83,6 +83,7 @@ function renderPage() {
         <div class="mb-1"><span class="text-gray-500 font-semibold">NOK Phone:</span> ${m.NOKPhone || ''}</div>
         ${m.NOKRelationship ? `<div><span class="text-gray-500 font-semibold">NOK Relationship:</span> ${m.NOKRelationship}</div>` : ""}
       </div>
+      <a href="edit_member.php?id=${m.memberid}" class="mt-4 inline-block bg-yellow-400 hover:bg-yellow-500 text-white font-semibold px-4 py-1 rounded shadow text-sm transition"><i class='fa fa-edit mr-1'></i>Edit</a>
     </div>
   `).join('');
 

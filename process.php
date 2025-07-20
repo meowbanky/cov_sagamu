@@ -2,7 +2,7 @@
 session_start();
 $sessionId = session_id();
 $progressFile = __DIR__ . "/progress_$sessionId.json";
-
+error_log("Progress file: " . $progressFile);
 global $cov;
 require_once('Connections/cov.php');
 
@@ -16,8 +16,7 @@ try {
 } catch (Exception $e) {
     error_log("Failed to initialize notification service: " . $e->getMessage());
 }
-?>
-<?php
+
 if (!function_exists("GetSQLValueString")) {
 	function GetSQLValueString($conn_vote, $theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "")
 	{
@@ -85,36 +84,37 @@ $entryFees = (int)($row_entrySettings['value']);
 
 
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html
+    PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<title><?php echo $row_title['value']; ?> - Member Contribution Processing</title>
-	<style>
-		.overlay {
-			opacity: 0.8;
-			background-color: #ccc;
-			position: fixed;
-			width: 100%;
-			height: 100%;
-			top: 0px;
-			left: 0px;
-			z-index: 1000;
-			text-align: center;
-			display: table-cell;
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title><?php echo $row_title['value']; ?> - Member Contribution Processing</title>
+    <style>
+    .overlay {
+        opacity: 0.8;
+        background-color: #ccc;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+        z-index: 1000;
+        text-align: center;
+        display: table-cell;
 
-		}
-	</style>
+    }
+    </style>
 
 </head>
 
 <body>
-	<div id="progress" style="width:500px;border:1px solid #ccc;"></div>
-	<!-- Progress information -->
-	<div id="information" style="width:0"></div>
-	<div id="information2" style="width:0"></div>
-	<?php
+    <div id="progress" style="width:500px;border:1px solid #ccc;"></div>
+    <!-- Progress information -->
+    <div id="information" style="width:0"></div>
+    <div id="information2" style="width:0"></div>
+    <?php
 
 	mysqli_select_db($cov, $database_cov);
 	$query_member = "SELECT * FROM tbl_personalinfo where status = 'Active'";
@@ -130,288 +130,230 @@ $entryFees = (int)($row_entrySettings['value']);
 		]));
 
 	if (($totalRows_member > 0)) {
-		$i = 1;
-		do {
+		// === Refactor: Define constants and helpers ===
+		define('LOAN_EARLY_DAY_CUTOFF', 20);
+		define('COMPLETED_STATUS', 1);
 
-			set_time_limit(0);
-			//ob_end_flush();
-			//ob_start();
-			//ob_end_flush();
-			$total = $totalRows_member;
-			//for( $i=0; $i <= $total; $i++ ){
-			// Calculate the percentation
-			$percent = intval($i / $total * 100) . "%";
+		function db_query($conn, $query) {
+			$result = mysqli_query($conn, $query);
+			if (!$result) {
+				throw new Exception(mysqli_error($conn));
+			}
+			return $result;
+		}
 
+		function db_fetch_assoc($result) {
+			return mysqli_fetch_assoc($result);
+		}
+
+		function processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService) {
 			$loans_early = [];
-        	$loans_late = [];
-
-			mysqli_select_db($cov, $database_cov);
-			$balancesSQL = sprintf("SELECT tbl_personalinfo.memberid, concat(tbl_personalinfo.Lname,' , ', tbl_personalinfo.Fname,' ', ifnull( tbl_personalinfo.Mname,'')) AS namess, IFNULL((sum(tlb_mastertransaction.loanAmount)),0) AS Loan, IFNULL(((sum(tlb_mastertransaction.loanAmount))- sum(tlb_mastertransaction.loanRepayment)),0) AS Loanbalance, IFNULL((sum(tlb_mastertransaction.interest)-sum(tlb_mastertransaction.interestPaid)),0) as interestBalance
-            FROM tlb_mastertransaction RIGHT JOIN tbl_personalinfo ON tbl_personalinfo.memberid = tlb_mastertransaction.memberid
-            WHERE tbl_personalinfo.memberid = %s GROUP BY memberid", GetSQLValueString($cov, $row_member['memberid'], "text"));
-
-			$Result2 = mysqli_query($cov, $balancesSQL) or die(mysqli_error($cov));
-			$row_balances = mysqli_fetch_assoc($Result2);
-
-
-			mysqli_select_db($cov, $database_cov);
-			$query_completed = "SELECT tlb_mastertransaction.memberid FROM tlb_mastertransaction WHERE memberid = '" . $row_member['memberid'] . "' AND periodid = " . $_GET["PeriodID"] . " AND completed = 1";
-			$completed = mysqli_query($cov, $query_completed) or die(mysqli_error($cov));
-			$row_completed = mysqli_fetch_assoc($completed);
+			$loans_late = [];
+			// Check if already processed
+			$query_completed = "SELECT tlb_mastertransaction.memberid FROM tlb_mastertransaction WHERE memberid = '" . $row_member['memberid'] . "' AND periodid = " . $_GET["PeriodID"] . " AND completed = " . COMPLETED_STATUS;
+			$completed = db_query($cov, $query_completed);
 			$totalRows_completed = mysqli_num_rows($completed);
-
-			mysqli_select_db($cov, $database_cov);
+			mysqli_free_result($completed);
+			// Deductions
 			$query_deductions = "SELECT IFNULL(sum(tbl_contributions.contribution),0) as contri, IFNULL(sum(tbl_contributions.special_savings),0) as special_savings FROM tbl_contributions WHERE membersid = '" . $row_member['memberid'] . "' AND periodid = '" . $_GET['PeriodID'] . "' AND pay_method = 0 GROUP BY membersid";
-			$deductions = mysqli_query($cov, $query_deductions) or die(mysqli_error($cov));
-			$row_deductions = mysqli_fetch_assoc($deductions);
+			$deductions = db_query($cov, $query_deductions);
+			$row_deductions = db_fetch_assoc($deductions);
 			$totalRows_deductions = mysqli_num_rows($deductions);
-
-
+			mysqli_free_result($deductions);
 			if ($totalRows_deductions == 0) {
 				$row_deductions['contri'] = 0;
-
 			}
-
-			mysqli_select_db($cov, $database_cov);
-			$query_entry = "SELECT tbl_entryfees.entryFee_id, tbl_entryfees.memberid, tbl_entryfees.periodid, tbl_entryfees.Amount
-            FROM tbl_entryfees WHERE memberid = '" . $row_member['memberid'] . "'";
-			$entry = mysqli_query($cov, $query_entry) or die(mysqli_error($cov));
-			$row_entry = mysqli_fetch_assoc($entry);
+			// Entry fees
+			$query_entry = "SELECT tbl_entryfees.entryFee_id, tbl_entryfees.memberid, tbl_entryfees.periodid, tbl_entryfees.Amount FROM tbl_entryfees WHERE memberid = '" . $row_member['memberid'] . "'";
+			$entry = db_query($cov, $query_entry);
+			$row_entry = db_fetch_assoc($entry);
 			$totalRows_entry = mysqli_num_rows($entry);
-
-
+			mysqli_free_result($entry);
 			$contribution_entry = 0;
-
-
-
 			if ($totalRows_entry > 0) {
-
-
 				$contribution_entry = $row_deductions['contri'];
 			} else {
 				if ($row_deductions['contri'] > $entryFees) {
-
-
-
 					$insertSQLEntryMaster = sprintf(
 						"INSERT INTO tlb_mastertransaction (periodid, memberid, entryFee,completed) VALUES (%s,%s, %s,%s)",
 						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
 						GetSQLValueString($cov, $row_member['memberid'], "text"),
 						GetSQLValueString($cov, $entryFees, "int"),
-						GetSQLValueString($cov, (1), "int")
+						GetSQLValueString($cov, COMPLETED_STATUS, "int")
 					);
-
-					mysqli_select_db($cov, $database_cov);
-					$Result1 = mysqli_query($cov, $insertSQLEntryMaster) or die(mysqli_error($cov));
-
-
+					db_query($cov, $insertSQLEntryMaster);
 					$insertSQLEntry = sprintf(
 						"INSERT INTO tbl_entryfees (periodid, memberid, Amount) VALUES (%s,%s, %s)",
 						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
 						GetSQLValueString($cov, $row_member['memberid'], "text"),
 						GetSQLValueString($cov, $entryFees, "int")
 					);
-
-					mysqli_select_db($cov, $database_cov);
-					$Result1 = mysqli_query($cov, $insertSQLEntry) or die(mysqli_error($cov));
+					db_query($cov, $insertSQLEntry);
 					$contribution_entry = $row_deductions['contri'] - $entryFees;
 				} else {
-
 					$contribution_entry = $row_deductions['contri'];
 				}
 			}
-
-
-
+			// Online payment check
 			$query_OnlinePaymentCheck = "SELECT tlb_mastertransaction.memberid,IFNULL(tlb_mastertransaction.pay_method,1) AS pay_method FROM tlb_mastertransaction WHERE memberid = '" . $row_member['memberid'] . "' AND periodid = " . $_GET["PeriodID"] . " AND pay_method = 1";
-			$OnlinePaymentCheck = mysqli_query($cov, $query_OnlinePaymentCheck) or die(mysqli_error($cov));
-			$row_OnlinePaymentCheck = mysqli_fetch_assoc($OnlinePaymentCheck);
+			$OnlinePaymentCheck = db_query($cov, $query_OnlinePaymentCheck);
 			$totalRows_OnlinePaymentCheck = mysqli_num_rows($OnlinePaymentCheck);
-
-			//contribution
-
-			$contribution =  $contribution_entry;
-			$interestBalance = $row_balances['interestBalance'];
-			$loanBalance = $row_balances['Loanbalance'];
-			$interestRate = $row_interestRate['value'] * $row_member['interest'];
-			if ($totalRows_OnlinePaymentCheck > 0) {
-				$currentInterest = 0;
-			} else {
-				$currentInterest = $row_balances['Loanbalance'] * $interestRate;
-			}
-
-			$interest = $interestBalance + $currentInterest;
-
-
+			mysqli_free_result($OnlinePaymentCheck);
+			$contribution = $contribution_entry;
+			// Already processed?
 			if ($totalRows_completed > 0) {
-
 				file_put_contents($progressFile, json_encode([
-					'percent' => $percent,
+					'percent' => intval($i / $totalRows_member * 100) . "%",
 					'current' => $i,
 					'total' => $totalRows_member,
 					'message' => "{$row_member['memberid']} already processed. Skipping..."
 				]));
-				continue;
-			} else {
-
-				$query_Batch = sprintf(
-					"SELECT tbl_loan.loanamount, tbl_loan.loanid, tbl_loan.periodid, tbl_loan.memberid, tbl_loan.loan_date
-					 FROM tbl_loan 
-					 WHERE tbl_loan.memberid = %s AND periodid = %s",
-					GetSQLValueString($cov, $row_member['memberid'], "text"),
-					GetSQLValueString($cov, $_GET["PeriodID"], "int")
-				);
-				$Batch = mysqli_query($cov, $query_Batch) or die(mysqli_error($cov));
-				while ($row_Batch = mysqli_fetch_assoc($Batch)) {
-					$loanDay = intval(date('d', strtotime($row_Batch['loan_date'])));
-					if ($loanDay <= 20) {
-						$loans_early[] = $row_Batch;
-					} else {
-						$loans_late[] = $row_Batch;
-					}
-				}
-				mysqli_free_result($Batch);
-
-				if (count($loans_early) > 0) {
-					$total_early_loan = 0;
-					foreach ($loans_early as $loan) {
-						
-						$insertSQL_MasterTransaction = sprintf(
-						"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid,loanAmount) VALUES (%s, %s, %s, %s)",
-						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
-						GetSQLValueString($cov, $row_member['memberid'], "text"),
-						GetSQLValueString($cov, $loans_early[0]['loanid'], "int"),
-						GetSQLValueString($cov, doubleval($loan['loanamount']), "double")
-					);
-
-					}
-				}
-
-                if ($totalRows_deductions > 0) {
-                    if ($row_deductions['special_savings'] > 0) {
-                        $insertSQLspecialSaving = sprintf(
-                            "INSERT INTO tlb_mastertransaction (periodid, memberid, savings,completed) VALUES (%s,%s, %s,%s)",
-                            GetSQLValueString($cov, $_GET["PeriodID"], "int"),
-                            GetSQLValueString($cov, $row_member['memberid'], "text"),
-                            GetSQLValueString($cov, $row_deductions['special_savings'], "int"),
-                            GetSQLValueString($cov, (1), "int")
-                        );
-
-                        mysqli_select_db($cov, $database_cov);
-                        $Result1 = mysqli_query($cov, $insertSQLspecialSaving) or die(mysqli_error($cov));
-
-
-                    }
-                }
-
-				if ($loanBalance  > 0) {
-
-					if (($contribution == 0)) {
-
-						$insertSQL = sprintf(
-							"INSERT INTO tlb_mastertransaction (periodid, memberid, interest, completed) VALUES (%s,%s, %s, %s)",
-							GetSQLValueString($cov, $_GET["PeriodID"], "int"),
-							GetSQLValueString($cov, $row_member['memberid'], "text"),
-							GetSQLValueString($cov, $currentInterest, "float"),
-							GetSQLValueString($cov, (1), "int")
-						);
-
-						mysqli_select_db($cov, $database_cov);
-						$Result1 = mysqli_query($cov, $insertSQL) or die(mysqli_error($cov));
-					} elseif (($contribution > 0) and ($contribution > $interest)) {
-						$savings = 0;
-						$balanceafterinterestdeduction = $contribution - $interest;
-
-						if ($balanceafterinterestdeduction < $loanBalance) {
-							$repayment = floor($balanceafterinterestdeduction);
-							$repayment = number_format($repayment);
-							$repayment = str_replace(",", "", $repayment);
-							$savings = number_format($balanceafterinterestdeduction - floor($balanceafterinterestdeduction), 2);
-
-							//0;
-						} else {
-
-							$repayment = $loanBalance;
-							$savings = $balanceafterinterestdeduction - $loanBalance;
-						}
-
-						$insertSQL = sprintf(
-							"INSERT INTO tlb_mastertransaction (periodid, memberid, interest,interestPaid, loanRepayment,savings,completed) VALUES (%s,%s, %s,%s, %s,%s,%s)",
-							GetSQLValueString($cov, $_GET["PeriodID"], "int"),
-							GetSQLValueString($cov, $row_member['memberid'], "text"),
-							GetSQLValueString($cov, $currentInterest, "float"),
-							GetSQLValueString($cov, $interest, "float"),
-							GetSQLValueString($cov, $repayment, "float"),
-							GetSQLValueString($cov, $savings, "float"),
-							GetSQLValueString($cov, (1), "int")
-						);
-
-						mysqli_select_db($cov, $database_cov);
-						$Result1 = mysqli_query($cov, $insertSQL) or die(mysqli_error($cov));
-					} elseif (($contribution > 0) and ($contribution < $interest)) {
-
-						$insertSQL = sprintf(
-							"INSERT INTO tlb_mastertransaction (periodid, memberid, interest,interestPaid, loanRepayment,savings,completed) VALUES (%s,%s, %s,%s, %s,%s,%s)",
-							GetSQLValueString($cov, $_GET["PeriodID"], "int"),
-							GetSQLValueString($cov, $row_member['memberid'], "text"),
-							GetSQLValueString($cov, $currentInterest, "float"),
-							GetSQLValueString($cov, $contribution, "float"),
-							GetSQLValueString($cov, 0.0, "float"),
-							GetSQLValueString($cov, 0.0, "float"),
-							GetSQLValueString($cov, (1), "int")
-						);
-
-						mysqli_select_db($cov, $database_cov);
-						$Result1 = mysqli_query($cov, $insertSQL) or die(mysqli_error($cov));
-					}
-				} else {
-
-					$shareSavings = sprintf(
-						"INSERT INTO tlb_mastertransaction (periodid, memberid, shares,savings,completed) VALUES (%s,%s, %s,%s,%s)",
-						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
-						GetSQLValueString($cov, $row_member['memberid'], "text"),
-						GetSQLValueString($cov, $contribution * $row_sharesRate['value'], "float"),
-						GetSQLValueString($cov, $contribution * $row_savingsRate['value'], "float"),
-						GetSQLValueString($cov, (1), "int")
-					);
-
-					mysqli_select_db($cov, $database_cov);
-					$Result1 = mysqli_query($cov, $shareSavings) or die(mysqli_error($cov));
-				}
-				
-				
-
-				foreach ($loans_late as $loan) {
-					$insertSQL_LateLoan = sprintf(
-						"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid, loanAmount) VALUES (%s, %s, %s, %s)",
-						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
-						GetSQLValueString($cov, $row_member['memberid'], "text"),
-						GetSQLValueString($cov, $loan['loanid'], "int"),
-						GetSQLValueString($cov, doubleval($loan['loanamount']), "double")
-					);
-					mysqli_select_db($cov, $database_cov);
-					mysqli_query($cov, $insertSQL_LateLoan) or die(mysqli_error($cov));
-				}
-
-                if (isset($_GET['sms']) && $_GET['sms'] == 1) {
-                    try {
-                        $notificationService = new NotificationService($cov);
-                        $notificationService->sendTransactionNotification(
-                            $row_member['memberid'],
-                            $_GET["PeriodID"]
-                        );
-                    } catch (Exception $e) {
-                        error_log("Failed to send notification: " . $e->getMessage());
-                    }
-                }
+				return;
 			}
+			// Loan batch
+			$query_Batch = sprintf(
+				"SELECT tbl_loan.loanamount, tbl_loan.loanid, tbl_loan.periodid, tbl_loan.memberid, tbl_loan.loan_date FROM tbl_loan WHERE tbl_loan.memberid = %s AND periodid = %s",
+				GetSQLValueString($cov, $row_member['memberid'], "text"),
+				GetSQLValueString($cov, $_GET["PeriodID"], "int")
+			);
+			$Batch = db_query($cov, $query_Batch);
+			while ($row_Batch = db_fetch_assoc($Batch)) {
+				$loanDay = intval(date('d', strtotime($row_Batch['loan_date'])));
+				if ($loanDay <= LOAN_EARLY_DAY_CUTOFF) {
+					$loans_early[] = $row_Batch;
+				} else {
+					$loans_late[] = $row_Batch;
+				}
+			}
+			mysqli_free_result($Batch);
+			// Insert early loans
+			foreach ($loans_early as $loan) {
+				$insertSQL_MasterTransaction = sprintf(
+					"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid,loanAmount) VALUES (%s, %s, %s, %s)",
+					GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+					GetSQLValueString($cov, $row_member['memberid'], "text"),
+					GetSQLValueString($cov, $loan['loanid'], "int"),
+					GetSQLValueString($cov, doubleval($loan['loanamount']), "double")
+				);
+				db_query($cov, $insertSQL_MasterTransaction);
+			}
+			// Special savings
+			if ($totalRows_deductions > 0 && $row_deductions['special_savings'] > 0) {
+				$insertSQLspecialSaving = sprintf(
+					"INSERT INTO tlb_mastertransaction (periodid, memberid, savings,completed) VALUES (%s,%s, %s,%s)",
+					GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+					GetSQLValueString($cov, $row_member['memberid'], "text"),
+					GetSQLValueString($cov, $row_deductions['special_savings'], "int"),
+					GetSQLValueString($cov, COMPLETED_STATUS, "int")
+				);
+				db_query($cov, $insertSQLspecialSaving);
+			}
+			// Balances
+			$balancesSQL = sprintf("SELECT tbl_personalinfo.memberid, concat(tbl_personalinfo.Lname,' , ', tbl_personalinfo.Fname,' ', ifnull( tbl_personalinfo.Mname,'')) AS namess, IFNULL((sum(tlb_mastertransaction.loanAmount)),0) AS Loan, IFNULL(((sum(tlb_mastertransaction.loanAmount))- sum(tlb_mastertransaction.loanRepayment)),0) AS Loanbalance, IFNULL((sum(tlb_mastertransaction.interest)-sum(tlb_mastertransaction.interestPaid)),0) as interestBalance FROM tlb_mastertransaction RIGHT JOIN tbl_personalinfo ON tbl_personalinfo.memberid = tlb_mastertransaction.memberid WHERE tbl_personalinfo.memberid = %s GROUP BY memberid", GetSQLValueString($cov, $row_member['memberid'], "text"));
+			$Result2 = db_query($cov, $balancesSQL);
+			$row_balances = db_fetch_assoc($Result2);
+			mysqli_free_result($Result2);
+			$interestBalance = $row_balances['interestBalance'];
+			$loanBalance = $row_balances['Loanbalance'];
+			$interestRate = $row_interestRate['value'] * $row_member['interest'];
+			$currentInterest = ($totalRows_OnlinePaymentCheck > 0) ? 0 : $row_balances['Loanbalance'] * $interestRate;
+			$interest = $interestBalance + $currentInterest;
+			if ($loanBalance > 0) {
+				if ($contribution == 0) {
+					$insertSQL = sprintf(
+						"INSERT INTO tlb_mastertransaction (periodid, memberid, interest, completed) VALUES (%s,%s, %s, %s)",
+						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+						GetSQLValueString($cov, $row_member['memberid'], "text"),
+						GetSQLValueString($cov, $currentInterest, "float"),
+						GetSQLValueString($cov, COMPLETED_STATUS, "int")
+					);
+					db_query($cov, $insertSQL);
+				} elseif (($contribution > 0) && ($contribution > $interest)) {
+					$balanceafterinterestdeduction = $contribution - $interest;
+					if ($balanceafterinterestdeduction < $loanBalance) {
+						$repayment = floor($balanceafterinterestdeduction);
+						$savings = number_format($balanceafterinterestdeduction - floor($balanceafterinterestdeduction), 2);
+					} else {
+						$repayment = $loanBalance;
+						$savings = $balanceafterinterestdeduction - $loanBalance;
+					}
+					$insertSQL = sprintf(
+						"INSERT INTO tlb_mastertransaction (periodid, memberid, interest,interestPaid, loanRepayment,savings,completed) VALUES (%s,%s, %s,%s, %s,%s,%s)",
+						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+						GetSQLValueString($cov, $row_member['memberid'], "text"),
+						GetSQLValueString($cov, $currentInterest, "float"),
+						GetSQLValueString($cov, $interest, "float"),
+						GetSQLValueString($cov, $repayment, "float"),
+						GetSQLValueString($cov, $savings, "float"),
+						GetSQLValueString($cov, COMPLETED_STATUS, "int")
+					);
+					db_query($cov, $insertSQL);
+				} elseif (($contribution > 0) && ($contribution < $interest)) {
+					$insertSQL = sprintf(
+						"INSERT INTO tlb_mastertransaction (periodid, memberid, interest,interestPaid, loanRepayment,savings,completed) VALUES (%s,%s, %s,%s, %s,%s,%s)",
+						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+						GetSQLValueString($cov, $row_member['memberid'], "text"),
+						GetSQLValueString($cov, $currentInterest, "float"),
+						GetSQLValueString($cov, $contribution, "float"),
+						GetSQLValueString($cov, 0.0, "float"),
+						GetSQLValueString($cov, 0.0, "float"),
+						GetSQLValueString($cov, COMPLETED_STATUS, "int")
+					);
+					db_query($cov, $insertSQL);
+				}
+			} else {
+				$shareSavings = sprintf(
+					"INSERT INTO tlb_mastertransaction (periodid, memberid, shares,savings,completed) VALUES (%s,%s, %s,%s,%s)",
+					GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+					GetSQLValueString($cov, $row_member['memberid'], "text"),
+					GetSQLValueString($cov, $contribution * $row_sharesRate['value'], "float"),
+					GetSQLValueString($cov, $contribution * $row_savingsRate['value'], "float"),
+					GetSQLValueString($cov, COMPLETED_STATUS, "int")
+				);
+				db_query($cov, $shareSavings);
+			}
+			// Insert late loans
+			foreach ($loans_late as $loan) {
+				$insertSQL_LateLoan = sprintf(
+					"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid, loanAmount) VALUES (%s, %s, %s, %s)",
+					GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+					GetSQLValueString($cov, $row_member['memberid'], "text"),
+					GetSQLValueString($cov, $loan['loanid'], "int"),
+					GetSQLValueString($cov, doubleval($loan['loanamount']), "double")
+				);
+				db_query($cov, $insertSQL_LateLoan);
+			}
+			// Notification
+			if (isset($_GET['sms']) && $_GET['sms'] == 1) {
+				try {
+					$notificationService->sendTransactionNotification(
+						$row_member['memberid'],
+						$_GET["PeriodID"]
+					);
+				} catch (Exception $e) {
+					error_log("Failed to send notification: " . $e->getMessage());
+				}
+			}
+			// Progress
+			file_put_contents($progressFile, json_encode([
+				'percent' => intval($i / $totalRows_member * 100) . "%",
+				'current' => $i,
+				'total' => $totalRows_member,
+				'message' => "Processing member: {$row_member['memberid']}"
+			]));
+		}
 
-
-
-
+		$i = 1;
+		do {
+			set_time_limit(0);
+			try {
+				processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService);
+			} catch (Exception $e) {
+				error_log("Error processing member {$row_member['memberid']}: " . $e->getMessage());
+			}
 			// Javascript for updating the progress bar and information
 			echo '<script language="javascript">
-         document.getElementById("progress").innerHTML="<div align=\"center\" style=\"width:' . $percent . ';background-color:#ddd; background-image:url(pbar-ani.gif)\">' . $percent . '</div>";
+         document.getElementById("progress").innerHTML="<div align=\"center\" style=\"width:' . intval($i / $totalRows_member * 100) . '%;background-color:#ddd; background-image:url(pbar-ani.gif)\">' . intval($i / $totalRows_member * 100) . '%</div>";
     	document.getElementById("information").innerHTML="' . $i . ' row(s) processed.";
     	
 	</script>';
@@ -431,12 +373,6 @@ $entryFees = (int)($row_entrySettings['value']);
 			//  sleep(3);
 
 			// Write progress to JSON file for AJAX polling
-			file_put_contents($progressFile, json_encode([
-				'percent' => $percent,
-				'current' => $i,
-				'total' => $totalRows_member,
-				'message' => "Processing member: {$row_member['memberid']}"
-			]));
 			// Increment the counter		
 			$i++;
 		} while ($row_member = mysqli_fetch_assoc($member));

@@ -30,10 +30,10 @@ foreach ($_POST['transactionIds'] as $transactionid) {
     $stmt->close();
 
     // 2. Delete from tbl_loan
-    $stmt = $cov->prepare("DELETE FROM tbl_loan WHERE periodid=? AND memberid=?");
-    $stmt->bind_param("ii", $periodid, $memberid);
-    if (!$stmt->execute()) $errors[] = "Loan: " . $stmt->error;
-    $stmt->close();
+    // $stmt = $cov->prepare("DELETE FROM tbl_loan WHERE periodid=? AND memberid=?");
+    // $stmt->bind_param("ii", $periodid, $memberid);
+    // if (!$stmt->execute()) $errors[] = "Loan: " . $stmt->error;
+    // $stmt->close();
 
     // 3. Delete from tbl_refund
     $stmt = $cov->prepare("DELETE FROM tbl_refund WHERE periodid=? AND membersid=?");

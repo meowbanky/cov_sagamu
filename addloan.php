@@ -30,9 +30,9 @@ if (isset($_GET['period'])) {
     <select id="PeriodId" name="PeriodId" class="w-full rounded border mb-4 p-2">
         <option value="">Select Period</option>
         <?php foreach($periods as $period): ?>
-            <option value="<?= $period['Periodid'] ?>" <?= ($selected_period == $period['Periodid']) ? 'selected' : '' ?>>
-                <?= htmlspecialchars($period['PayrollPeriod']) ?>
-            </option>
+        <option value="<?= $period['Periodid'] ?>" <?= ($selected_period == $period['Periodid']) ? 'selected' : '' ?>>
+            <?= htmlspecialchars($period['PayrollPeriod']) ?>
+        </option>
         <?php endforeach; ?>
     </select>
 
@@ -41,19 +41,28 @@ if (isset($_GET['period'])) {
         <input type="hidden" id="formPeriodId" name="PeriodId" value="<?= htmlspecialchars($selected_period) ?>">
         <input type="hidden" name="edit_loanid" id="edit_loanid" value="">
         <label for="CoopName" class="block font-medium">Search Member:</label>
-        <input name="CoopName" type="text" class="innerBox w-full border rounded p-2" id="CoopName" autocomplete="off">
+        <div class="flex items-center space-x-2">
+            <input name="CoopName" type="text" class="innerBox w-full border rounded p-2" id="CoopName"
+                autocomplete="off">
+            <button type="button" id="clearMemberBtn" title="Clear member"
+                class="text-gray-500 hover:text-red-600 text-xl px-2">&#10006;</button>
+        </div>
         <input type="hidden" id="txtCoopid" name="txtCoopid" required readonly>
         <div id="memberNameHint" class="text-gray-500 text-sm mb-1"></div>
 
         <label for="txtAmountGranted" class="block font-medium">Amount Granted:</label>
-        <input type="text" id="txtAmountGranted" name="txtAmountGranted" required pattern="\d+(\.\d{1,2})?" placeholder="e.g. 12000.00" class="w-full border rounded p-2">
+        <input type="text" id="txtAmountGranted" name="txtAmountGranted" required pattern="\d+(\.\d{1,2})?"
+            placeholder="e.g. 12000.00" class="w-full border rounded p-2">
 
         <label for="loan_date" class="block font-medium">Date:</label>
-        <input type="text" id="loan_date" name="loan_date" required placeholder="Select date" class="w-full border rounded p-2">
+        <input type="text" id="loan_date" name="loan_date" required placeholder="Select date"
+            class="w-full border rounded p-2">
 
         <div class="flex space-x-2 mt-2">
-            <button type="submit" id="submitBtn" class="bg-blue-600 text-white px-4 py-2 rounded shadow">Add Loan</button>
-            <button type="button" id="cancelEditBtn" style="display:none" class="bg-gray-400 text-white px-4 py-2 rounded">Cancel Edit</button>
+            <button type="submit" id="submitBtn" class="bg-blue-600 text-white px-4 py-2 rounded shadow">Add
+                Loan</button>
+            <button type="button" id="cancelEditBtn" style="display:none"
+                class="bg-gray-400 text-white px-4 py-2 rounded">Cancel Edit</button>
         </div>
     </form>
 
@@ -68,7 +77,10 @@ if (isset($_GET['period'])) {
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 $(function() {
-    $("#loan_date").datepicker({ dateFormat: 'yy-mm-dd', maxDate: 0 });
+    $("#loan_date").datepicker({
+        dateFormat: 'yy-mm-dd',
+        maxDate: 0
+    });
 
     // Member Autocomplete
     $("#CoopName").autocomplete({
@@ -77,14 +89,24 @@ $(function() {
         select: function(event, ui) {
             $('#txtCoopid').val(ui.item.memberid);
             $('#CoopName').val(ui.item.label);
-            $('#memberNameHint').text(ui.item.membername + (ui.item.mobile ? ' (' + ui.item.mobile + ')' : ''));
+            $('#memberNameHint').text(ui.item.membername + (ui.item.mobile ? ' (' + ui.item.mobile +
+                ')' : ''));
             return false;
         }
     }).autocomplete("instance")._renderItem = function(ul, item) {
         return $("<li>")
-            .append("<div>" + item.label + "<br><span style='font-size:0.9em;color:#888'>" + item.membername + (item.mobile ? " (" + item.mobile + ")" : "") + "</span></div>")
+            .append("<div>" + item.label + "<br><span style='font-size:0.9em;color:#888'>" + item
+                .membername + (item.mobile ? " (" + item.mobile + ")" : "") + "</span></div>")
             .appendTo(ul);
     };
+
+    // Clear member button
+    $('#clearMemberBtn').on('click', function() {
+        $('#CoopName').val('');
+        $('#txtCoopid').val('');
+        $('#memberNameHint').text('');
+        $('#CoopName').focus();
+    });
 
     // Period selection logic
     $("#PeriodId").on('change', function() {
@@ -124,9 +146,11 @@ $(function() {
     $(document).on("click", ".edit-loan-btn", function(e) {
         e.preventDefault();
         var loanid = $(this).data("loanid");
-        $.get("get_loan_row.php", { loanid: loanid }, function(row) {
+        $.get("get_loan_row.php", {
+            loanid: loanid
+        }, function(row) {
             if (!row || typeof row !== "object") {
-                Swal.fire("Loan not found.", "", "error"); 
+                Swal.fire("Loan not found.", "", "error");
                 return;
             }
             $("#edit_loanid").val(row.loanid);
@@ -140,7 +164,7 @@ $(function() {
             $("#submitBtn").text("Update Loan");
             $("#cancelEditBtn").show();
         }, 'json');
-        
+
     });
 
     // Cancel Edit
@@ -163,7 +187,9 @@ $(function() {
             confirmButtonText: 'Yes, delete it!'
         }).then((result) => {
             if (result.isConfirmed) {
-                $.post("delete_loan.php", { loanid: loanid }, function(resp) {
+                $.post("delete_loan.php", {
+                    loanid: loanid
+                }, function(resp) {
                     updateLoansTable(pid);
                     resetForm();
                     Swal.fire('Deleted!', 'Loan has been deleted.', 'success');
@@ -183,10 +209,13 @@ $(function() {
             return;
         }
         $("#loansTableArea").html('<div style="padding:1em;">Loading loans for selected period...</div>');
-        $.post("get_loans_by_period.php", { periodid: pid }, function(data) {
+        $.post("get_loans_by_period.php", {
+            periodid: pid
+        }, function(data) {
             $("#loansTableArea").html(data);
         });
     }
+
     function sweetMsg(msg, type) {
         Swal.fire({
             icon: type,
@@ -196,6 +225,7 @@ $(function() {
             position: 'top'
         });
     }
+
     function resetForm() {
         $("#loanForm")[0].reset();
         $("#edit_loanid").val('');
@@ -208,22 +238,51 @@ $(function() {
 <style>
 /* Responsive table style for mobile friendliness */
 #loansTableArea table {
-    width:100%; border-collapse:collapse; margin-bottom:2em;
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2em;
 }
-#loansTableArea th, #loansTableArea td {
-    padding:6px 10px; border:1px solid #e5e7eb; font-size:1em;
+
+#loansTableArea th,
+#loansTableArea td {
+    padding: 6px 10px;
+    border: 1px solid #e5e7eb;
+    font-size: 1em;
 }
-#loansTableArea th { background:#f0f4f8; }
-@media (max-width:600px){
-    #loansTableArea table, #loansTableArea thead, #loansTableArea tbody, #loansTableArea th, #loansTableArea td, #loansTableArea tr {
-        display:block;
+
+#loansTableArea th {
+    background: #f0f4f8;
+}
+
+@media (max-width:600px) {
+
+    #loansTableArea table,
+    #loansTableArea thead,
+    #loansTableArea tbody,
+    #loansTableArea th,
+    #loansTableArea td,
+    #loansTableArea tr {
+        display: block;
     }
-    #loansTableArea th { position: absolute; left: -9999px;}
+
+    #loansTableArea th {
+        position: absolute;
+        left: -9999px;
+    }
+
     #loansTableArea td {
-        border: none; position: relative; padding-left: 50%; min-height: 40px;
+        border: none;
+        position: relative;
+        padding-left: 50%;
+        min-height: 40px;
     }
+
     #loansTableArea td:before {
-        position: absolute; left: 10px; top: 8px; white-space: nowrap; font-weight:bold;
+        position: absolute;
+        left: 10px;
+        top: 8px;
+        white-space: nowrap;
+        font-weight: bold;
         content: attr(data-label);
     }
 }

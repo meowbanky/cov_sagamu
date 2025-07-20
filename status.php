@@ -18,9 +18,12 @@ if ($res) $periods = $res->fetch_all(MYSQLI_ASSOC);
 
     <div>
       <label for="search" class="block text-sm font-medium text-blue-800 mb-1">Search Member</label>
-      <input type="text" id="search"
-        class="block w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 px-3 py-2 text-base"
-        placeholder="Type name or ID..." aria-label="Search member" autocomplete="off">
+      <div class="flex items-center space-x-2">
+        <input type="text" id="search"
+          class="block w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 px-3 py-2 text-base"
+          placeholder="Type name or ID..." aria-label="Search member" autocomplete="off">
+        <button type="button" id="clearMemberBtn" title="Clear member" class="text-gray-500 hover:text-red-600 text-xl px-2">&#10006;</button>
+      </div>
       <input type="hidden" id="memberid" name="memberid">
       <input type="hidden" id="name" name="name">
     </div>
@@ -62,6 +65,14 @@ $(function() {
             setTimeout(function() { $('#PeriodId').focus(); }, 150);
             return false;
         }
+    });
+
+    // Clear member button
+    $('#clearMemberBtn').on('click', function() {
+        $('#search').val('');
+        $('#memberid').val('');
+        $('#name').val('');
+        $('#search').focus();
     });
 
     // Submit handler

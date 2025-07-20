@@ -14,6 +14,7 @@ $sql = "SELECT l.loanid, l.memberid, l.loanamount, l.loan_date,
 $res = $cov->query($sql);
 
 if ($res && $res->num_rows) {
+    $grand_total = 0;
     echo '<table class="min-w-full bg-white rounded shadow">
         <thead>
         <tr>
@@ -25,6 +26,7 @@ if ($res && $res->num_rows) {
         </tr>
         </thead><tbody>';
     while ($row = $res->fetch_assoc()) {
+        $grand_total += $row['loanamount'];
         echo '<tr class="border-b hover:bg-gray-50">
             <td data-label="Member No" class="px-4 py-2">'.htmlspecialchars($row['memberid']).'</td>
             <td data-label="Name" class="px-4 py-2">'.htmlspecialchars($row['member_name']).'</td>
@@ -40,6 +42,13 @@ if ($res && $res->num_rows) {
             </td>
         </tr>';
     }
+    // Add grand total row
+    echo '<tr class="font-bold bg-gray-200">
+        <td colspan="2" class="px-4 py-2 text-right">Grand Total</td>
+        <td class="px-4 py-2">'.number_format($grand_total,2).'</td>
+        <td class="px-4 py-2"></td>
+        <td class="px-4 py-2"></td>
+    </tr>';
     echo '</tbody></table>';
 } else {
     echo '<div class="text-gray-500 p-4">No loans for this period.</div>';

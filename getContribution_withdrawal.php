@@ -1,48 +1,20 @@
-<?php require_once('Connections/cov.php'); ?>
 <?php
-if (!function_exists("GetSQLValueString")) {
-function GetSQLValueString($conn_vote, $theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "") 
-    {
-     
-      $theValue = function_exists("mysqli_real_escape_string") ? mysqli_real_escape_string($conn_vote, $theValue) : mysqli_escape_string($conn_vote, $theValue);
+require_once('Connections/cov.php');
 
-      switch ($theType) {
-        case "text":
-          $theValue = ($theValue != "") ? "'" . $theValue . "'" : "NULL";
-          break;    
-        case "long":
-        case "int":
-          $theValue = ($theValue != "") ? intval($theValue) : "NULL";
-          break;
-        case "double":
-          $theValue = ($theValue != "") ? "'" . doubleval($theValue) . "'" : "NULL";
-          break;
-        case "date":
-          $theValue = ($theValue != "") ? "'" . $theValue . "'" : "NULL";
-          break;
-        case "defined":
-          $theValue = ($theValue != "") ? $theDefinedValue : $theNotDefinedValue;
-          break;
-      }
-      return $theValue;
-    }
-   
-}
+// Sanitize and get member id
+$Id = isset($_GET['id']) ? intval($_GET['id']) : -1;
 
-$Id = "-1";
-if (isset($_GET['id'])) {
-  $Id = (get_magic_quotes_gpc()) ? $_GET['id'] : addslashes($_GET['id']);
-}else {$Id =  -1;}
-mysqli_select_db($cov,$database_cov);
-$query_contriution = "SELECT Sum(tlb_mastertransaction.savings)+ Sum(tlb_mastertransaction.shares) as contribution FROM tlb_mastertransaction WHERE memberid = '$Id'";
-$contriution = mysqli_query($cov,$query_contriution) or die(mysql_error());
-$row_contriution = mysqli_fetch_assoc($contriution);
-$totalRows_contriution = mysqli_num_rows($contriution);
+// Query only savings as contribution
+$query = "SELECT SUM(tlb_mastertransaction.savings) + SUM(tlb_mastertransaction.shares) AS contribution FROM tlb_mastertransaction WHERE memberid = ?";
+$stmt = $cov->prepare($query);
+$stmt->bind_param('i', $Id);
+$stmt->execute();
+$result = $stmt->get_result();
+$row = $result->fetch_assoc();
+$contribution = isset($row['contribution']) ? floatval($row['contribution']) : 0.00;
+$stmt->close();
 
-
-		?><?php echo '<strong>'.number_format($row_contriution['contribution'],2) . '</strong>'; ?>
-
-<input id="contribution" name="contribution" type="hidden" value="<?php echo $row_contriution['contribution'] ; ?>" />
-<?php
-mysqli_free_result($contriution);
+// Output as Naira currency
 ?>
+<strong>&#8358;<?= number_format($contribution, 2) ?></strong>
+<input id="contribution" name="contribution" type="hidden" value="<?= $contribution ?>" />
