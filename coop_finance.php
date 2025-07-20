@@ -268,7 +268,7 @@ $('#reportPeriod').on('change', function() {
 function loadReport(periodid) {
     $.get('coop_finance_report.php', {
         periodid,
-        admin: <?= json_encode($_SESSION['role'] === 'admin') ?>
+        admin: true
     }, function(html) {
         $('#reportTable').html(html);
     });

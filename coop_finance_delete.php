@@ -2,7 +2,7 @@
 require_once('Connections/cov.php');
 session_start();
 header('Content-Type: application/json');
-if (!isset($_SESSION['UserID']) || $_SESSION['role'] !== 'admin') {
+if (!isset($_SESSION['UserID'])) {
     echo json_encode(['error' => 'Permission denied.']); exit;
 }
 $id = intval($_POST['id'] ?? 0);
