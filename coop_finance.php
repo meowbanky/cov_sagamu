@@ -117,11 +117,11 @@ $expendCats = getCategories($cov, 'expenditure');
 
 <!-- Category Management Modal -->
 <div id="catModal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 hidden">
-    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+    <div class="bg-white rounded-lg shadow-lg p-4 w-full max-w-md relative">
         <button id="closeCatModal"
             class="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-2xl">&times;</button>
         <h3 class="text-lg font-bold mb-4">Manage Categories</h3>
-        <form id="catForm" class="flex gap-2 mb-4">
+        <form id="catForm" class="flex flex-col md:flex-row gap-2 mb-4">
             <select id="catType" class="border rounded px-2 py-1" required>
                 <option value="income">Income</option>
                 <option value="expenditure">Expenditure</option>

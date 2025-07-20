@@ -1,7 +1,7 @@
 <?php
 session_start();
-// Delete all .json files in this directory (old progress files)
-foreach (glob(__DIR__ . '/*.json') as $oldJson) {
+// Delete only progress_*.json files in this directory (old progress files)
+foreach (glob(__DIR__ . '/progress_*.json') as $oldJson) {
     @unlink($oldJson);
 }
 $sessionId = session_id();
