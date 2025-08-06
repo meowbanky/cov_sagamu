@@ -91,6 +91,8 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                                 class="fa fa-balance-scale fa-fw mr-2"></i> Check Status</a></li>
                     <li><a href="backup2.php" class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
                                 class="fa fa-database fa-fw mr-2"></i> Backup</a></li>
+                    <li><a href="ai_bank_statement_upload.php" class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
+                                class="fa fa-robot fa-fw mr-2"></i> AI Bank Statement Upload</a></li>
                     <!-- Add more menu items as needed -->
                 </ul>
             </nav>
@@ -170,6 +172,11 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     class="bg-white shadow-lg rounded-xl p-6 flex flex-col items-center hover:shadow-2xl transition">
                     <i class="fa fa-user-shield fa-3x text-purple-500 mb-4"></i>
                     <span class="font-semibold text-lg">Register User</span>
+                </a>
+                <a href="ai_bank_statement_upload.php"
+                    class="bg-white shadow-lg rounded-xl p-6 flex flex-col items-center hover:shadow-2xl transition">
+                    <i class="fa fa-robot fa-3x text-blue-600 mb-4"></i>
+                    <span class="font-semibold text-lg">AI Bank Statement Upload</span>
                 </a>
                 <!-- Add more feature cards as needed -->
             </div>

@@ -37,7 +37,7 @@ try {
     //Content
     $mail->isHTML(true);                                  //Set email format to HTML
     $mail->Subject = 'Here is the subject';
-    $mail->Body    = "You've recently created a new username account linked to the email address: <br /><br />To activate your account, click the link below:<br /><br /> https://www.oouthcom/caree/validate.php?act=auth&jam=token="
+    $mail->Body    = "You've recently created a new username account linked to the email address: <br /><br />To activate your account, click the link below:<br /><br /> https://www.oouthcom/caree/validate.php?act=auth&jam=token=";
     $mail->AltBody = 'This is the body in plain text for non-HTML mail clients';
 
     $mail->send();
