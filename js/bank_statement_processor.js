@@ -918,7 +918,9 @@ window.reclassifyTransaction = function (index, newType) {
     // Confirm the reclassification
     const confirmMessage = `Are you sure you want to reclassify this transaction from ${oldType.toUpperCase()} to ${newType.toUpperCase()}?\n\nTransaction: ${
       transaction.name
-    }\nAmount: ₦${parseFloat(transaction.amount || 0).toLocaleString()}\n\nNote: Existing member match will be preserved.`;
+    }\nAmount: ₦${parseFloat(
+      transaction.amount || 0
+    ).toLocaleString()}\n\nNote: Existing member match will be preserved.`;
 
     if (confirm(confirmMessage)) {
       // Update the transaction type

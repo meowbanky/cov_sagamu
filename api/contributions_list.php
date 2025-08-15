@@ -10,7 +10,8 @@ SELECT tbl_contributions.membersid,
     tbl_contributions.contriId,
     CONCAT(tbl_personalinfo.Fname, ' ', tbl_personalinfo.Lname) AS member_name,
     tbpayrollperiods.PayrollPeriod,
-    tbl_contributions.contribution
+    tbl_contributions.contribution,
+    tbl_contributions.special_savings
 FROM
     tbl_contributions
     INNER JOIN tbl_personalinfo
@@ -31,6 +32,7 @@ echo '<table class="w-full border mt-2 text-sm">
     <th>Name</th>
     <th>Period</th>
     <th class="text-right">Amount</th>
+    <th class="text-right">Special Savings</th>
     <th></th>
 </tr>
 </thead>
@@ -40,6 +42,7 @@ global $grand_total;
 $grand_total = 0;
 while($row = $res->fetch_assoc()) {
     $amountFormatted = '₦' . number_format($row['contribution'], 2);
+    $specialSavingsFormatted = '₦' . number_format($row['special_savings'], 2);
     $grand_total += $row['contribution'];
     echo "<tr 
         data-id='{$row['contriId']}'
@@ -47,12 +50,13 @@ while($row = $res->fetch_assoc()) {
         data-periodid='{$periodId}'
         data-amount='{$row['contribution']}'
         data-member_name='{$row['member_name']}'
-        data-specialsavings='".($row['specialsavings'] ?? 0)."'
+        data-specialsavings='".($row['special_savings'] ?? 0)."'
     >";
     echo "<td>{$row['contriId']}</td>";
     echo "<td>{$row['member_name']}</td>";
     echo "<td>{$row['PayrollPeriod']}</td>";
     echo "<td class='text-right'>{$amountFormatted}</td>";
+    echo "<td class='text-right'>{$specialSavingsFormatted}</td>";
     echo '<td>
         <button class="btn-edit bg-yellow-400 px-2 py-1 rounded mr-2">Edit</button>
         <button class="btn-delete bg-red-500 text-white px-2 py-1 rounded">Delete</button>

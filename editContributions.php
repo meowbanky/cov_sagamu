@@ -15,12 +15,13 @@ require_once('header.php');
         <form id="contributionForm" class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block font-semibold mb-1">Member</label>
-                <input type="text" name="CoopName" id="CoopName" class="w-full border px-3 py-2 rounded" autocomplete="off">
+                <input type="text" name="CoopName" id="CoopName" class="w-full border px-3 py-2 rounded"
+                    autocomplete="off">
                 <div id="suggestions" class="suggestionsBox" style="display:none">
                     <div id="autoSuggestionsList"></div>
                 </div>
                 <input type="hidden" name="txtCoopid" id="txtCoopid">
-              
+
             </div>
             <div>
                 <label class="block font-semibold mb-1">Period</label>
@@ -32,13 +33,16 @@ require_once('header.php');
             </div>
             <div>
                 <label class="block font-semibold mb-1">Special Savings</label>
-                <input type="number" name="specialsavings" id="specialsavings" class="w-full border px-3 py-2 rounded" value="0">
+                <input type="number" name="specialsavings" id="specialsavings" class="w-full border px-3 py-2 rounded"
+                    value="0">
             </div>
             <div class="col-span-2 flex gap-2">
                 <button type="button" class="bg-green-600 text-white px-4 py-2 rounded" id="btnSave">Save</button>
-                <button type="button" class="bg-yellow-600 text-white px-4 py-2 rounded" id="btnUpdate" style="display:none;">Update</button>
-                
+                <button type="button" class="bg-yellow-600 text-white px-4 py-2 rounded" id="btnUpdate"
+                    style="display:none;">Update</button>
+
             </div>
+            <input type="hidden" name="txtContriId" id="txtContriId">
         </form>
     </div>
     <div id="contributionsList"></div>
@@ -58,9 +62,14 @@ $(function() {
     // Lookup member for auto-suggest
     $('#CoopName').keyup(function() {
         let val = $(this).val();
-        if (val.length < 2) { $('#suggestions').hide(); return; }
-        $.post("api/member_search.php", {q:val}, function(data){
-            if(data.length>0){
+        if (val.length < 2) {
+            $('#suggestions').hide();
+            return;
+        }
+        $.post("api/member_search.php", {
+            q: val
+        }, function(data) {
+            if (data.length > 0) {
                 $('#suggestions').show();
                 $('#autoSuggestionsList').html(data);
             } else {
@@ -70,20 +79,25 @@ $(function() {
     });
 
     $(document).on('click', '.suggestionList li', function() {
-    let memberId = $(this).attr('data-id');
-    $('#txtCoopid').val(memberId);
-    $('#CoopName').val($(this).text());
-    $('#suggestions').hide();
-    let periodId = $('#PeriodId').val();
-    if(periodId) loadContributions(periodId);
-});
+        let memberId = $(this).attr('data-id');
+        $('#txtCoopid').val(memberId);
+        $('#CoopName').val($(this).text());
+        $('#suggestions').hide();
+        let periodId = $('#PeriodId').val();
+        if (periodId) loadContributions(periodId);
+    });
 
     function loadContributions(periodId) {
-    if (!periodId) { $('#contributionsList').html(''); return; }
-    $.get('api/contributions_list.php', { periodId }, function(html) {
-        $('#contributionsList').html(html);
-    });
-}
+        if (!periodId) {
+            $('#contributionsList').html('');
+            return;
+        }
+        $.get('api/contributions_list.php', {
+            periodId
+        }, function(html) {
+            $('#contributionsList').html(html);
+        });
+    }
 
 
     // Save new contribution
@@ -93,8 +107,8 @@ $(function() {
             if (resp.success) {
                 Swal.fire('Saved', resp.success, 'success');
                 let periodId = $('#PeriodId').val();
-                if(periodId) loadContributions(periodId);
-                
+                if (periodId) loadContributions(periodId);
+
                 $('#contributionForm')[0].reset();
             } else {
                 Swal.fire('Error', resp.error, 'error');
@@ -106,13 +120,18 @@ $(function() {
     $(document).on('click', '.btn-edit', function() {
         // Populate form with the clicked contribution details
         let row = $(this).closest('tr');
+        $('#txtContriId').val(row.data('id'));
         $('#txtCoopid').val(row.data('memberid'));
-       $('#PeriodId').val(row.data('periodid'));
-        $('#CoopName').val(row.data('member_name'));
-        $('#Amount').val(row.data('amount'));
-        $('#specialsavings').val(row.data('specialsavings'));
+        $('#PeriodId').val(row.data('periodid'));
+        $(
+            '#CoopName').val(row.data('member_name'));
+        $('#Amount').val(row.data(
+            'amount'));
+        $(
+            '#specialsavings').val(row.data('specialsavings'));
         $('#btnSave').hide();
-        $('#btnUpdate, #btnDelete').show();
+        $(
+            '#btnUpdate, #btnDelete').show();
     });
 
     $('#btnUpdate').click(function() {
@@ -121,8 +140,8 @@ $(function() {
             if (resp.success) {
                 Swal.fire('Updated', resp.success, 'success');
                 let periodId = $('#PeriodId').val();
-                if(periodId) loadContributions(periodId);
-                
+                if (periodId) loadContributions(periodId);
+
                 $('#contributionForm')[0].reset();
                 $('#btnUpdate, #btnDelete').hide();
                 $('#btnSave').show();
@@ -133,36 +152,38 @@ $(function() {
     });
 
     $('#PeriodId').change(function() {
-      
-    // let memberId = $('#txtCoopid').val();
-    let periodId = $(this).val();
-    if(periodId){
-        loadContributions(periodId);
-    }
-});
 
-$(document).on('click', '.btn-delete', function() {
-    let row = $(this).closest('tr');
-    let contriId = row.data('id');
-    Swal.fire({
-        title: "Are you sure?",
-        text: "This will delete the record!",
-        icon: "warning",
-        showCancelButton: true,
-    }).then(result => {
-        if(result.isConfirmed){
-            $.post('api/contribution_delete.php', { contriId }, function(resp) {
-                if (resp.success) {
-                    Swal.fire('Deleted', resp.success, 'success');
-                    let periodId = $('#PeriodId').val();
-                    if(periodId) loadContributions(periodId);
-                } else {
-                    Swal.fire('Error', resp.error, 'error');
-                }
-            }, 'json');
+        // let memberId = $('#txtCoopid').val();
+        let periodId = $(this).val();
+        if (periodId) {
+            loadContributions(periodId);
         }
     });
-});
+
+    $(document).on('click', '.btn-delete', function() {
+        let row = $(this).closest('tr');
+        let contriId = row.data('id');
+        Swal.fire({
+            title: "Are you sure?",
+            text: "This will delete the record!",
+            icon: "warning",
+            showCancelButton: true,
+        }).then(result => {
+            if (result.isConfirmed) {
+                $.post('api/contribution_delete.php', {
+                    contriId
+                }, function(resp) {
+                    if (resp.success) {
+                        Swal.fire('Deleted', resp.success, 'success');
+                        let periodId = $('#PeriodId').val();
+                        if (periodId) loadContributions(periodId);
+                    } else {
+                        Swal.fire('Error', resp.error, 'error');
+                    }
+                }, 'json');
+            }
+        });
+    });
 
 });
 </script>

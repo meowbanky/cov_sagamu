@@ -84,6 +84,14 @@ if (!is_dir($upload_dir)) {
     mkdir($upload_dir, 0755, true);
 }
 
+// Ensure all required tables exist before processing any requests
+try {
+    $cov = getDatabaseConnection();
+    createTables();
+} catch (Exception $e) {
+    error_log("Failed to create tables: " . $e->getMessage());
+}
+
 // Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -124,6 +132,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 error_log("Bank statement processor: Handling insert_transaction");
                 handleInsertTransaction($input);
                 break;
+            case 'get_unmatched_transactions':
+                error_log("Bank statement processor: Handling get_unmatched_transactions");
+                handleGetUnmatchedTransactions($input);
+                break;
+            case 'get_matched_transactions':
+                error_log("Bank statement processor: Handling get_matched_transactions");
+                handleGetMatchedTransactions($input);
+                break;
+            case 'process_matched_transaction':
+                error_log("Bank statement processor: Handling process_matched_transaction");
+                handleProcessMatchedTransaction($input);
+                break;
+            case 'delete_matched_transaction':
+                error_log("Bank statement processor: Handling delete_matched_transaction");
+                handleDeleteMatchedTransaction($input);
+                break;
+            case 'check_file_exists':
+                error_log("Bank statement processor: Handling check_file_exists");
+                handleCheckFileExists($input);
+                break;
+            case 'get_existing_files':
+                error_log("Bank statement processor: Handling get_existing_files");
+                handleGetExistingFiles($input);
+                break;
+            case 'load_existing_analysis':
+                error_log("Bank statement processor: Handling load_existing_analysis");
+                handleLoadExistingAnalysis($input);
+                break;
+            case 'save_extracted_data':
+                error_log("Bank statement processor: Handling save_extracted_data");
+                handleSaveExtractedData($input);
+                break;
+            case 'save_reclassification':
+                error_log("Bank statement processor: Handling save_reclassification");
+                handleSaveReclassification($input);
+                break;
             default:
                 error_log("Bank statement processor: Invalid action: " . ($input['action'] ?? 'none'));
                 echo json_encode(['success' => false, 'message' => 'Invalid action']);
@@ -142,6 +186,9 @@ function handleFileUpload() {
     
     try {
         error_log("Bank statement processor: Starting handleFileUpload");
+        error_log("POST data received: " . print_r($_POST, true));
+        error_log("FILES data received: " . print_r($_FILES, true));
+        
         $cov = getDatabaseConnection();
         error_log("Bank statement processor: Database connection successful");
         $file_field = null;
@@ -167,8 +214,17 @@ function handleFileUpload() {
 
         $all_transactions = [];
         $client_side_texts = $_POST['extracted_texts'] ?? [];
+        $page_info = $_POST['page_info'] ?? null;
         $processed_files = [];
         $skipped_files = [];
+        
+        // Log page information if available
+        if ($page_info) {
+            $page_data = json_decode($page_info, true);
+            if ($page_data) {
+                error_log("Processing page {$page_data['pageNumber']} of {$page_data['totalPages']} from file: {$page_data['originalFile']}");
+            }
+        }
 
         if ($file_field === 'file') {
             $tmp_name = $_FILES['file']['tmp_name'];
@@ -201,6 +257,9 @@ function handleFileUpload() {
                         // Process the complete PDF text (all pages)
                         error_log("Processing complete PDF text: " . strlen($extracted_text) . " characters");
                     } else {
+                        error_log("No client-side extracted text found for single file");
+                        error_log("Client-side texts array: " . print_r($client_side_texts, true));
+                        
                         // Try server-side extraction with password if provided
                         $pdf_password = $_POST['pdf_password'] ?? '';
                         $extracted_text = extractPDFTextServerSide($file_path, $pdf_password);
@@ -241,17 +300,34 @@ function handleFileUpload() {
 
                     $transactions = analyzeWithOpenAI($extracted_text, $openai_key);
                     error_log("OpenAI returned " . count($transactions) . " transactions for file: $file_name");
+                    error_log("Sample of extracted text length: " . strlen($extracted_text));
+                    error_log("Sample of extracted text (first 200 chars): " . substr($extracted_text, 0, 200));
+                    
                     if (empty($transactions)) {
+                        error_log("No transactions found in extracted text");
                         throw new Exception("No transactions extracted from $file_name");
                     }
 
-                    $insert_query = "INSERT INTO bank_statement_files (filename, file_path, file_hash, period_id, uploaded_by, upload_date, processed) 
-                                    VALUES (?, ?, ?, ?, ?, NOW(), 1)";
-                    $insert_stmt = mysqli_prepare($cov, $insert_query);
-                    $uploaded_by = $user_name ?? $user_id;
-                    mysqli_stmt_bind_param($insert_stmt, 'sssis', $file_name, $file_path, $file_hash, $period, $uploaded_by);
-                    mysqli_stmt_execute($insert_stmt);
-                    $processed_files[] = $file_name;
+                    // Add page information to transactions if available
+                    if ($page_info) {
+                        $page_data = json_decode($page_info, true);
+                        if ($page_data) {
+                            foreach ($transactions as &$transaction) {
+                                $transaction['page_info'] = $page_data;
+                            }
+                            error_log("Added page information to " . count($transactions) . " transactions: Page {$page_data['pageNumber']} of {$page_data['totalPages']}");
+                        }
+                    }
+
+                    // Store file information for later recording after transaction processing
+                    $file_info = [
+                        'filename' => $file_name,
+                        'file_path' => $file_path,
+                        'file_hash' => $file_hash,
+                        'period_id' => $period,
+                        'uploaded_by' => $user_name ?? $user_id
+                    ];
+                    $processed_files[] = $file_info;
 
                     error_log("Starting member matching for " . count($transactions) . " transactions");
                     foreach ($transactions as $index => &$transaction) {
@@ -277,7 +353,9 @@ function handleFileUpload() {
                 $file_name = $_FILES['files']['name'][$key];
                 $file_hash = md5_file($tmp_name);
 
-                if (!$force_reprocess) {
+                // Skip duplicate checking for page-based processing
+                $is_page_processing = !empty($page_info);
+                if (!$force_reprocess && !$is_page_processing) {
                     $check_query = "SELECT id, filename FROM bank_statement_files WHERE file_hash = ?";
                     $check_stmt = mysqli_prepare($cov, $check_query);
                     mysqli_stmt_bind_param($check_stmt, 's', $file_hash);
@@ -291,17 +369,26 @@ function handleFileUpload() {
                     }
                 }
 
-                $file_path = $upload_dir . time() . '_' . $file_name;
-                if (!move_uploaded_file($tmp_name, $file_path)) {
-                    throw new Exception("Failed to save file: $file_name");
+                // For page-based processing, don't save the file multiple times
+                if ($is_page_processing) {
+                    $file_path = $upload_dir . 'temp_' . time() . '_' . $file_name;
+                    // Don't save the file for page processing, just use the extracted text
+                } else {
+                    $file_path = $upload_dir . time() . '_' . $file_name;
+                    if (!move_uploaded_file($tmp_name, $file_path)) {
+                        throw new Exception("Failed to save file: $file_name");
+                    }
                 }
 
                 $extracted_text = '';
                 if (isset($client_side_texts[$key]) && !empty(trim($client_side_texts[$key]))) {
                     $extracted_text = trim($client_side_texts[$key]);
                     error_log("Using client-side extracted text for file $key: " . strlen($extracted_text) . " characters");
+                    $sample_text = substr($extracted_text, 0, 500);
+                    error_log("Sample text for file $key (first 500 chars): " . $sample_text);
                 } else {
                     error_log("No client-side extracted text for file $key, using fallback");
+                    error_log("Client-side texts for key $key: " . (isset($client_side_texts[$key]) ? $client_side_texts[$key] : 'NOT SET'));
                     // Try server-side extraction as fallback
                     $pdf_password = $_POST['pdf_password'] ?? '';
                     $extracted_text = extractPDFTextServerSide($file_path, $pdf_password);
@@ -313,17 +400,34 @@ function handleFileUpload() {
 
                 $transactions = analyzeWithOpenAI($extracted_text, $openai_key);
                 error_log("OpenAI returned " . count($transactions) . " transactions for file: $file_name");
+                error_log("Sample of extracted text length: " . strlen($extracted_text));
+                error_log("Sample of extracted text (first 200 chars): " . substr($extracted_text, 0, 200));
+                
                 if (empty($transactions)) {
+                    error_log("No transactions found in extracted text");
                     throw new Exception("No transactions extracted from $file_name");
                 }
 
-                $insert_query = "INSERT INTO bank_statement_files (filename, file_path, file_hash, period_id, uploaded_by, upload_date, processed) 
-                                VALUES (?, ?, ?, ?, ?, NOW(), 1)";
-                $insert_stmt = mysqli_prepare($cov, $insert_query);
-                $uploaded_by = $user_name ?? $user_id;
-                mysqli_stmt_bind_param($insert_stmt, 'sssis', $file_name, $file_path, $file_hash, $period, $uploaded_by);
-                mysqli_stmt_execute($insert_stmt);
-                $processed_files[] = $file_name;
+                // Add page information to transactions if available
+                if ($page_info) {
+                    $page_data = json_decode($page_info, true);
+                    if ($page_data) {
+                        foreach ($transactions as &$transaction) {
+                            $transaction['page_info'] = $page_data;
+                        }
+                        error_log("Added page information to " . count($transactions) . " transactions: Page {$page_data['pageNumber']} of {$page_data['totalPages']}");
+                    }
+                }
+
+                // Store file information for later recording after transaction processing
+                $file_info = [
+                    'filename' => $file_name,
+                    'file_path' => $file_path,
+                    'file_hash' => $file_hash,
+                    'period_id' => intval($period), // Ensure period_id is an integer
+                    'uploaded_by' => intval($user_id ?? 1) // Ensure uploaded_by is an integer
+                ];
+                $processed_files[] = $file_info;
 
                 error_log("Starting member matching for " . count($transactions) . " transactions");
                 foreach ($transactions as $index => &$transaction) {
@@ -350,6 +454,7 @@ function handleFileUpload() {
             'message' => 'Files processed successfully',
             'data' => $all_transactions,
             'skipped_files' => $skipped_files,
+            'file_info' => $processed_files, // Include file information for later recording
             'debug' => [
                 'files_processed' => count($processed_files),
                 'transactions_found' => count($all_transactions)
@@ -485,38 +590,7 @@ function analyzeWithOpenAI($text, $api_key) {
                                        in_array($t['type'], ['credit', 'debit']);
                             });
                             
-                            // Additional validation: Check for obvious credit/debit misclassifications
-                            $valid_transactions = array_map(function($t) {
-                                // If transaction description contains keywords that suggest credit, ensure it's classified as credit
-                                $credit_keywords = ['contribution', 'savings', 'deposit', 'transfer from', 'payment from', 'credit'];
-                                $debit_keywords = ['withdrawal', 'transfer to', 'payment to', 'loan', 'debit'];
-                                
-                                $description_lower = strtolower($t['description'] ?? '');
-                                
-                                // Check for credit keywords
-                                foreach ($credit_keywords as $keyword) {
-                                    if (strpos($description_lower, $keyword) !== false) {
-                                        if ($t['type'] === 'debit') {
-                                            error_log("Correcting transaction type from debit to credit for: " . $t['name'] . " (contains: $keyword)");
-                                            $t['type'] = 'credit';
-                                        }
-                                        break;
-                                    }
-                                }
-                                
-                                // Check for debit keywords
-                                foreach ($debit_keywords as $keyword) {
-                                    if (strpos($description_lower, $keyword) !== false) {
-                                        if ($t['type'] === 'credit') {
-                                            error_log("Correcting transaction type from credit to debit for: " . $t['name'] . " (contains: $keyword)");
-                                            $t['type'] = 'debit';
-                                        }
-                                        break;
-                                    }
-                                }
-                                
-                                return $t;
-                            }, $valid_transactions);
+                            // No AI-based type correction - use original classification from table structure
                             
                             $all_transactions = array_merge($all_transactions, array_values($valid_transactions));
                             break;
@@ -597,8 +671,8 @@ function findMemberMatch($transaction_name, $description) {
             WHERE LOWER(Fname) IN ($placeholders) 
                OR LOWER(Mname) IN ($placeholders) 
                OR LOWER(Lname) IN ($placeholders) 
-            LIMIT 5";
-    
+            ";
+     
     $stmt = mysqli_prepare($cov, $sql);
     if (!$stmt) {
         error_log("SQL prepare failed: " . mysqli_error($cov));
@@ -820,16 +894,57 @@ Return format: Just the member ID number (e.g., '294') or 'NO_MATCH'";
 }
 
 function handleSearchMembers($input) {
-    $cov = getDatabaseConnection();
-
     try {
+        error_log("=== handleSearchMembers START ===");
+        error_log("Input received: " . print_r($input, true));
+        
+        $cov = getDatabaseConnection();
+        if (!$cov) {
+            throw new Exception('Database connection failed');
+        }
+        
+        error_log("Database connection successful");
+        
         $search_query = trim($input['search_term'] ?? $input['search_query'] ?? '');
         if (empty($search_query)) {
             throw new Exception('Search query required');
         }
+        
+        error_log("Search query: '$search_query'");
+
+        // First, check if the table exists
+        $table_check = mysqli_query($cov, "SHOW TABLES LIKE 'tbl_personalinfo'");
+        if (!$table_check || mysqli_num_rows($table_check) == 0) {
+            error_log("Table tbl_personalinfo does not exist");
+            throw new Exception('Members table not found');
+        }
+        
+        // Check table structure
+        $structure_query = "DESCRIBE tbl_personalinfo";
+        $structure_result = mysqli_query($cov, $structure_query);
+        if (!$structure_result) {
+            error_log("Failed to get table structure: " . mysqli_error($cov));
+            throw new Exception('Failed to get table structure');
+        }
+        
+        $columns = [];
+        while ($row = mysqli_fetch_assoc($structure_result)) {
+            $columns[] = $row['Field'];
+        }
+        error_log("Table columns: " . implode(', ', $columns));
+        
+        // Check if required columns exist
+        $required_columns = ['memberid', 'Fname', 'Lname'];
+        $missing_columns = array_diff($required_columns, $columns);
+        if (!empty($missing_columns)) {
+            error_log("Missing required columns: " . implode(', ', $missing_columns));
+            throw new Exception('Missing required columns: ' . implode(', ', $missing_columns));
+        }
 
         $clean_query = trim(preg_replace('/[^a-zA-Z\s]/', ' ', strtolower($search_query)));
         $query_parts = array_filter(explode(' ', $clean_query));
+        
+        error_log("Query parts: " . print_r($query_parts, true));
 
         $sql = "SELECT memberid, Fname, Mname, Lname FROM tbl_personalinfo WHERE ";
         $conditions = [];
@@ -845,10 +960,30 @@ function handleSearchMembers($input) {
         }
 
         $sql .= implode(' OR ', $conditions);
+        error_log("SQL query: $sql");
+        error_log("Parameters: " . print_r($params, true));
+        error_log("Parameter types: $param_types");
+        
         $stmt = mysqli_prepare($cov, $sql);
-        mysqli_stmt_bind_param($stmt, $param_types, ...$params);
-        mysqli_stmt_execute($stmt);
+        if (!$stmt) {
+            error_log("Failed to prepare statement: " . mysqli_error($cov));
+            throw new Exception('Failed to prepare statement: ' . mysqli_error($cov));
+        }
+        
+        if (!empty($params)) {
+            mysqli_stmt_bind_param($stmt, $param_types, ...$params);
+        }
+        
+        if (!mysqli_stmt_execute($stmt)) {
+            error_log("Failed to execute statement: " . mysqli_stmt_error($stmt));
+            throw new Exception('Failed to execute statement: ' . mysqli_stmt_error($stmt));
+        }
+        
         $result = mysqli_stmt_get_result($stmt);
+        if (!$result) {
+            error_log("Failed to get result: " . mysqli_error($cov));
+            throw new Exception('Failed to get result: ' . mysqli_error($cov));
+        }
 
         $matches = [];
         while ($row = mysqli_fetch_assoc($result)) {
@@ -857,10 +992,21 @@ function handleSearchMembers($input) {
                 'name' => trim($row['Fname'] . ' ' . ($row['Mname'] ?? '') . ' ' . $row['Lname'])
             ];
         }
+        
+        error_log("Found " . count($matches) . " matches");
+        error_log("Matches: " . print_r($matches, true));
 
         echo json_encode(['success' => true, 'employees' => $matches]);
+        error_log("=== handleSearchMembers SUCCESS ===");
+        
     } catch (Exception $e) {
+        error_log("=== handleSearchMembers ERROR ===");
         error_log("Search error: " . $e->getMessage());
+        error_log("Error trace: " . $e->getTraceAsString());
+        
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
         echo json_encode(['success' => false, 'message' => 'Search failed: ' . $e->getMessage()]);
     }
 }
@@ -1017,6 +1163,8 @@ function handleProcessTransactions($input) {
         error_log("Process transactions after processing: " . print_r($transactions, true));
         
         $period = $input['period'];
+        $file_info = $input['file_info'] ?? null; // Get file information for recording
+        error_log("Process transactions: Received file_info: " . print_r($file_info, true));
         $processed_count = 0;
         $skipped_count = 0;
         $unmatched_count = 0;
@@ -1111,7 +1259,7 @@ function handleProcessTransactions($input) {
             //     }
             // }
 
-            // Process credit transactions (contributions)
+            // Process matched transactions directly to appropriate tables
             if ($txn['type'] === 'credit') {
                 $query = "INSERT INTO tbl_contributions (membersid, periodid, contribution) 
                           VALUES (?, ?, ?)";
@@ -1124,13 +1272,57 @@ function handleProcessTransactions($input) {
             } 
             // Process debit transactions (loans)
             else {
-                // Convert date from DD/MM/YYYY to YYYY-MM-DD for MySQL
+                // Get the properly formatted date from the extractions table
                 $loan_date = null;
-                if (isset($txn['date']) && !empty($txn['date'])) {
-                    $date_parts = explode('/', $txn['date']);
-                    if (count($date_parts) === 3) {
-                        $loan_date = $date_parts[2] . '-' . $date_parts[1] . '-' . $date_parts[0];
+                if (isset($txn['uniqueId'])) {
+                    $date_query = "SELECT transaction_date FROM bank_statement_extractions WHERE unique_id = ?";
+                    $date_stmt = mysqli_prepare($cov, $date_query);
+                    if ($date_stmt) {
+                        mysqli_stmt_bind_param($date_stmt, 's', $txn['uniqueId']);
+                        mysqli_stmt_execute($date_stmt);
+                        $date_result = mysqli_stmt_get_result($date_stmt);
+                        if ($date_row = mysqli_fetch_assoc($date_result)) {
+                            $loan_date = $date_row['transaction_date'];
+                        }
+                        mysqli_stmt_close($date_stmt);
                     }
+                }
+                
+                // If no date from extractions table, try to format from transaction data
+                if (!$loan_date && isset($txn['date']) && !empty($txn['date'])) {
+                    $date_str = trim($txn['date']);
+                    
+                    // Check if it's already in YYYY-MM-DD format
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_str)) {
+                        $loan_date = $date_str;
+                    }
+                    // Check if it's in DD/MM/YYYY format
+                    elseif (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $date_str)) {
+                        $date_parts = explode('/', $date_str);
+                        $day = str_pad($date_parts[0], 2, '0', STR_PAD_LEFT);
+                        $month = str_pad($date_parts[1], 2, '0', STR_PAD_LEFT);
+                        $year = $date_parts[2];
+                        $loan_date = "$year-$month-$day";
+                    }
+                    // If none of the above, try to parse with strtotime
+                    else {
+                        $timestamp = strtotime($date_str);
+                        if ($timestamp !== false) {
+                            $loan_date = date('Y-m-d', $timestamp);
+                        }
+                    }
+                }
+                
+                // Validate the final date
+                if ($loan_date && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $loan_date)) {
+                    error_log("Invalid loan date format: " . $loan_date . " (original: " . ($txn['date'] ?? 'NULL') . ")");
+                    $loan_date = null;
+                }
+                
+                // If still no valid date, use current date as fallback
+                if (!$loan_date) {
+                    $loan_date = date('Y-m-d');
+                    error_log("Using current date as fallback for loan: " . $txn['name'] . " - " . $txn['amount']);
                 }
                 
                 $query = "INSERT INTO tbl_loan (memberid, periodid, loanamount, loan_date) 
@@ -1145,9 +1337,45 @@ function handleProcessTransactions($input) {
 
             if (mysqli_stmt_execute($stmt)) {
                 $processed_count++;
-                error_log("Successfully processed transaction: " . $txn['name'] . " - " . $txn['amount'] . " (" . $txn['type'] . ")");
+                error_log("Successfully processed matched transaction: " . $txn['name'] . " - " . $txn['amount'] . " (" . $txn['type'] . ")");
+                
+                // Mark transaction as processed in bank_statement_extractions table
+                if (isset($txn['uniqueId'])) {
+                    $update_query = "UPDATE bank_statement_extractions 
+                                    SET processed = 1, 
+                                        processed_date = NOW(), 
+                                        processed_to_table = ? 
+                                    WHERE unique_id = ?";
+                    $update_stmt = mysqli_prepare($cov, $update_query);
+                    if ($update_stmt) {
+                        $table_name = ($txn['type'] === 'credit') ? 'tbl_contributions' : 'tbl_loan';
+                        mysqli_stmt_bind_param($update_stmt, 'ss', $table_name, $txn['uniqueId']);
+                        mysqli_stmt_execute($update_stmt);
+                        error_log("Marked transaction as processed in extractions table: " . $txn['uniqueId']);
+                    }
+                }
             } else {
-                error_log("Failed to execute transaction: " . mysqli_error($cov));
+                error_log("Failed to execute matched transaction: " . mysqli_error($cov));
+            }
+        }
+
+        // Record file to database after transactions are processed (even if none were processed)
+        if ($file_info) {
+            try {
+                $insert_query = "INSERT INTO bank_statement_files (filename, file_path, file_hash, period_id, uploaded_by, upload_date, processed) 
+                                VALUES (?, ?, ?, ?, ?, NOW(), 1)";
+                $insert_stmt = mysqli_prepare($cov, $insert_query);
+                mysqli_stmt_bind_param($insert_stmt, 'sssis', 
+                    $file_info['filename'], 
+                    $file_info['file_path'], 
+                    $file_info['file_hash'], 
+                    $file_info['period_id'], 
+                    $file_info['uploaded_by']
+                );
+                mysqli_stmt_execute($insert_stmt);
+                error_log("Successfully recorded file to database: " . $file_info['filename'] . " (processed: " . $processed_count . " transactions)");
+            } catch (Exception $e) {
+                error_log("Failed to record file to database: " . $e->getMessage());
             }
         }
 
@@ -1229,41 +1457,599 @@ function handleInsertTransaction($input) {
     }
 }
 
+// Handle checking if file already exists
+function handleCheckFileExists($input) {
+    try {
+        $cov = getDatabaseConnection();
+        
+        if (!isset($input['file_hash'])) {
+            echo json_encode(['success' => false, 'message' => 'File hash is required']);
+            return;
+        }
+        
+        $file_hash = $input['file_hash'];
+        $query = "SELECT id, filename, upload_date, analysis_complete, total_transactions, matched_transactions, unmatched_transactions 
+                  FROM bank_statement_files 
+                  WHERE file_hash = ? 
+                  ORDER BY upload_date DESC 
+                  LIMIT 1";
+        
+        $stmt = mysqli_prepare($cov, $query);
+        mysqli_stmt_bind_param($stmt, 's', $file_hash);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        
+        if ($row = mysqli_fetch_assoc($result)) {
+            echo json_encode([
+                'success' => true, 
+                'exists' => true, 
+                'file_info' => $row
+            ]);
+        } else {
+            echo json_encode([
+                'success' => true, 
+                'exists' => false
+            ]);
+        }
+        
+    } catch (Exception $e) {
+        error_log("Check file exists error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Failed to check file existence: ' . $e->getMessage()]);
+    }
+}
+
+// Handle getting existing files for dropdown
+function handleGetExistingFiles($input) {
+    try {
+        $cov = getDatabaseConnection();
+        
+        $period_filter = $input['period_filter'] ?? '';
+        $where_clause = "WHERE analysis_complete = 1";
+        $params = [];
+        $types = "";
+        
+        if ($period_filter) {
+            $where_clause .= " AND period_id = ?";
+            $params[] = $period_filter;
+            $types .= "i";
+        }
+        
+        $query = "SELECT bsf.id, bsf.filename, bsf.upload_date, bsf.period_id, bsf.total_transactions, 
+                         bsf.matched_transactions, bsf.unmatched_transactions, pp.PayrollPeriod, pp.PhysicalMonth, pp.PhysicalYear
+                  FROM bank_statement_files bsf
+                  LEFT JOIN tbpayrollperiods pp ON bsf.period_id = pp.periodid
+                  $where_clause 
+                  ORDER BY bsf.upload_date DESC";
+        
+        if ($types) {
+            $stmt = mysqli_prepare($cov, $query);
+            mysqli_stmt_bind_param($stmt, $types, ...$params);
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+        } else {
+            $result = mysqli_query($cov, $query);
+        }
+        
+        $files = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $files[] = $row;
+        }
+        
+        echo json_encode(['success' => true, 'files' => $files]);
+        
+    } catch (Exception $e) {
+        error_log("Get existing files error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Failed to get existing files: ' . $e->getMessage()]);
+    }
+}
+
+// Handle loading existing analysis data
+function handleLoadExistingAnalysis($input) {
+    try {
+        $cov = getDatabaseConnection();
+        
+        if (!isset($input['file_id'])) {
+            echo json_encode(['success' => false, 'message' => 'File ID is required']);
+            return;
+        }
+        
+        $file_id = $input['file_id'];
+        
+        // Get file info
+        $file_query = "SELECT * FROM bank_statement_files WHERE id = ?";
+        $file_stmt = mysqli_prepare($cov, $file_query);
+        mysqli_stmt_bind_param($file_stmt, 'i', $file_id);
+        mysqli_stmt_execute($file_stmt);
+        $file_result = mysqli_stmt_get_result($file_stmt);
+        $file_info = mysqli_fetch_assoc($file_result);
+        
+        if (!$file_info) {
+            echo json_encode(['success' => false, 'message' => 'File not found']);
+            return;
+        }
+        
+        // Get extraction data
+        $query = "SELECT * FROM bank_statement_extractions WHERE file_id = ? ORDER BY page_number, id";
+        $stmt = mysqli_prepare($cov, $query);
+        mysqli_stmt_bind_param($stmt, 'i', $file_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        
+        $transactions = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            // Convert database format to frontend format
+            $transaction = [
+                'id' => $row['id'],
+                'date' => $row['transaction_date'],
+                'name' => $row['transaction_name'],
+                'amount' => floatval($row['transaction_amount']),
+                'type' => $row['transaction_type'],
+                'description' => $row['transaction_description'],
+                'matched' => (bool)$row['matched'],
+                'member_id' => $row['member_id'],
+                'member_name' => $row['member_name'],
+                'processed' => (bool)$row['processed'],
+                'processed_date' => $row['processed_date'],
+                'processed_to_table' => $row['processed_to_table'],
+                'uniqueId' => $row['unique_id'],
+                'page_info' => [
+                    'pageNumber' => $row['page_number']
+                ]
+            ];
+            $transactions[] = $transaction;
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'data' => $transactions,
+            'file_info' => $file_info
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Load existing analysis error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Failed to load existing analysis: ' . $e->getMessage()]);
+    }
+}
+
+// Handle saving extracted data to database
+function handleSaveExtractedData($input) {
+    try {
+        error_log("=== handleSaveExtractedData START ===");
+        error_log("Input received: " . print_r($input, true));
+        
+        // Validate input structure
+        if (!is_array($input)) {
+            throw new Exception("Input must be an array, got: " . gettype($input));
+        }
+        
+        $cov = getDatabaseConnection();
+        if (!$cov) {
+            throw new Exception("Failed to get database connection");
+        }
+        
+        if (!isset($input['file_info']) || !isset($input['transactions'])) {
+            error_log("Missing required data - file_info: " . (isset($input['file_info']) ? 'YES' : 'NO') . ", transactions: " . (isset($input['transactions']) ? 'YES' : 'NO'));
+            echo json_encode(['success' => false, 'message' => 'File info and transactions are required']);
+            return;
+        }
+        
+        $file_info = $input['file_info'];
+        $transactions = $input['transactions'];
+        
+        // Validate file_info structure
+        if (!is_array($file_info)) {
+            throw new Exception("File info must be an array, got: " . gettype($file_info));
+        }
+        
+        if (!is_array($transactions)) {
+            throw new Exception("Transactions must be an array, got: " . gettype($transactions));
+        }
+        
+        // Check required file_info fields
+        $required_fields = ['filename', 'file_path', 'file_hash', 'period_id', 'uploaded_by'];
+        foreach ($required_fields as $field) {
+            if (!isset($file_info[$field])) {
+                throw new Exception("Missing required field in file_info: " . $field);
+            }
+        }
+        
+        error_log("File info: " . print_r($file_info, true));
+        error_log("Transactions count: " . count($transactions));
+        error_log("Sample transaction: " . print_r($transactions[0] ?? 'NO TRANSACTIONS', true));
+        
+        // Start transaction
+        error_log("Starting database transaction...");
+        mysqli_autocommit($cov, false);
+        
+        // Insert or update file record
+        $file_query = "INSERT INTO bank_statement_files 
+                       (filename, file_path, file_hash, period_id, uploaded_by, total_transactions, matched_transactions, unmatched_transactions, analysis_complete) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       ON DUPLICATE KEY UPDATE 
+                       total_transactions = VALUES(total_transactions),
+                       matched_transactions = VALUES(matched_transactions),
+                       unmatched_transactions = VALUES(unmatched_transactions),
+                       analysis_complete = VALUES(analysis_complete)";
+        
+        // Validate transaction structure
+        foreach ($transactions as $index => $transaction) {
+            if (!is_array($transaction)) {
+                throw new Exception("Transaction at index " . $index . " must be an array, got: " . gettype($transaction));
+            }
+            
+            // Check required transaction fields
+            $required_tx_fields = ['name', 'amount', 'type', 'description', 'matched'];
+            foreach ($required_tx_fields as $field) {
+                if (!isset($transaction[$field])) {
+                    throw new Exception("Missing required field '" . $field . "' in transaction at index " . $index);
+                }
+            }
+        }
+        
+        $matched_count = count(array_filter($transactions, function($t) { return $t['matched']; }));
+        $unmatched_count = count($transactions) - $matched_count;
+        $total_transactions = count($transactions);
+        $analysis_complete = 1;
+        
+        error_log("File info for database insert: " . print_r($file_info, true));
+        error_log("Transaction counts - total: " . $total_transactions . ", matched: " . $matched_count . ", unmatched: " . $unmatched_count);
+        
+        $file_stmt = mysqli_prepare($cov, $file_query);
+        mysqli_stmt_bind_param($file_stmt, 'sssiiiiii', 
+            $file_info['filename'], 
+            $file_info['file_path'], 
+            $file_info['file_hash'], 
+            $file_info['period_id'], 
+            $file_info['uploaded_by'],
+            $total_transactions,
+            $matched_count,
+            $unmatched_count,
+            $analysis_complete
+        );
+        
+        if (!mysqli_stmt_execute($file_stmt)) {
+            throw new Exception("Failed to insert file record: " . mysqli_error($cov));
+        }
+        
+        // Get the file ID
+        $file_id = mysqli_insert_id($cov);
+        if ($file_id == 0) {
+            // File already exists, get its ID
+            $get_id_query = "SELECT id FROM bank_statement_files WHERE file_hash = ?";
+            $get_id_stmt = mysqli_prepare($cov, $get_id_query);
+            mysqli_stmt_bind_param($get_id_stmt, 's', $file_info['file_hash']);
+            mysqli_stmt_execute($get_id_stmt);
+            $id_result = mysqli_stmt_get_result($get_id_stmt);
+            $id_row = mysqli_fetch_assoc($id_result);
+            $file_id = $id_row['id'];
+        }
+        
+        // Clear existing extractions for this file (in case of re-processing)
+        $clear_query = "DELETE FROM bank_statement_extractions WHERE file_id = ?";
+        $clear_stmt = mysqli_prepare($cov, $clear_query);
+        mysqli_stmt_bind_param($clear_stmt, 'i', $file_id);
+        mysqli_stmt_execute($clear_stmt);
+        
+        // Insert extraction records
+        $extract_query = "INSERT INTO bank_statement_extractions 
+                          (file_id, file_hash, transaction_date, transaction_name, transaction_amount, transaction_type, 
+                           transaction_description, period_id, page_number, matched, member_id, member_name, unique_id) 
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        error_log("Extraction query prepared: " . $extract_query);
+        error_log("About to insert " . count($transactions) . " transactions into bank_statement_extractions");
+        
+        $extract_stmt = mysqli_prepare($cov, $extract_query);
+        if (!$extract_stmt) {
+            error_log("Failed to prepare extraction statement: " . mysqli_error($cov));
+            throw new Exception("Failed to prepare extraction statement: " . mysqli_error($cov));
+        }
+        
+        $insert_count = 0;
+        foreach ($transactions as $index => $transaction) {
+            $page_number = isset($transaction['page_info']) ? $transaction['page_info']['pageNumber'] : 1;
+            
+            // Properly format the transaction date for MySQL DATE column
+            $transaction_date = null;
+            if (!empty($transaction['date'])) {
+                // Handle different date formats
+                $date_str = trim($transaction['date']);
+                
+                // Check if it's already in YYYY-MM-DD format
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_str)) {
+                    $transaction_date = $date_str;
+                }
+                // Check if it's in DD/MM/YYYY format
+                elseif (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $date_str)) {
+                    $date_parts = explode('/', $date_str);
+                    $day = str_pad($date_parts[0], 2, '0', STR_PAD_LEFT);
+                    $month = str_pad($date_parts[1], 2, '0', STR_PAD_LEFT);
+                    $year = $date_parts[2];
+                    $transaction_date = "$year-$month-$day";
+                }
+                // Check if it's in MM/DD/YYYY format
+                elseif (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $date_str)) {
+                    $date_parts = explode('/', $date_str);
+                    $month = str_pad($date_parts[0], 2, '0', STR_PAD_LEFT);
+                    $day = str_pad($date_parts[1], 2, '0', STR_PAD_LEFT);
+                    $year = $date_parts[2];
+                    $transaction_date = "$year-$month-$day";
+                }
+                // If none of the above, try to parse with strtotime
+                else {
+                    $timestamp = strtotime($date_str);
+                    if ($timestamp !== false) {
+                        $transaction_date = date('Y-m-d', $timestamp);
+                    }
+                }
+                
+                // Validate the final date
+                if ($transaction_date && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $transaction_date)) {
+                    error_log("Invalid date format after conversion: " . $transaction_date . " (original: " . $date_str . ")");
+                    $transaction_date = null;
+                }
+            }
+            
+            // Create variables for all bind parameters to avoid reference issues
+            $tx_name = $transaction['name'];
+            $tx_amount = $transaction['amount'];
+            $tx_type = $transaction['type'];
+            $tx_description = $transaction['description'];
+            $tx_matched = $transaction['matched'] ? 1 : 0;
+            $tx_member_id = $transaction['member_id'] ?? null;
+            $tx_member_name = $transaction['member_name'] ?? null;
+            $tx_unique_id = $transaction['uniqueId'];
+            
+            error_log("Processing transaction " . ($index + 1) . ": " . print_r($transaction, true));
+            error_log("Transaction date: " . ($transaction_date ?: 'NULL') . " (original: " . ($transaction['date'] ?? 'NULL') . ")");
+            error_log("Page number: " . $page_number);
+            error_log("Matched: " . $tx_matched);
+            
+            $bind_result = mysqli_stmt_bind_param($extract_stmt, 'isssdssiiiiss',
+                $file_id,
+                $file_info['file_hash'],
+                $transaction_date,
+                $tx_name,
+                $tx_amount,
+                $tx_type,
+                $tx_description,
+                $file_info['period_id'],
+                $page_number,
+                $tx_matched,
+                $tx_member_id,
+                $tx_member_name,
+                $tx_unique_id
+            );
+            
+            if (!$bind_result) {
+                error_log("Failed to bind parameters for transaction " . ($index + 1) . ": " . mysqli_stmt_error($extract_stmt));
+                throw new Exception("Failed to bind parameters for transaction " . ($index + 1) . ": " . mysqli_stmt_error($extract_stmt));
+            }
+            
+            $execute_result = mysqli_stmt_execute($extract_stmt);
+            if (!$execute_result) {
+                error_log("Failed to insert extraction record " . ($index + 1) . ": " . mysqli_stmt_error($extract_stmt));
+                throw new Exception("Failed to insert extraction record " . ($index + 1) . ": " . mysqli_stmt_error($extract_stmt));
+            }
+            
+            $insert_count++;
+            error_log("Successfully inserted transaction " . ($index + 1) . " (ID: " . mysqli_stmt_insert_id($extract_stmt) . ")");
+        }
+        
+        error_log("Total transactions inserted into bank_statement_extractions: " . $insert_count);
+        
+        // Commit transaction
+        error_log("About to commit transaction to database...");
+        $commit_result = mysqli_commit($cov);
+        if (!$commit_result) {
+            error_log("Failed to commit transaction: " . mysqli_error($cov));
+            throw new Exception("Failed to commit transaction: " . mysqli_error($cov));
+        }
+        error_log("Transaction committed successfully");
+        
+        mysqli_autocommit($cov, true);
+        error_log("=== handleSaveExtractedData COMPLETED SUCCESSFULLY ===");
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Extracted data saved successfully',
+            'file_id' => $file_id
+        ]);
+        
+    } catch (Exception $e) {
+        // Rollback on error
+        if (isset($cov)) {
+            mysqli_rollback($cov);
+            mysqli_autocommit($cov, true);
+        }
+        
+        error_log("Save extracted data error: " . $e->getMessage());
+        error_log("Error trace: " . $e->getTraceAsString());
+        
+        // Ensure we return valid JSON even on error
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
+        echo json_encode(['success' => false, 'message' => 'Failed to save extracted data: ' . $e->getMessage()]);
+        exit;
+    } catch (Error $e) {
+        // Catch PHP 7+ errors
+        if (isset($cov)) {
+            mysqli_rollback($cov);
+            mysqli_autocommit($cov, true);
+        }
+        
+        error_log("Save extracted data PHP error: " . $e->getMessage());
+        error_log("Error trace: " . $e->getTraceAsString());
+        
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
+        echo json_encode(['success' => false, 'message' => 'PHP Error: ' . $e->getMessage()]);
+        exit;
+    }
+}
+
+function ensureTableColumns($cov) {
+    // Check if bank_statement_files table exists first
+    $check_table = "SHOW TABLES LIKE 'bank_statement_files'";
+    $table_result = mysqli_query($cov, $check_table);
+    
+    if (mysqli_num_rows($table_result) > 0) {
+        // Table exists, check if it has the required columns
+        $check_columns = "SHOW COLUMNS FROM bank_statement_files LIKE 'total_transactions'";
+        $col_result = mysqli_query($cov, $check_columns);
+        
+        if (mysqli_num_rows($col_result) == 0) {
+            // Add missing columns
+            $alter_table = "ALTER TABLE bank_statement_files 
+                           ADD COLUMN total_transactions INT DEFAULT 0,
+                           ADD COLUMN matched_transactions INT DEFAULT 0,
+                           ADD COLUMN unmatched_transactions INT DEFAULT 0,
+                           ADD COLUMN analysis_complete TINYINT(1) DEFAULT 0";
+            if (mysqli_query($cov, $alter_table)) {
+                error_log("Added missing columns to bank_statement_files table");
+            } else {
+                error_log("Failed to add columns to bank_statement_files table: " . mysqli_error($cov));
+            }
+        }
+    }
+    
+    // Clean up any existing invalid dates in bank_statement_extractions
+    cleanupInvalidDates($cov);
+}
+
+function cleanupInvalidDates($cov) {
+    try {
+        // Check if bank_statement_extractions table exists
+        $check_table = "SHOW TABLES LIKE 'bank_statement_extractions'";
+        $table_result = mysqli_query($cov, $check_table);
+        
+        if (mysqli_num_rows($table_result) > 0) {
+            // Find records with invalid dates (0000-00-00 or NULL)
+            $invalid_dates_query = "SELECT id, transaction_date FROM bank_statement_extractions 
+                                   WHERE transaction_date = '0000-00-00' OR transaction_date IS NULL";
+            $invalid_result = mysqli_query($cov, $invalid_dates_query);
+            
+            if ($invalid_result && mysqli_num_rows($invalid_result) > 0) {
+                error_log("Found " . mysqli_num_rows($invalid_result) . " records with invalid dates");
+                
+                while ($row = mysqli_fetch_assoc($invalid_result)) {
+                    $record_id = $row['id'];
+                    
+                    // Set invalid dates to NULL (which is acceptable for DATE columns)
+                    $update_query = "UPDATE bank_statement_extractions 
+                                    SET transaction_date = NULL 
+                                    WHERE id = ?";
+                    $update_stmt = mysqli_prepare($cov, $update_query);
+                    if ($update_stmt) {
+                        mysqli_stmt_bind_param($update_stmt, 'i', $record_id);
+                        if (mysqli_stmt_execute($update_stmt)) {
+                            error_log("Cleaned up invalid date for record ID: " . $record_id);
+                        } else {
+                            error_log("Failed to clean up invalid date for record ID: " . $record_id . " - " . mysqli_stmt_error($update_stmt));
+                        }
+                        mysqli_stmt_close($update_stmt);
+                    }
+                }
+                
+                error_log("Completed cleanup of invalid dates in bank_statement_extractions table");
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error during date cleanup: " . $e->getMessage());
+    }
+}
+
 function createTables() {
     $cov = getDatabaseConnection();
+
+    // Ensure existing tables have all required columns
+    ensureTableColumns($cov);
 
     $tables = [
         "CREATE TABLE IF NOT EXISTS bank_statement_files (
             id INT AUTO_INCREMENT PRIMARY KEY,
             filename VARCHAR(255) NOT NULL,
             file_path VARCHAR(500) NOT NULL,
-            file_hash VARCHAR(32) NOT NULL UNIQUE,
-            period_id VARCHAR(50) NOT NULL,
-            uploaded_by VARCHAR(50) NOT NULL,
-            upload_date DATETIME NOT NULL,
-            processed BOOLEAN DEFAULT FALSE
+            file_hash VARCHAR(64) NOT NULL UNIQUE,
+            period_id INT NOT NULL,
+            uploaded_by INT NOT NULL,
+            upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            processed TINYINT(1) DEFAULT 0,
+            total_transactions INT DEFAULT 0,
+            matched_transactions INT DEFAULT 0,
+            unmatched_transactions INT DEFAULT 0,
+            analysis_complete TINYINT(1) DEFAULT 0,
+            INDEX idx_period (period_id),
+            INDEX idx_uploaded_by (uploaded_by),
+            INDEX idx_file_hash (file_hash),
+            INDEX idx_processed (processed),
+            INDEX idx_analysis_complete (analysis_complete)
         )",
+        
+        "CREATE TABLE IF NOT EXISTS bank_statement_extractions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            file_id INT NOT NULL,
+            file_hash VARCHAR(64) NOT NULL,
+            transaction_date DATE,
+            transaction_name VARCHAR(255),
+            transaction_amount DECIMAL(15,2),
+            transaction_type ENUM('credit', 'debit'),
+            transaction_description TEXT,
+            period_id INT,
+            page_number INT DEFAULT 1,
+            matched TINYINT(1) DEFAULT 0,
+            member_id INT NULL,
+            member_name VARCHAR(255) NULL,
+            processed TINYINT(1) DEFAULT 0,
+            processed_date TIMESTAMP NULL,
+            processed_to_table ENUM('tbl_contributions', 'tbl_loan') NULL,
+            unique_id VARCHAR(100),
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_file_id (file_id),
+            INDEX idx_file_hash (file_hash),
+            INDEX idx_period (period_id),
+            INDEX idx_matched (matched),
+            INDEX idx_processed (processed),
+            INDEX idx_unique_id (unique_id)
+        )",
+        
         "CREATE TABLE IF NOT EXISTS manual_transaction_matches (
             id INT AUTO_INCREMENT PRIMARY KEY,
             transaction_name VARCHAR(255) NOT NULL,
+            transaction_amount DECIMAL(15,2) NOT NULL,
+            transaction_type ENUM('credit', 'debit') NOT NULL,
+            transaction_date DATE,
+            transaction_description TEXT,
             member_id INT NOT NULL,
-            matched_by VARCHAR(100) NOT NULL,
-            matched_date DATETIME NOT NULL,
-            UNIQUE KEY unique_match (transaction_name, member_id)
+            member_name VARCHAR(255) NOT NULL,
+            period_id INT NOT NULL,
+            file_hash VARCHAR(64),
+            matched_by INT NOT NULL,
+            matched_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            processed TINYINT(1) DEFAULT 0,
+            INDEX idx_member (member_id),
+            INDEX idx_period (period_id),
+            INDEX idx_file_hash (file_hash),
+            INDEX idx_processed (processed)
         )",
 
         "CREATE TABLE IF NOT EXISTS unmatched_transactions (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            transaction_date VARCHAR(20),
+            transaction_date DATE,
             transaction_name VARCHAR(255) NOT NULL,
             transaction_amount DECIMAL(15,2) NOT NULL,
             transaction_type ENUM('credit', 'debit') NOT NULL,
             transaction_description TEXT,
-            period_id VARCHAR(50),
-            file_hash VARCHAR(32),
-            created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            period_id INT,
+            file_hash VARCHAR(64),
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            processed TINYINT(1) DEFAULT 0,
             INDEX idx_period (period_id),
-            INDEX idx_file_hash (file_hash)
+            INDEX idx_file_hash (file_hash),
+            INDEX idx_processed (processed)
         )"
     ];
 
@@ -1275,4 +2061,452 @@ function createTables() {
 }
 
 createTables();
+
+function handleGetUnmatchedTransactions($input) {
+    try {
+        $cov = getDatabaseConnection();
+        
+        $page = $input['page'] ?? 1;
+        $limit = $input['limit'] ?? 50;
+        $search = $input['search'] ?? '';
+        $period_filter = $input['period_filter'] ?? '';
+        
+        $offset = ($page - 1) * $limit;
+        
+        // Build query with filters
+        $where_conditions = [];
+        $params = [];
+        $param_types = '';
+        
+        if (!empty($search)) {
+            $where_conditions[] = "(transaction_name LIKE ? OR transaction_description LIKE ?)";
+            $params[] = "%$search%";
+            $params[] = "%$search%";
+            $param_types .= 'ss';
+        }
+        
+        if (!empty($period_filter)) {
+            $where_conditions[] = "period_id = ?";
+            $params[] = $period_filter;
+            $param_types .= 's';
+        }
+        
+        $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+        
+        // Get total count
+        $count_query = "SELECT COUNT(*) as total FROM unmatched_transactions $where_clause";
+        $count_stmt = mysqli_prepare($cov, $count_query);
+        if (!empty($params)) {
+            mysqli_stmt_bind_param($count_stmt, $param_types, ...$params);
+        }
+        mysqli_stmt_execute($count_stmt);
+        $count_result = mysqli_stmt_get_result($count_stmt);
+        $total_count = mysqli_fetch_assoc($count_result)['total'];
+        
+        // Get transactions
+        $query = "SELECT * FROM unmatched_transactions $where_clause ORDER BY transaction_date DESC LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+        $param_types .= 'ii';
+        
+        $stmt = mysqli_prepare($cov, $query);
+        if (!empty($params)) {
+            mysqli_stmt_bind_param($stmt, $param_types, ...$params);
+        }
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        
+        $transactions = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $transactions[] = $row;
+        }
+        
+        // Get available periods for filter
+        $periods_query = "SELECT DISTINCT period_id FROM unmatched_transactions ORDER BY period_id DESC";
+        $periods_result = mysqli_query($cov, $periods_query);
+        $periods = [];
+        while ($row = mysqli_fetch_assoc($periods_result)) {
+            $periods[] = $row['period_id'];
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'transactions' => $transactions,
+            'total_count' => $total_count,
+            'current_page' => $page,
+            'total_pages' => ceil($total_count / $limit),
+            'periods' => $periods
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Get unmatched transactions error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
+
+function handleGetMatchedTransactions($input) {
+    try {
+        $cov = getDatabaseConnection();
+        
+        $page = $input['page'] ?? 1;
+        $limit = $input['limit'] ?? 50;
+        $search = $input['search'] ?? '';
+        $period_filter = $input['period_filter'] ?? '';
+        
+        $offset = ($page - 1) * $limit;
+        
+        // Build query with filters
+        $where_conditions = [];
+        $params = [];
+        $param_types = '';
+        
+        if (!empty($search)) {
+            $where_conditions[] = "(transaction_name LIKE ? OR transaction_description LIKE ?)";
+            $params[] = "%$search%";
+            $params[] = "%$search%";
+            $param_types .= 'ss';
+        }
+        
+        if (!empty($period_filter)) {
+            $where_conditions[] = "periodid = ?";
+            $params[] = $period_filter;
+            $param_types .= 's';
+        }
+        
+        $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+        
+        // Get total count
+        $count_query = "SELECT COUNT(*) as total FROM manual_transaction_matches $where_clause";
+        $count_stmt = mysqli_prepare($cov, $count_query);
+        if (!empty($params)) {
+            mysqli_stmt_bind_param($count_stmt, $param_types, ...$params);
+        }
+        mysqli_stmt_execute($count_stmt);
+        $count_result = mysqli_stmt_get_result($count_stmt);
+        $total_count = mysqli_fetch_assoc($count_result)['total'];
+        
+        // Get transactions with member information
+        $query = "SELECT mtm.*, 
+                         CONCAT(p.Fname, ' ', COALESCE(p.Mname, ''), ' ', p.Lname) as member_name
+                  FROM manual_transaction_matches mtm
+                  LEFT JOIN tbl_personalinfo p ON mtm.member_id = p.memberid
+                  $where_clause 
+                  ORDER BY mtm.matched_date DESC 
+                  LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+        $param_types .= 'ii';
+        
+        $stmt = mysqli_prepare($cov, $query);
+        if (!empty($params)) {
+            mysqli_stmt_bind_param($stmt, $param_types, ...$params);
+        }
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        
+        $transactions = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $transactions[] = $row;
+        }
+        
+        // Get available periods for filter
+        $periods_query = "SELECT DISTINCT period_id FROM manual_transaction_matches ORDER BY period_id DESC";
+        $periods_result = mysqli_query($cov, $periods_query);
+        $periods = [];
+        while ($row = mysqli_fetch_assoc($periods_result)) {
+            $periods[] = $row['period_id'];
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'transactions' => $transactions,
+            'total_count' => $total_count,
+            'current_page' => $page,
+            'total_pages' => ceil($total_count / $limit),
+            'periods' => $periods
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Get matched transactions error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
+
+function handleProcessMatchedTransaction($input) {
+    try {
+        $cov = getDatabaseConnection();
+        
+        $transaction_id = $input['transaction_id'] ?? '';
+        if (empty($transaction_id)) {
+            throw new Exception('Transaction ID is required');
+        }
+        
+        // Get the matched transaction details
+        $query = "SELECT * FROM manual_transaction_matches WHERE id = ?";
+        $stmt = mysqli_prepare($cov, $query);
+        mysqli_stmt_bind_param($stmt, 'i', $transaction_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $transaction = mysqli_fetch_assoc($result);
+        
+        if (!$transaction) {
+            throw new Exception('Transaction not found');
+        }
+        
+        // Validate member exists
+        $member_query = "SELECT memberid FROM tbl_personalinfo WHERE memberid = ?";
+        $member_stmt = mysqli_prepare($cov, $member_query);
+        mysqli_stmt_bind_param($member_stmt, 'i', $transaction['member_id']);
+        mysqli_stmt_execute($member_stmt);
+        $member_result = mysqli_stmt_get_result($member_stmt);
+        
+        if (mysqli_num_rows($member_result) == 0) {
+            throw new Exception('Member not found with ID: ' . $transaction['member_id']);
+        }
+        
+        // Insert into appropriate table based on transaction type
+        if ($transaction['transaction_type'] === 'credit') {
+            // Insert into contributions table
+            $insert_query = "INSERT INTO tbl_contributions (membersid, periodid, contribution) VALUES (?, ?, ?)";
+            $insert_stmt = mysqli_prepare($cov, $insert_query);
+            mysqli_stmt_bind_param($insert_stmt, 'sid', 
+                $transaction['member_id'], 
+                $transaction['period_id'], 
+                $transaction['transaction_amount']
+            );
+        } else {
+            // Insert into loans table
+            $insert_query = "INSERT INTO tbl_loan (memberid, periodid, loanamount, loan_date) VALUES (?, ?, ?, NOW())";
+            $insert_stmt = mysqli_prepare($cov, $insert_query);
+            mysqli_stmt_bind_param($insert_stmt, 'iid', 
+                $transaction['member_id'], 
+                $transaction['period_id'], 
+                $transaction['transaction_amount']
+            );
+        }
+        
+        if (!mysqli_stmt_execute($insert_stmt)) {
+            throw new Exception('Failed to insert transaction: ' . mysqli_stmt_error($insert_stmt));
+        }
+        
+        // Delete from manual_transaction_matches table
+        $delete_query = "DELETE FROM manual_transaction_matches WHERE id = ?";
+        $delete_stmt = mysqli_prepare($cov, $delete_query);
+        mysqli_stmt_bind_param($delete_stmt, 'i', $transaction_id);
+        mysqli_stmt_execute($delete_stmt);
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Transaction processed successfully and moved to ' . 
+                        ($transaction['transaction_type'] === 'credit' ? 'contributions' : 'loans') . ' table'
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Process matched transaction error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
+
+function handleDeleteMatchedTransaction($input) {
+    try {
+        $cov = getDatabaseConnection();
+        
+        $transaction_id = $input['transaction_id'] ?? '';
+        if (empty($transaction_id)) {
+            throw new Exception('Transaction ID is required');
+        }
+        
+        // Delete from manual_transaction_matches table
+        $delete_query = "DELETE FROM manual_transaction_matches WHERE id = ?";
+        $delete_stmt = mysqli_prepare($cov, $delete_query);
+        mysqli_stmt_bind_param($delete_stmt, 'i', $transaction_id);
+        
+        if (!mysqli_stmt_execute($delete_stmt)) {
+            throw new Exception('Failed to delete transaction: ' . mysqli_stmt_error($delete_stmt));
+        }
+        
+        if (mysqli_affected_rows($cov) === 0) {
+            throw new Exception('Transaction not found or already deleted');
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Transaction deleted successfully'
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Delete matched transaction error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
+
+function handleFixInvalidDates($input) {
+    try {
+        $cov = getDatabaseConnection();
+        
+        // Clean up any existing invalid dates
+        cleanupInvalidDates($cov);
+        
+        // Also fix any dates that might be in wrong format
+        $fix_dates_query = "SELECT id, transaction_date FROM bank_statement_extractions 
+                           WHERE transaction_date IS NOT NULL 
+                           AND transaction_date != '0000-00-00'
+                           AND transaction_date NOT REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'";
+        $fix_result = mysqli_query($cov, $fix_dates_query);
+        
+        if ($fix_result && mysqli_num_rows($fix_result) > 0) {
+            error_log("Found " . mysqli_num_rows($fix_result) . " records with malformed dates");
+            
+            while ($row = mysqli_fetch_assoc($fix_result)) {
+                $record_id = $row['id'];
+                $date_str = $row['transaction_date'];
+                
+                // Try to fix the date format
+                $fixed_date = null;
+                
+                // Check if it's in DD/MM/YYYY format
+                if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $date_str)) {
+                    $date_parts = explode('/', $date_str);
+                    $day = str_pad($date_parts[0], 2, '0', STR_PAD_LEFT);
+                    $month = str_pad($date_parts[1], 2, '0', STR_PAD_LEFT);
+                    $year = $date_parts[2];
+                    $fixed_date = "$year-$month-$day";
+                }
+                // Check if it's in MM/DD/YYYY format
+                elseif (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $date_str)) {
+                    $date_parts = explode('/', $date_str);
+                    $month = str_pad($date_parts[0], 2, '0', STR_PAD_LEFT);
+                    $day = str_pad($date_parts[1], 2, '0', STR_PAD_LEFT);
+                    $year = $date_parts[2];
+                    $fixed_date = "$year-$month-$day";
+                }
+                // Try strtotime as fallback
+                else {
+                    $timestamp = strtotime($date_str);
+                    if ($timestamp !== false) {
+                        $fixed_date = date('Y-m-d', $timestamp);
+                    }
+                }
+                
+                // Update the record if we have a valid date
+                if ($fixed_date && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fixed_date)) {
+                    $update_query = "UPDATE bank_statement_extractions 
+                                    SET transaction_date = ? 
+                                    WHERE id = ?";
+                    $update_stmt = mysqli_prepare($cov, $update_query);
+                    if ($update_stmt) {
+                        mysqli_stmt_bind_param($update_stmt, 'si', $fixed_date, $record_id);
+                        if (mysqli_stmt_execute($update_stmt)) {
+                            error_log("Fixed date for record ID: " . $record_id . " from '" . $date_str . "' to '" . $fixed_date . "'");
+                        } else {
+                            error_log("Failed to fix date for record ID: " . $record_id . " - " . mysqli_stmt_error($update_stmt));
+                        }
+                        mysqli_stmt_close($update_stmt);
+                    }
+                } else {
+                    // If we can't fix it, set to NULL
+                    $null_query = "UPDATE bank_statement_extractions 
+                                  SET transaction_date = NULL 
+                                  WHERE id = ?";
+                    $null_stmt = mysqli_prepare($cov, $null_query);
+                    if ($null_stmt) {
+                        mysqli_stmt_bind_param($null_stmt, 'i', $record_id);
+                        mysqli_stmt_execute($null_stmt);
+                        error_log("Set unparseable date to NULL for record ID: " . $record_id . " (original: " . $date_str . ")");
+                        mysqli_stmt_close($null_stmt);
+                    }
+                }
+            }
+            
+            error_log("Completed fixing malformed dates in bank_statement_extractions table");
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Invalid dates have been cleaned up and fixed'
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Fix invalid dates error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
+
+function handleSaveReclassification($input) {
+    try {
+        $cov = getDatabaseConnection();
+        
+        $transaction_name = $input['transaction_name'] ?? '';
+        $transaction_amount = $input['transaction_amount'] ?? 0;
+        $old_type = $input['old_type'] ?? '';
+        $new_type = $input['new_type'] ?? '';
+        $unique_id = $input['unique_id'] ?? null;
+        $matched = $input['matched'] ?? false;
+        
+        if (empty($transaction_name) || empty($old_type) || empty($new_type)) {
+            throw new Exception('Transaction name, old type, and new type are required');
+        }
+        
+        // Check if reclassification table exists, create if not
+        $table_check = mysqli_query($cov, "SHOW TABLES LIKE 'transaction_reclassifications'");
+        if (!$table_check || mysqli_num_rows($table_check) == 0) {
+            $create_table = "CREATE TABLE IF NOT EXISTS transaction_reclassifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                transaction_name VARCHAR(255) NOT NULL,
+                transaction_amount DECIMAL(10,2) NOT NULL,
+                old_type ENUM('credit', 'debit') NOT NULL,
+                new_type ENUM('credit', 'debit') NOT NULL,
+                unique_id VARCHAR(255),
+                matched BOOLEAN DEFAULT FALSE,
+                reclassified_by VARCHAR(100),
+                reclassified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_transaction_name (transaction_name),
+                INDEX idx_unique_id (unique_id)
+            )";
+            
+            if (!mysqli_query($cov, $create_table)) {
+                throw new Exception('Failed to create reclassification table: ' . mysqli_error($cov));
+            }
+        }
+        
+        // Get user ID from session
+        global $user_id;
+        $user_id = $user_id ?? 'Unknown';
+        
+        // Insert reclassification record
+        $query = "INSERT INTO transaction_reclassifications 
+                  (transaction_name, transaction_amount, old_type, new_type, unique_id, matched, reclassified_by) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?)";
+        
+        $stmt = mysqli_prepare($cov, $query);
+        if (!$stmt) {
+            throw new Exception('Failed to prepare insert query: ' . mysqli_error($cov));
+        }
+        
+        mysqli_stmt_bind_param($stmt, 'sdssss', 
+            $transaction_name, 
+            $transaction_amount, 
+            $old_type, 
+            $new_type, 
+            $unique_id, 
+            $matched, 
+            $user_id
+        );
+        
+        if (!mysqli_stmt_execute($stmt)) {
+            throw new Exception('Failed to execute insert query: ' . mysqli_stmt_error($stmt));
+        }
+        
+        error_log("Reclassification saved successfully: $transaction_name from $old_type to $new_type");
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Reclassification saved successfully'
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Save reclassification error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
 ?>
