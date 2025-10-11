@@ -126,69 +126,92 @@ $row_totalsum = $totalsum->fetch_assoc();
 <!-- Card-View CSS for Mobile -->
 <style>
 @media (max-width: 640px) {
-  .overflow-x-auto, .rounded-lg, .shadow, .border, .bg-white {
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-    background: none !important;
-  }
-  table, thead, tbody, th, td, tr {
-    display: block !important;
-    width: 100% !important;
-  }
-  thead {
-    display: none !important;
-  }
-  tr {
-    margin-bottom: 1.25rem !important;
-    background: #fff !important;
-    border-radius: 0.75rem !important;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.07) !important;
-    padding: 0.8rem 0.3rem !important;
-  }
-  td {
-    border: none !important;
-    border-bottom: 1px solid #f1f5f9 !important;
-    position: relative !important;
-    padding-left: 22% !important;  /* was 50%, reduce for less gap */
-    min-height: 36px !important;
-    font-size: 0.97rem !important;
-    background: none !important;
-    box-shadow: none !important;
-    word-break: break-word;
-  }
-  td:last-child {
-    border-bottom: none !important;
-  }
-  td:before {
-    position: absolute !important;
-    left: 0.65rem !important;
-    top: 0;
-    font-weight: 600 !important;
-    color: #64748b !important;
-    content: attr(data-label) !important;
-    width: 28% !important;   /* was 46%, reduce for tighter label */
-    white-space: normal !important;
-    font-size: 0.94em !important;
-    padding-right: 0.5em;
-  }
-}
 
+    /* Only apply these styles to table-related elements, not buttons */
+    .overflow-x-auto.rounded-lg.shadow.border.bg-white {
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: none !important;
+    }
+
+    table,
+    thead,
+    tbody,
+    th,
+    td,
+    tr {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    thead {
+        display: none !important;
+    }
+
+    tr {
+        margin-bottom: 1.25rem !important;
+        background: #fff !important;
+        border-radius: 0.75rem !important;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07) !important;
+        padding: 0.8rem 0.3rem !important;
+    }
+
+    td {
+        border: none !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        position: relative !important;
+        padding-left: 22% !important;
+        /* was 50%, reduce for less gap */
+        min-height: 36px !important;
+        font-size: 0.97rem !important;
+        background: none !important;
+        box-shadow: none !important;
+        word-break: break-word;
+    }
+
+    td:last-child {
+        border-bottom: none !important;
+    }
+
+    td:before {
+        position: absolute !important;
+        left: 0.65rem !important;
+        top: 0;
+        font-weight: 600 !important;
+        color: #64748b !important;
+        content: attr(data-label) !important;
+        width: 28% !important;
+        /* was 46%, reduce for tighter label */
+        white-space: normal !important;
+        font-size: 0.94em !important;
+        padding-right: 0.5em;
+    }
+}
 </style>
 
 <input type="hidden" name="filename" id="filename" value="<?php echo htmlspecialchars($_GET['filename'] ?? ''); ?>">
 
 <!-- Action Buttons -->
-<div class="flex flex-wrap justify-end gap-2 mb-4">
+<div class="flex flex-wrap justify-center sm:justify-end gap-2 mb-4 px-2">
     <button name="exportpdf" id="exportpdf" type="button"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition font-semibold">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8m0 0-3-3m3 3 3-3m6 3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        Export PDF
+        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition font-semibold text-sm sm:text-base">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor"
+            stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 8v8m0 0-3-3m3 3 3-3m6 3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span class="whitespace-nowrap">Export PDF</span>
     </button>
     <button name="exportexcel" id="exportexcel" type="button"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition font-semibold">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 17v1a3 3 0 01-3 3H7a3 3 0 01-3-3V7a3 3 0 013-3h1" /><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8m-8 4h8m2-10v4a2 2 0 002 2h4" /></svg>
-        Export Excel
+        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition font-semibold text-sm sm:text-base">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor"
+            stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                d="M16 17v1a3 3 0 01-3 3H7a3 3 0 01-3-3V7a3 3 0 013-3h1" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8m-8 4h8m2-10v4a2 2 0 002 2h4" />
+        </svg>
+        <span class="whitespace-nowrap">Export Excel</span>
     </button>
 </div>
 
@@ -226,41 +249,64 @@ $row_totalsum = $totalsum->fetch_assoc();
             <tr class="<?= $rowCount % 2 === 0 ? 'bg-blue-50' : 'bg-white'; ?> hover:bg-blue-100 transition">
                 <td data-label="Select" class="py-2 px-2 ">
                     <input name="memberid" type="checkbox"
-                        value="<?= htmlspecialchars($row_status['memberid']) . ',' . htmlspecialchars($row_status['Periodid']) ?>" checked>
+                        value="<?= htmlspecialchars($row_status['memberid']) . ',' . htmlspecialchars($row_status['Periodid']) ?>"
+                        checked>
                 </td>
                 <td data-label="Coop No." class="py-2 px-2 "><?= htmlspecialchars($row_status['memberid']); ?></td>
                 <td data-label="Period" class="py-2 px-2 "><?= htmlspecialchars($row_status['PayrollPeriod']); ?></td>
-                <td data-label="Name" class="py-2 px-2  font-semibold uppercase"><?= htmlspecialchars($row_status['namess']); ?></td>
-                <td data-label="Entry Fee" class="py-2 px-2  "><?= number_format($row_status['entryFee'] ?? 0, 2, '.', ','); ?></td>
-                <td data-label="Savings" class="py-2 px-2  "><?= number_format($row_status['savingsAmount'] ?? 0, 2, '.', ','); ?></td>
-                <td data-label="Savings Bal." class="py-2 px-2  "><?= number_format($row_status['savingsBalance'] ?? 0, 2, '.', ','); ?></td>
-                <td data-label="Shares" class="py-2 px-2  "><?= isset($row_status['sharesAmount']) ? number_format($row_status['sharesAmount'], 2, '.', ',') : '0.00'; ?></td>
-                <td data-label="Shares Bal." class="py-2 px-2  "><?= number_format($row_status['sharesBalance'] ?? 0, 2, '.', ','); ?></td>
-                <td data-label="Loan" class="py-2 px-2  "><?= number_format($row_status['loan'] ?? 0, 2, '.', ','); ?></td>
-                <td data-label="Loan Repayment" class="py-2 px-2  "><?= number_format($row_status['loanRepayment'] ?? 0, 2, '.', ','); ?></td>
-                <td data-label="Loan Bal." class="py-2 px-2  "><?= number_format($row_status['loanBalance'] ?? 0, 2, '.', ','); ?></td>
-                <td data-label="Interest" class="py-2 px-2  "><?= number_format($row_status['interest'] ?? 0, 2, '.', ','); ?></td>
-                <td data-label="Interest Paid" class="py-2 px-2  "><?= number_format($row_status['InterestPaid'] ?? 0, 2, '.', ','); ?></td>
-                <td data-label="Unpaid Interest" class="py-2 px-2  "><?= number_format($row_status['interestBalance'] ?? 0, 2, '.', ','); ?></td>
-                <td data-label="Total" class="py-2 px-2  "><?= number_format(round($row_status['total'] ?? 0), 2, '.', ','); ?></td>
+                <td data-label="Name" class="py-2 px-2  font-semibold uppercase">
+                    <?= htmlspecialchars($row_status['namess']); ?></td>
+                <td data-label="Entry Fee" class="py-2 px-2  ">
+                    <?= number_format($row_status['entryFee'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Savings" class="py-2 px-2  ">
+                    <?= number_format($row_status['savingsAmount'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Savings Bal." class="py-2 px-2  ">
+                    <?= number_format($row_status['savingsBalance'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Shares" class="py-2 px-2  ">
+                    <?= isset($row_status['sharesAmount']) ? number_format($row_status['sharesAmount'], 2, '.', ',') : '0.00'; ?>
+                </td>
+                <td data-label="Shares Bal." class="py-2 px-2  ">
+                    <?= number_format($row_status['sharesBalance'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Loan" class="py-2 px-2  "><?= number_format($row_status['loan'] ?? 0, 2, '.', ','); ?>
+                </td>
+                <td data-label="Loan Repayment" class="py-2 px-2  ">
+                    <?= number_format($row_status['loanRepayment'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Loan Bal." class="py-2 px-2  ">
+                    <?= number_format($row_status['loanBalance'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Interest" class="py-2 px-2  ">
+                    <?= number_format($row_status['interest'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Interest Paid" class="py-2 px-2  ">
+                    <?= number_format($row_status['InterestPaid'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Unpaid Interest" class="py-2 px-2  ">
+                    <?= number_format($row_status['interestBalance'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Total" class="py-2 px-2  ">
+                    <?= number_format(round($row_status['total'] ?? 0), 2, '.', ','); ?></td>
             </tr>
             <?php } ?>
             <!-- Totals Row (Show as single card or row) -->
             <tr class="bg-gray-200 font-bold text-base border-t border-gray-300">
                 <td class="py-3 px-2 text-blue-700" data-label="Total">Total</td>
                 <td colspan="3"></td>
-                <td class="py-3 px-2 " data-label="Entry Fee"><?= number_format($row_totalsum['entryFee'] ?? 0, 2, '.', ','); ?></td>
-                <td class="py-3 px-2 " data-label="Savings"><?= number_format($row_totalsum['savings'] ?? 0, 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Entry Fee">
+                    <?= number_format($row_totalsum['entryFee'] ?? 0, 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Savings">
+                    <?= number_format($row_totalsum['savings'] ?? 0, 2, '.', ','); ?></td>
                 <td></td>
-                <td class="py-3 px-2 " data-label="Shares"><?= number_format($row_totalsum['shares'] ?? 0, 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Shares">
+                    <?= number_format($row_totalsum['shares'] ?? 0, 2, '.', ','); ?></td>
                 <td></td>
-                <td class="py-3 px-2 " data-label="Loan"><?= number_format($row_totalsum['loan'] ?? 0, 2, '.', ','); ?></td>
-                <td class="py-3 px-2 " data-label="Loan Repayment"><?= number_format($row_totalsum['loanrepayments'] ?? 0, 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Loan"><?= number_format($row_totalsum['loan'] ?? 0, 2, '.', ','); ?>
+                </td>
+                <td class="py-3 px-2 " data-label="Loan Repayment">
+                    <?= number_format($row_totalsum['loanrepayments'] ?? 0, 2, '.', ','); ?></td>
                 <td></td>
-                <td class="py-3 px-2 " data-label="Interest"><?= number_format($row_totalsum['interest'] ?? 0, 2, '.', ','); ?></td>
-                <td class="py-3 px-2 " data-label="Interest Paid"><?= number_format($row_totalsum['interestPaid'] ?? 0, 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Interest">
+                    <?= number_format($row_totalsum['interest'] ?? 0, 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Interest Paid">
+                    <?= number_format($row_totalsum['interestPaid'] ?? 0, 2, '.', ','); ?></td>
                 <td></td>
-                <td class="py-3 px-2 " data-label="Total"><?= number_format(round($row_totalsum['total'] ?? 0), 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Total">
+                    <?= number_format(round($row_totalsum['total'] ?? 0), 2, '.', ','); ?></td>
             </tr>
         </tbody>
     </table>

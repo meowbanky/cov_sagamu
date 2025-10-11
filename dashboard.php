@@ -7,6 +7,18 @@ if (!isset($_SESSION['UserID'])) {
 require_once('Connections/cov.php'); 
 mysqli_select_db($cov, $database_cov);
 
+function curlPost($url) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    $error = curl_error($ch);
+    curl_close($ch);
+    if ($error !== '') {
+        throw new \Exception($error);
+    }
+    return $response;
+}
+
 // Fetch logo and title (do once for performance)
 $logo_query = mysqli_query($cov, "SELECT `value` FROM tbl_globa_settings WHERE setting_id = 2");
 $row_logo = mysqli_fetch_assoc($logo_query);
@@ -30,7 +42,7 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
     function updateClock() {
         const now = new Date();
         document.getElementById('clock').textContent =
-            now.toLocaleString('en-GB', {
+            now.toLocaleString('en-NG', {
                 hour12: false
             });
     }
@@ -48,7 +60,60 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     class="h-12 w-12 rounded-full border border-gray-200 object-contain">
                 <span class="text-2xl font-bold text-blue-900"><?= htmlspecialchars($row_title['value']) ?></span>
             </div>
-            <div class="text-sm text-gray-500 hidden sm:block">
+            <div class="flex-1 mx-4 hidden md:block">
+                <marquee behavior="scroll" direction="left" scrollamount="3" class="text-sm text-gray-600">
+                    <span class="text-red-600 font-semibold">SMS BALANCE: 
+                    <?php
+                    try{
+                        $response = curlPost('https://api.ng.termii.com/api/get-balance?api_key=TLYa2oT5vTpT3X4r3fSv2lSfErDApbmhbOAjOP3ituAA2XnLYMFIqzrq3leU1y');
+                        $jsonobj = $response;
+                        $obj = json_decode($jsonobj);
+                        echo number_format($obj->balance);
+                    }
+                    catch(Exception $e) {
+                        echo '0';
+                    }
+                    ?>
+                    </span>
+                    <span class="mx-4">|</span>
+                    <span class="text-blue-600 font-semibold">Active Members: 
+                    <?php
+                    $query_activeMembers = "SELECT count(tbl_personalinfo.memberid) FROM tbl_personalinfo WHERE `Status` = 'Active'";
+                    $activeMembers = mysqli_query($cov,$query_activeMembers) or die(mysqli_error($cov));
+                    $row_activeMembers = mysqli_fetch_assoc($activeMembers);
+                    echo $row_activeMembers['count(tbl_personalinfo.memberid)'];
+                    ?>
+                    </span>
+                    <span class="mx-4">|</span>
+                    <span class="text-green-600 font-semibold">Savings: 
+                    <?php
+                    $query_contribution = "SELECT SUM(tlb_mastertransaction.savings) as savings FROM tlb_mastertransaction";
+                    $contribution = mysqli_query($cov,$query_contribution) or die(mysqli_error($cov));
+                    $row_contribution = mysqli_fetch_assoc($contribution);
+                    echo number_format($row_contribution['savings'],2);
+                    ?>
+                    </span>
+                    <span class="mx-4">|</span>
+                    <span class="text-purple-600 font-semibold">Shares: 
+                    <?php
+                    $query_shares = "SELECT SUM(tlb_mastertransaction.shares) as shares FROM tlb_mastertransaction";
+                    $shares = mysqli_query($cov,$query_shares) or die(mysqli_error($cov));
+                    $row_shares = mysqli_fetch_assoc($shares);
+                    echo number_format($row_shares['shares'],2);
+                    ?>
+                    </span>
+                    <span class="mx-4">|</span>
+                    <span class="text-orange-600 font-semibold">Loan Debt: 
+                    <?php
+                    $query_loanDebt = "SELECT (SUM(tlb_mastertransaction.loanAmount))-(SUM(tlb_mastertransaction.loanRepayment)) as 'LoanDebt' FROM tlb_mastertransaction";
+                    $loanDebt = mysqli_query($cov,$query_loanDebt) or die(mysqli_error($cov));
+                    $row_loanDebt = mysqli_fetch_assoc($loanDebt);
+                    echo number_format($row_loanDebt['LoanDebt'],2);
+                    ?>
+                    </span>
+                </marquee>
+            </div>
+            <div class="text-sm text-gray-500 hidden sm:block mr-8">
                 <i class="fa-regular fa-calendar-days mr-1"></i>
                 <span id="clock"></span>
             </div>
@@ -91,6 +156,8 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                                 class="fa fa-balance-scale fa-fw mr-2"></i> Check Status</a></li>
                     <li><a href="backup2.php" class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
                                 class="fa fa-database fa-fw mr-2"></i> Backup</a></li>
+                    <li><a href="special_savings_management.php" class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
+                                class="fa fa-star fa-fw mr-2"></i> Special Savings</a></li>
                     <li><a href="ai_bank_statement_upload.php" class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
                                 class="fa fa-robot fa-fw mr-2"></i> AI Bank Statement Upload</a></li>
                     <!-- Add more menu items as needed -->
@@ -179,10 +246,6 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     <span class="font-semibold text-lg">AI Bank Statement Upload</span>
                 </a>
                 <!-- Add more feature cards as needed -->
-            </div>
-            <!-- Optionally add your <marquee> or info banner here -->
-            <div class="mt-8">
-                <?php include("marquee.php"); ?>
             </div>
         </main>
     </div>

@@ -12,19 +12,25 @@ $states = mysqli_query($cov, $query_state2);
 $query_nokRelationship = "SELECT relationship FROM nok_relationship";
 $nokRels = mysqli_query($cov, $query_nokRelationship);
 ?>
-<div class="max-w-2xl mx-auto bg-white rounded-xl shadow-lg mt-8 mb-16 p-6 md:p-10">
+<div class="mx-auto bg-white rounded-xl shadow-lg mt-8 mb-16 p-6 md:p-10">
     <form id="regForm" class="grid grid-cols-1 md:grid-cols-2 gap-6" autocomplete="off">
         <!-- (form fields same as before, just add id="" to each input for JS) -->
         <div class="space-y-4">
             <div>
                 <label class="block font-semibold mb-1">Coop No:</label>
-                <input name="new_mrn" id="new_mrn" type="text" class="w-full border px-3 py-2 rounded" readonly value="<?= htmlspecialchars($row_coopNo['coopNo']) ?>">
+                <input name="new_mrn" id="new_mrn" type="text" class="w-full border px-3 py-2 rounded" readonly
+                    value="<?= htmlspecialchars($row_coopNo['coopNo']) ?>">
             </div>
             <div>
                 <label class="block font-semibold mb-1">Title<span class="text-red-500">*</span></label>
                 <select name="sfxname" id="sfxname" class="w-full border px-3 py-2 rounded" required>
                     <option value="">-Select-</option>
-                    <option>Mr</option><option>Miss</option><option>Mrs</option><option>Dr</option><option>Baby</option><option>Master</option>
+                    <option>Mr</option>
+                    <option>Miss</option>
+                    <option>Mrs</option>
+                    <option>Dr</option>
+                    <option>Baby</option>
+                    <option>Master</option>
                 </select>
             </div>
             <div>
@@ -67,7 +73,8 @@ $nokRels = mysqli_query($cov, $query_nokRelationship);
                 <select name="State" id="State" class="w-full border px-3 py-2 rounded" required>
                     <option value="">Select State...</option>
                     <?php while($row = mysqli_fetch_assoc($states)): ?>
-                        <option value="<?= htmlspecialchars($row['State']) ?>"><?= htmlspecialchars($row['State']) ?></option>
+                    <option value="<?= htmlspecialchars($row['State']) ?>"><?= htmlspecialchars($row['State']) ?>
+                    </option>
                     <?php endwhile; ?>
                 </select>
             </div>
@@ -93,10 +100,12 @@ $nokRels = mysqli_query($cov, $query_nokRelationship);
                 </div>
                 <div>
                     <label class="block font-semibold mb-1">Relationship<span class="text-red-500">*</span></label>
-                    <select name="NOKRelationship" id="NOKRelationship" class="w-full border px-3 py-2 rounded" required>
+                    <select name="NOKRelationship" id="NOKRelationship" class="w-full border px-3 py-2 rounded"
+                        required>
                         <option value="">Select...</option>
                         <?php while($rel = mysqli_fetch_assoc($nokRels)): ?>
-                            <option value="<?= htmlspecialchars($rel['relationship']) ?>"><?= htmlspecialchars($rel['relationship']) ?></option>
+                        <option value="<?= htmlspecialchars($rel['relationship']) ?>">
+                            <?= htmlspecialchars($rel['relationship']) ?></option>
                         <?php endwhile; ?>
                     </select>
                 </div>
@@ -106,15 +115,19 @@ $nokRels = mysqli_query($cov, $query_nokRelationship);
                 </div>
                 <div>
                     <label class="block font-semibold mb-1">Address<span class="text-red-500">*</span></label>
-                    <input name="NOKAddress" id="NOKAddress" type="text" class="w-full border px-3 py-2 rounded" required>
-                    <label class="inline-flex items-center mt-2"><input type="checkbox" id="sameAsAbove" class="mr-2"> Same as above</label>
+                    <input name="NOKAddress" id="NOKAddress" type="text" class="w-full border px-3 py-2 rounded"
+                        required>
+                    <label class="inline-flex items-center mt-2"><input type="checkbox" id="sameAsAbove" class="mr-2">
+                        Same as above</label>
                 </div>
             </fieldset>
             <fieldset class="border rounded p-4 mt-4">
                 <legend class="font-bold text-blue-900 mb-2">Generate User's Password</legend>
                 <div class="flex gap-2">
-                    <input name="passwordGen" id="passwordGen" type="text" class="w-full border px-3 py-2 rounded" readonly>
-                    <button type="button" id="generateBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    <input name="passwordGen" id="passwordGen" type="text" class="w-full border px-3 py-2 rounded"
+                        readonly>
+                    <button type="button" id="generateBtn"
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                         Generate
                     </button>
                 </div>
@@ -137,20 +150,32 @@ $('#generateBtn').click(function() {
     $('#passwordGen').val(pass);
 });
 $('#sameAsAbove').change(function() {
-    if(this.checked) $('#NOKAddress').val($('#Address').val());
+    if (this.checked) $('#NOKAddress').val($('#Address').val());
 });
 $('#regForm').submit(function(e) {
     e.preventDefault();
     let formData = $(this).serialize();
     $.post('registration_action.php', formData, function(resp) {
-        if(resp.success) {
-            Swal.fire({icon:'success', title:'Success', text:resp.success});
+        if (resp.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: resp.success
+            });
             $('#regForm')[0].reset();
         } else {
-            Swal.fire({icon:'error', title:'Error', text:resp.error});
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: resp.error
+            });
         }
-    },'json').fail(function() {
-        Swal.fire({icon:'error', title:'Error', text:'Request failed. Please check your connection.'});
+    }, 'json').fail(function() {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Request failed. Please check your connection.'
+        });
     });
 });
 </script>

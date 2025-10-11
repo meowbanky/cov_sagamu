@@ -4,7 +4,7 @@ mysqli_select_db($cov, $database_cov);
 header('Content-Type: application/json');
 $memberid = $_POST['txtCoopid'] ?? '';
 $periodid = $_POST['PeriodId'] ?? '';
-$amount = floatval($_POST['Amount'] ?? 0);
+$amount = floatval($_POST['regularsavings'] ?? 0);
 $special = floatval($_POST['specialsavings'] ?? 0);
 if (!$memberid || !$periodid || !$amount) {
     echo json_encode(['error'=>'All fields required.']); exit;
