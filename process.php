@@ -11,6 +11,8 @@ global $cov;
 require_once('Connections/cov.php');
 
 require_once __DIR__ . '/libs/services/NotificationService.php';
+require_once __DIR__ . '/libs/services/EmailQueueManager.php';
+require_once __DIR__ . '/libs/services/EmailTemplateService.php';
 
 use App\Services\NotificationService;
 
@@ -19,6 +21,14 @@ try {
     $notificationService = new NotificationService($cov);
 } catch (Exception $e) {
     error_log("Failed to initialize notification service: " . $e->getMessage());
+}
+
+// Initialize email services
+try {
+    $emailQueueManager = new EmailQueueManager($cov, $database_cov);
+    $emailTemplateService = new EmailTemplateService($cov, $database_cov);
+} catch (Exception $e) {
+    error_log("Failed to initialize email services: " . $e->getMessage());
 }
 
 if (!function_exists("GetSQLValueString")) {
@@ -119,6 +129,10 @@ $entryFees = (int)($row_entrySettings['value']);
     <div id="information" style="width:0"></div>
     <div id="information2" style="width:0"></div>
     <?php
+	// Validate required parameters
+	if (!isset($_GET['PeriodID']) || empty($_GET['PeriodID'])) {
+		die('Error: PeriodID parameter is required');
+	}
 
 	mysqli_select_db($cov, $database_cov);
 	$query_member = "SELECT * FROM tbl_personalinfo where status = 'Active'";
@@ -150,7 +164,7 @@ $entryFees = (int)($row_entrySettings['value']);
 			return mysqli_fetch_assoc($result);
 		}
 
-		function processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService) {
+		function processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService = null) {
 			$loans_early = [];
 			$loans_late = [];
 			// Check if already processed
@@ -338,6 +352,36 @@ $entryFees = (int)($row_entrySettings['value']);
 					error_log("Failed to send notification: " . $e->getMessage());
 				}
 			}
+			
+			// Queue email notification
+			if ($emailTemplateService && isset($_GET['email']) && $_GET['email'] == 1) {
+				try {
+					$emailData = $emailTemplateService->generateTransactionSummaryEmail(
+						$row_member['memberid'],
+						$_GET["PeriodID"]
+					);
+					
+					if ($emailData) {
+						require_once __DIR__ . '/libs/services/EmailQueueManager.php';
+						global $emailQueueManager;
+						$emailQueueManager->addToQueue(
+							$row_member['memberid'],
+							$_GET["PeriodID"],
+							'transaction_summary',
+							$emailData['recipient_email'],
+							$emailData['recipient_name'],
+							$emailData['subject'],
+							$emailData['message_body'],
+							2, // Normal priority
+							null, // Send immediately
+							$emailData['metadata']
+						);
+					}
+				} catch (Exception $e) {
+					error_log("Failed to queue email for member {$row_member['memberid']}: " . $e->getMessage());
+				}
+			}
+			
 			// Progress
 			file_put_contents($progressFile, json_encode([
 				'percent' => intval($i / $totalRows_member * 100) . "%",
@@ -351,7 +395,7 @@ $entryFees = (int)($row_entrySettings['value']);
 		do {
 			set_time_limit(0);
 			try {
-				processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService);
+				processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService);
 			} catch (Exception $e) {
 				error_log("Error processing member {$row_member['memberid']}: " . $e->getMessage());
 			}
@@ -397,8 +441,7 @@ $entryFees = (int)($row_entrySettings['value']);
 
 </html>
 <?php
-mysqli_free_result($deductions);
-
+// Free result sets that were used globally
 mysqli_free_result($title);
 
 //mysqli_free_result($interestRate);

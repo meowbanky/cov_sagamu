@@ -158,6 +158,8 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                                 class="fa fa-database fa-fw mr-2"></i> Backup</a></li>
                     <li><a href="special_savings_management.php" class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
                                 class="fa fa-star fa-fw mr-2"></i> Special Savings</a></li>
+                    <li><a href="email_queue_dashboard.php" class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
+                                class="fa fa-envelope fa-fw mr-2"></i> Email Queue</a></li>
                     <li><a href="ai_bank_statement_upload.php" class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
                                 class="fa fa-robot fa-fw mr-2"></i> AI Bank Statement Upload</a></li>
                     <!-- Add more menu items as needed -->

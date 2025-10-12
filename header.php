@@ -183,6 +183,9 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="special_savings_management.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='special_savings_management.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-star fa-fw mr-2"></i> Special Savings</a></li>
+                    <li><a href="email_queue_dashboard.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='email_queue_dashboard.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-envelope fa-fw mr-2"></i> Email Queue</a></li>
                 </ul>
             </nav>
         </aside>

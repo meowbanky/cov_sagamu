@@ -143,6 +143,61 @@ class EnvConfig {
     }
     
     /**
+     * Get email configuration
+     */
+    public static function getMailHost() {
+        return self::get('MAIL_HOST', 'localhost');
+    }
+    
+    public static function getMailPort() {
+        return (int) self::get('MAIL_PORT', 587);
+    }
+    
+    public static function getMailUsername() {
+        return self::get('MAIL_USERNAME', '');
+    }
+    
+    public static function getMailPassword() {
+        return self::get('MAIL_PASSWORD', '');
+    }
+    
+    public static function getMailEncryption() {
+        return self::get('MAIL_ENCRYPTION', 'tls');
+    }
+    
+    public static function getMailFromAddress() {
+        return self::get('MAIL_FROM_ADDRESS', 'noreply@localhost');
+    }
+    
+    public static function getMailFromName() {
+        return self::get('MAIL_FROM_NAME', 'Cooperative Society');
+    }
+    
+    /**
+     * Get all email configuration as array
+     */
+    public static function getMailConfig() {
+        return [
+            'host' => self::getMailHost(),
+            'port' => self::getMailPort(),
+            'username' => self::getMailUsername(),
+            'password' => self::getMailPassword(),
+            'encryption' => self::getMailEncryption(),
+            'from_address' => self::getMailFromAddress(),
+            'from_name' => self::getMailFromName(),
+        ];
+    }
+    
+    /**
+     * Check if email is configured
+     */
+    public static function hasMailConfig() {
+        $host = self::getMailHost();
+        $username = self::getMailUsername();
+        return !empty($host) && $host !== 'localhost' && !empty($username);
+    }
+    
+    /**
      * Set a configuration value
      */
     public static function set($key, $value) {
