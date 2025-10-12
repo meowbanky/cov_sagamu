@@ -17,24 +17,24 @@ This directory contains the email queue processing system for automated email no
 # Edit crontab
 crontab -e
 
-# Add this line to run every 30 minutes
-*/30 * * * * /usr/bin/php /path/to/your/project/cron/process_email_queue.php
+# Add this line to run every 30 minutes (suppress output to avoid cron email spam)
+*/30 * * * * /usr/bin/php /path/to/your/project/cron/process_email_queue.php >/dev/null 2>&1
 
 # Or run every hour
-0 * * * * /usr/bin/php /path/to/your/project/cron/process_email_queue.php
+0 * * * * /usr/bin/php /path/to/your/project/cron/process_email_queue.php >/dev/null 2>&1
 ```
 
 ### 2. Advanced Setup (Multiple Schedules)
 
 ```bash
 # Process queue every 30 minutes during business hours (8 AM - 6 PM)
-*/30 8-18 * * * /usr/bin/php /path/to/your/project/cron/process_email_queue.php
+*/30 8-18 * * * /usr/bin/php /path/to/your/project/cron/process_email_queue.php >/dev/null 2>&1
 
 # Process queue every hour during off-hours (7 PM - 7 AM)
-0 19-23,0-7 * * * /usr/bin/php /path/to/your/project/cron/process_email_queue.php
+0 19-23,0-7 * * * /usr/bin/php /path/to/your/project/cron/process_email_queue.php >/dev/null 2>&1
 
 # Process queue every 15 minutes on weekends
-*/15 * * * 0,6 /usr/bin/php /path/to/your/project/cron/process_email_queue.php
+*/15 * * * 0,6 /usr/bin/php /path/to/your/project/cron/process_email_queue.php >/dev/null 2>&1
 ```
 
 ### 3. With Logging
