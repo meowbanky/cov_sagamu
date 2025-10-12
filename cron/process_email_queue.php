@@ -1,6 +1,5 @@
 <?php
 
-
 // Prevent direct web access
 if (isset($_SERVER['HTTP_HOST'])) {
     die('This script can only be run from command line');
@@ -10,8 +9,12 @@ if (isset($_SERVER['HTTP_HOST'])) {
 set_time_limit(300); // 5 minutes
 ini_set('memory_limit', '256M');
 
-// Include required files
-require_once('../libs/services/EmailQueueManager.php');
+// Get the absolute path to the project root
+$projectRoot = dirname(__DIR__);
+
+// Include required files using absolute paths
+require_once($projectRoot . '/Connections/cov.php');
+require_once($projectRoot . '/libs/services/EmailQueueManager.php');
 
 // Logging function
 function logMessage($message) {
@@ -31,7 +34,6 @@ try {
     logMessage("Starting email queue processing...");
     
     // Initialize database connection
-    require_once('../Connections/cov.php');
     $queueManager = new EmailQueueManager($cov, $database_cov);
     
     // Get queue statistics before processing

@@ -190,6 +190,16 @@ class EmailTemplateService {
                     <p>If you have any questions about your account, please contact our office.</p>
                     
                     <p>Thank you for your continued membership.</p>
+                    
+                    <!-- Mobile App Download Section -->
+                    <div style="margin: 30px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; text-align: center;">
+                        <h3 style="color: white; margin-bottom: 10px;">📱 Download Our Mobile App</h3>
+                        <p style="color: white; margin-bottom: 15px;">Access your account on the go!</p>
+                        <a href="https://cov.emmaggi.com/download.html" 
+                           style="display: inline-block; background: white; color: #667eea; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                            Download APK
+                        </a>
+                    </div>
                 </div>
                 
                 <div class="footer">
