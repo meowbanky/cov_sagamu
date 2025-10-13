@@ -1,1 +1,24 @@
-/vendor/
+# Log files
+logs/*.log
+
+# Environment files
+.env
+config.env
+
+# Cache files
+cache/
+tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backup files
+*.bak
+*.backup

@@ -18,11 +18,13 @@ require_once($projectRoot . '/libs/services/EmailQueueManager.php');
 
 // Logging function
 function logMessage($message) {
+    global $projectRoot;
     $timestamp = date('Y-m-d H:i:s');
     $logMessage = "[{$timestamp}] {$message}" . PHP_EOL;
     
-    // Log to file
-    file_put_contents('../logs/email_queue.log', $logMessage, FILE_APPEND | LOCK_EX);
+    // Log to file using absolute path
+    $logFile = $projectRoot . '/logs/email_queue.log';
+    file_put_contents($logFile, $logMessage, FILE_APPEND | LOCK_EX);
     
     // Also output to console if running from CLI
     if (php_sapi_name() === 'cli') {
