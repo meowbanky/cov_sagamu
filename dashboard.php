@@ -60,8 +60,8 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     class="h-12 w-12 rounded-full border border-gray-200 object-contain">
                 <span class="text-2xl font-bold text-blue-900"><?= htmlspecialchars($row_title['value']) ?></span>
             </div>
-            <div class="flex-1 mx-4 hidden md:block">
-                <marquee behavior="scroll" direction="left" scrollamount="3" class="text-sm text-gray-600">
+            <div class="flex-1 mx-2 md:mx-4">
+                <marquee behavior="scroll" direction="left" scrollamount="3" class="text-xs md:text-sm text-gray-600">
                     <span class="text-red-600 font-semibold">SMS BALANCE: 
                     <?php
                     try{
