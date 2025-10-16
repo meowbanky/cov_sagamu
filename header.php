@@ -59,6 +59,7 @@ $current = basename($_SERVER['PHP_SELF']);
 <body class="bg-gray-100 min-h-screen font-sans">
     <!-- HEADER -->
     <header class="w-full bg-white shadow sticky top-0 z-30">
+        <!-- Top Row: Logo, Title, Clock, User -->
         <div class="flex items-center justify-between px-4 md:px-8 py-2 relative">
             <div class="flex items-center gap-3">
                 <!-- Hamburger: mobile only -->
@@ -69,10 +70,21 @@ $current = basename($_SERVER['PHP_SELF']);
                     class="h-12 w-12 rounded-full border border-gray-200 object-contain">
                 <span class="text-2xl font-bold text-blue-900"><?= htmlspecialchars($row_title['value']) ?></span>
             </div>
-            <div class="flex-1 mx-2 md:mx-4">
-                <marquee behavior="scroll" direction="left" scrollamount="3" class="text-xs md:text-sm text-gray-600">
-                    <span class="text-red-600 font-semibold">SMS BALANCE:
-                        <?php
+            <div class="text-sm text-gray-500 hidden sm:block mr-8">
+                <i class="fa-regular fa-calendar-days mr-1"></i>
+                <span id="clock"></span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-gray-700 font-medium hidden md:block">Welcome, <?= $firstname ?></span>
+                <a href="index.php" title="Logout" class="text-red-600 hover:text-red-800"><i
+                        class="fas fa-sign-out-alt fa-lg"></i></a>
+            </div>
+        </div>
+        <!-- Stats Marquee Row -->
+        <div class="bg-gray-50 border-t border-gray-200 px-4 md:px-8 py-2">
+            <marquee behavior="scroll" direction="left" scrollamount="3" class="text-xs md:text-sm text-gray-600">
+                <span class="text-red-600 font-semibold">SMS BALANCE:
+                    <?php
                     try{
                         $response = curlPost('https://api.ng.termii.com/api/get-balance?api_key=TLYa2oT5vTpT3X4r3fSv2lSfErDApbmhbOAjOP3ituAA2XnLYMFIqzrq3leU1y');
                         $jsonobj = $response;
@@ -83,54 +95,44 @@ $current = basename($_SERVER['PHP_SELF']);
                         echo '0';
                     }
                     ?>
-                    </span>
-                    <span class="mx-4">|</span>
-                    <span class="text-blue-600 font-semibold">Active Members:
-                        <?php
+                </span>
+                <span class="mx-4">|</span>
+                <span class="text-blue-600 font-semibold">Active Members:
+                    <?php
                     $query_activeMembers = "SELECT count(tbl_personalinfo.memberid) FROM tbl_personalinfo WHERE `Status` = 'Active'";
                     $activeMembers = mysqli_query($cov,$query_activeMembers) or die(mysqli_error($cov));
                     $row_activeMembers = mysqli_fetch_assoc($activeMembers);
                     echo $row_activeMembers['count(tbl_personalinfo.memberid)'];
                     ?>
-                    </span>
-                    <span class="mx-4">|</span>
-                    <span class="text-green-600 font-semibold">Savings:
-                        <?php
+                </span>
+                <span class="mx-4">|</span>
+                <span class="text-green-600 font-semibold">Savings:
+                    <?php
                     $query_contribution = "SELECT SUM(tlb_mastertransaction.savings) as savings FROM tlb_mastertransaction";
                     $contribution = mysqli_query($cov,$query_contribution) or die(mysqli_error($cov));
                     $row_contribution = mysqli_fetch_assoc($contribution);
                     echo number_format($row_contribution['savings'],2);
                     ?>
-                    </span>
-                    <span class="mx-4">|</span>
-                    <span class="text-purple-600 font-semibold">Shares:
-                        <?php
+                </span>
+                <span class="mx-4">|</span>
+                <span class="text-purple-600 font-semibold">Shares:
+                    <?php
                     $query_shares = "SELECT SUM(tlb_mastertransaction.shares) as shares FROM tlb_mastertransaction";
                     $shares = mysqli_query($cov,$query_shares) or die(mysqli_error($cov));
                     $row_shares = mysqli_fetch_assoc($shares);
                     echo number_format($row_shares['shares'],2);
                     ?>
-                    </span>
-                    <span class="mx-4">|</span>
-                    <span class="text-orange-600 font-semibold">Loan Debt:
-                        <?php
+                </span>
+                <span class="mx-4">|</span>
+                <span class="text-orange-600 font-semibold">Loan Debt:
+                    <?php
                     $query_loanDebt = "SELECT (SUM(tlb_mastertransaction.loanAmount))-(SUM(tlb_mastertransaction.loanRepayment)) as 'LoanDebt' FROM tlb_mastertransaction";
                     $loanDebt = mysqli_query($cov,$query_loanDebt) or die(mysqli_error($cov));
                     $row_loanDebt = mysqli_fetch_assoc($loanDebt);
                     echo number_format($row_loanDebt['LoanDebt'],2);
                     ?>
-                    </span>
-                </marquee>
-            </div>
-            <div class="text-sm text-gray-500 hidden sm:block mr-8">
-                <i class="fa-regular fa-calendar-days mr-1"></i>
-                <span id="clock"></span>
-            </div>
-            <div class="flex items-center gap-4">
-                <span class="text-gray-700 font-medium hidden md:block">Welcome, <?= $firstname ?></span>
-                <a href="index.php" title="Logout" class="text-red-600 hover:text-red-800"><i
-                        class="fas fa-sign-out-alt fa-lg"></i></a>
-            </div>
+                </span>
+            </marquee>
         </div>
     </header>
     <!-- SIDEBAR + MAIN -->

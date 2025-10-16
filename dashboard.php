@@ -54,14 +54,27 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
 <body class="bg-gray-100 min-h-screen font-sans">
     <!-- Header -->
     <header class="w-full bg-white shadow sticky top-0 z-30">
+        <!-- Top Row: Logo, Title, Clock, User -->
         <div class="flex items-center justify-between px-4 md:px-8 py-2">
             <div class="flex items-center gap-3">
                 <img src="<?= htmlspecialchars($row_logo['value']) ?>" alt="Logo"
                     class="h-12 w-12 rounded-full border border-gray-200 object-contain">
                 <span class="text-2xl font-bold text-blue-900"><?= htmlspecialchars($row_title['value']) ?></span>
             </div>
-            <div class="flex-1 mx-2 md:mx-4">
-                <marquee behavior="scroll" direction="left" scrollamount="3" class="text-xs md:text-sm text-gray-600">
+            <div class="text-sm text-gray-500 hidden sm:block mr-8">
+                <i class="fa-regular fa-calendar-days mr-1"></i>
+                <span id="clock"></span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-gray-700 font-medium hidden md:block">Welcome, <?= $firstname ?></span>
+                <a href="index.php" title="Logout" class="text-red-600 hover:text-red-800">
+                    <i class="fas fa-sign-out-alt fa-lg"></i>
+                </a>
+            </div>
+        </div>
+        <!-- Stats Marquee Row -->
+        <div class="bg-gray-50 border-t border-gray-200 px-4 md:px-8 py-2">
+            <marquee behavior="scroll" direction="left" scrollamount="3" class="text-xs md:text-sm text-gray-600">
                     <span class="text-red-600 font-semibold">SMS BALANCE: 
                     <?php
                     try{
@@ -111,17 +124,7 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     echo number_format($row_loanDebt['LoanDebt'],2);
                     ?>
                     </span>
-                </marquee>
-            </div>
-            <div class="text-sm text-gray-500 hidden sm:block mr-8">
-                <i class="fa-regular fa-calendar-days mr-1"></i>
-                <span id="clock"></span>
-            </div>
-            <div class="flex items-center gap-4">
-                <span class="text-gray-700 font-medium hidden md:block">Welcome, <?= $firstname ?></span>
-                <a href="index.php" title="Logout" class="text-red-600 hover:text-red-800"><i
-                        class="fas fa-sign-out-alt fa-lg"></i></a>
-            </div>
+            </marquee>
         </div>
     </header>
     <div class="flex">
