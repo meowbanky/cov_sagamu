@@ -18,7 +18,16 @@ mysqli_select_db($cov, $database_cov);
 // Use strict integer values
 $periodFrom_status = getIntOrDefault($_GET['periodfrom'] ?? null, -1);
 $periodTo_status   = getIntOrDefault($_GET['periodTo'] ?? null, -1);
-$id_status         = getIntOrDefault($_GET['id'] ?? null, -1);
+
+// Handle multiple member IDs
+$memberIds = [];
+if (isset($_GET['memberIds']) && is_array($_GET['memberIds'])) {
+    $memberIds = array_map('intval', $_GET['memberIds']);
+    $memberIds = array_filter($memberIds, function($id) { return $id > 0; });
+} elseif (isset($_GET['id']) && is_numeric($_GET['id'])) {
+    // Backward compatibility: single member ID
+    $memberIds = [intval($_GET['id'])];
+}
 
 // PREPARED STATEMENT FOR STATUS QUERY
 $statusQuery = "
@@ -73,10 +82,13 @@ WHERE tlb_mastertransaction.periodid BETWEEN ? AND ?
 ";
 $params = [$periodFrom_status, $periodTo_status];
 $types  = "ii";
-if ($id_status !== -1) {
-    $statusQuery .= " AND tbl_personalinfo.memberid = ? ";
-    $params[] = $id_status;
-    $types .= "i";
+
+// Add member ID filter if specific members are selected
+if (!empty($memberIds)) {
+    $placeholders = str_repeat('?,', count($memberIds) - 1) . '?';
+    $statusQuery .= " AND tbl_personalinfo.memberid IN ($placeholders) ";
+    $params = array_merge($params, $memberIds);
+    $types .= str_repeat('i', count($memberIds));
 }
 $statusQuery .= " GROUP BY tbpayrollperiods.Periodid, tlb_mastertransaction.memberid ORDER BY tbpayrollperiods.Periodid DESC";
 
@@ -110,10 +122,13 @@ WHERE tbpayrollperiods.Periodid BETWEEN ? AND ?
 ";
 $totalParams = [$periodFrom_status, $periodTo_status];
 $totalTypes = "ii";
-if ($id_status !== -1) {
-    $totalQuery .= " AND tlb_mastertransaction.memberid = ? ";
-    $totalParams[] = $id_status;
-    $totalTypes .= "i";
+
+// Add member ID filter for total query if specific members are selected
+if (!empty($memberIds)) {
+    $placeholders = str_repeat('?,', count($memberIds) - 1) . '?';
+    $totalQuery .= " AND tlb_mastertransaction.memberid IN ($placeholders) ";
+    $totalParams = array_merge($totalParams, $memberIds);
+    $totalTypes .= str_repeat('i', count($memberIds));
 }
 
 $totalStmt = $cov->prepare($totalQuery);

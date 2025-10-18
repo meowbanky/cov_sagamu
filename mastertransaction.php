@@ -33,12 +33,19 @@ if ($res) $periods = $res->fetch_all(MYSQLI_ASSOC);
                 </div>
                 <button onclick="getMasterTransaction()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full sm:w-auto">Get Result</button>
             </div>
-            <!-- Search Row -->
-            <div class="flex flex-col sm:flex-row gap-3 mb-4">
-                <div class="flex gap-2 w-full sm:w-1/2">
-                    <input type="text" id="search" placeholder="Search member..." class="border rounded px-2 py-1 flex-1 w-full" autocomplete="off">
-                    <button type="button" id="clearMemberBtn" title="Clear member" class="text-gray-500 hover:text-red-600 text-xl px-2">&#10006;</button>
-                    <input type="hidden" id="memberid">
+            <!-- Multi-Select Member Search -->
+            <div class="mb-4">
+                <div class="flex gap-2 w-full sm:w-2/3">
+                    <div class="flex-1">
+                        <input type="text" id="memberSearch" placeholder="Search and select multiple members..." class="border rounded px-3 py-2 w-full" autocomplete="off">
+                        <input type="hidden" id="selectedMembers">
+                    </div>
+                    <button type="button" id="clearAllMembersBtn" title="Clear all selected members" class="text-gray-500 hover:text-red-600 text-xl px-3 py-2 border rounded">Clear All</button>
+                </div>
+                
+                <!-- Selected Members Display -->
+                <div id="selectedMembersDisplay" class="mt-3 flex flex-wrap gap-2 min-h-[40px] p-2 border border-gray-200 rounded bg-gray-50">
+                    <span class="text-gray-500 text-sm">No members selected</span>
                 </div>
             </div>
 
@@ -80,7 +87,8 @@ function hideBlockingLoader() {
 function getMasterTransaction() {
     const fromPeriod = $('#fromPeriodId').val();
     const toPeriodId = $('#toPeriodId').val();
-    const memberid = $('#memberid').val();
+    const selectedMembers = $('#selectedMembers').val();
+    
     if (!fromPeriod || !toPeriodId) { 
         Swal.fire('Select period range.', '', 'warning');
         return;
@@ -89,10 +97,15 @@ function getMasterTransaction() {
         Swal.fire("From Period cannot be Greater Than To Period", '', 'error');
         return;
     }
+    
     showBlockingLoader();
     $('#status').html('');
+    
+    // Convert comma-separated member IDs to array
+    const memberIds = selectedMembers ? selectedMembers.split(',') : [];
+    
     $.get('getMasterTransaction.php', {
-        id: memberid,
+        memberIds: memberIds,
         periodTo: toPeriodId,
         periodfrom: fromPeriod,
         filename: ''
@@ -241,25 +254,81 @@ $(document).on('click', '#exportexcel', function() {
     });
 });
 
+// Multi-select member functionality
+let selectedMembersList = [];
+
+function addMember(memberId, memberName) {
+    // Check if member is already selected
+    if (selectedMembersList.find(member => member.id === memberId)) {
+        return;
+    }
+    
+    // Add member to list
+    selectedMembersList.push({id: memberId, name: memberName});
+    updateSelectedMembersDisplay();
+    updateHiddenField();
+    $('#memberSearch').val(''); // Clear search input
+}
+
+function removeMember(memberId) {
+    selectedMembersList = selectedMembersList.filter(member => member.id !== memberId);
+    updateSelectedMembersDisplay();
+    updateHiddenField();
+}
+
+function updateSelectedMembersDisplay() {
+    const displayDiv = $('#selectedMembersDisplay');
+    
+    if (selectedMembersList.length === 0) {
+        displayDiv.html('<span class="text-gray-500 text-sm">No members selected</span>');
+        return;
+    }
+    
+    let html = '';
+    selectedMembersList.forEach(member => {
+        html += `
+            <div class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                <span>${member.name} (${member.id})</span>
+                <button type="button" onclick="removeMember('${member.id}')" class="text-blue-600 hover:text-red-600 ml-1">
+                    ×
+                </button>
+            </div>
+        `;
+    });
+    
+    displayDiv.html(html);
+}
+
+function updateHiddenField() {
+    const memberIds = selectedMembersList.map(member => member.id).join(',');
+    $('#selectedMembers').val(memberIds);
+}
+
+function clearAllMembers() {
+    selectedMembersList = [];
+    updateSelectedMembersDisplay();
+    updateHiddenField();
+    $('#memberSearch').val('');
+}
+
 // AUTOCOMPLETE AND PERIOD SELECT
 $(function(){
-    $("#search").autocomplete({
+    $("#memberSearch").autocomplete({
         source: "search_members.php",
         minLength: 2,
         select: function(event, ui) {
-            $('#memberid').val(ui.item.value);
-            $('#search').val(ui.item.membername);
+            addMember(ui.item.value, ui.item.membername);
             return false;
         }
     });
+    
     $("#fromPeriodId").on('change', function () {
         $("#toPeriodId").val($(this).val());
     });
-    // Clear member button
-    $('#clearMemberBtn').on('click', function() {
-        $('#search').val('');
-        $('#memberid').val('');
-        $('#search').focus();
+    
+    // Clear all members button
+    $('#clearAllMembersBtn').on('click', function() {
+        clearAllMembers();
     });
 });
 </script>
