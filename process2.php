@@ -141,20 +141,41 @@ function updatePeriodRangePreview() {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
+    console.log('Loading periods...');
     fetch('api/periods.php')
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response received:', response);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Periods data:', data);
+            if (!data || data.length === 0) {
+                throw new Error('No periods data received');
+            }
+            
             allPeriodsData = data;
             const optionsHtml = '<option value="">Select period...</option>' + 
                 data.map(row => `<option value="${row.Periodid}">${row.PayrollPeriod}</option>`).join('');
             
             document.getElementById('periodFrom').innerHTML = optionsHtml;
             document.getElementById('periodTo').innerHTML = optionsHtml;
+            console.log('Periods loaded successfully');
         })
-        .catch(() => {
+        .catch(error => {
+            console.error('Error loading periods:', error);
             const errorHtml = '<option value="">Unable to load periods</option>';
             document.getElementById('periodFrom').innerHTML = errorHtml;
             document.getElementById('periodTo').innerHTML = errorHtml;
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Error Loading Periods',
+                text: 'Could not load periods. Please refresh the page.',
+                footer: error.message
+            });
         });
     
     // Update preview when period selection changes
