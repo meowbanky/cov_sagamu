@@ -271,7 +271,8 @@ function addMember(memberId, memberName) {
 }
 
 function removeMember(memberId) {
-    selectedMembersList = selectedMembersList.filter(member => member.id !== memberId);
+    // Convert to string for comparison since onclick passes string
+    selectedMembersList = selectedMembersList.filter(member => member.id != memberId);
     updateSelectedMembersDisplay();
     updateHiddenField();
 }
