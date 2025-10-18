@@ -95,30 +95,29 @@ function updatePeriodRangePreview() {
     const periodFromId = parseInt($('#periodFrom').val());
     const periodToId = parseInt($('#periodTo').val());
     
+    console.log('Period From ID:', periodFromId, 'Period To ID:', periodToId);
+    
     if (!periodFromId || !periodToId) {
         $('#periodRangePreview').addClass('hidden');
         selectedPeriodsList = [];
         return;
     }
     
-    // Validate range
-    if (periodFromId > periodToId) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Invalid Range',
-            text: '"Period From" cannot be greater than "Period To"',
-            timer: 2000,
-            showConfirmButton: false
-        });
-        $('#periodTo').val(periodFromId);
-        return;
-    }
+    // Since periods are in DESC order (higher ID = newer), 
+    // "From" should have higher ID than "To" for chronological order
+    // But for user clarity, we allow From <= To in the dropdown
+    const minPeriodId = Math.min(periodFromId, periodToId);
+    const maxPeriodId = Math.max(periodFromId, periodToId);
     
-    // Get periods in range
+    console.log('Range:', minPeriodId, 'to', maxPeriodId);
+    
+    // Get periods in range (inclusive)
     selectedPeriodsList = allPeriodsData.filter(period => {
         const periodId = parseInt(period.Periodid);
-        return periodId >= periodToId && periodId <= periodFromId; // Note: Reversed because periods are DESC
+        return periodId >= minPeriodId && periodId <= maxPeriodId;
     });
+    
+    console.log('Selected periods:', selectedPeriodsList.length, selectedPeriodsList);
     
     // Display preview
     if (selectedPeriodsList.length > 0) {
@@ -136,6 +135,7 @@ function updatePeriodRangePreview() {
         });
         $('#selectedPeriodsDisplay').html(html);
     } else {
+        console.log('No periods found in range');
         $('#periodRangePreview').addClass('hidden');
     }
 }
