@@ -7,26 +7,31 @@
             </h2>
             <form class="space-y-5" method="POST" name="eduEntry" id="deductionForm" autocomplete="off">
                 <div>
-                    <label class="block font-semibold text-gray-700 mb-2">Select Periods to Process</label>
-                    <div class="flex gap-2">
-                        <select id="PeriodSelector" 
-                            class="flex-1 rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition">
-                            <option value="">Loading periods...</option>
-                        </select>
-                        <button type="button" id="addPeriodBtn" 
-                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
-                            Add Period
-                        </button>
-                        <button type="button" id="clearAllPeriodsBtn" 
-                            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition">
-                            Clear All
-                        </button>
+                    <label class="block font-semibold text-gray-700 mb-2">Select Period Range</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="periodFrom" class="block text-sm text-gray-600 mb-1">Period From:</label>
+                            <select id="periodFrom" name="periodFrom"
+                                class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition">
+                                <option value="">Loading periods...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="periodTo" class="block text-sm text-gray-600 mb-1">Period To:</label>
+                            <select id="periodTo" name="periodTo"
+                                class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition">
+                                <option value="">Loading periods...</option>
+                            </select>
+                        </div>
                     </div>
-                    <input type="hidden" id="selectedPeriods" name="selectedPeriods">
                     
-                    <!-- Selected Periods Display -->
-                    <div id="selectedPeriodsDisplay" class="mt-3 flex flex-wrap gap-2 min-h-[40px] p-3 border-2 border-gray-200 rounded-lg bg-gray-50">
-                        <span class="text-gray-500 text-sm">No periods selected</span>
+                    <!-- Selected Periods Preview -->
+                    <div id="periodRangePreview" class="mt-3 p-3 border-2 border-gray-200 rounded-lg bg-gray-50 hidden">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-semibold text-gray-700">Periods to Process:</span>
+                            <span id="periodCount" class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-semibold"></span>
+                        </div>
+                        <div id="selectedPeriodsDisplay" class="flex flex-wrap gap-2"></div>
                     </div>
                 </div>
                 <div class="space-y-3">
@@ -82,71 +87,57 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-// Multi-select period functionality
-let selectedPeriodsList = [];
+// Period range functionality
 let allPeriodsData = [];
+let selectedPeriodsList = [];
 
-function addPeriod(periodId, periodName) {
-    // Check if period is already selected
-    if (selectedPeriodsList.find(period => period.id == periodId)) {
+function updatePeriodRangePreview() {
+    const periodFromId = parseInt($('#periodFrom').val());
+    const periodToId = parseInt($('#periodTo').val());
+    
+    if (!periodFromId || !periodToId) {
+        $('#periodRangePreview').addClass('hidden');
+        selectedPeriodsList = [];
+        return;
+    }
+    
+    // Validate range
+    if (periodFromId > periodToId) {
         Swal.fire({
-            icon: 'info',
-            title: 'Already Added',
-            text: 'This period is already in the list.',
+            icon: 'warning',
+            title: 'Invalid Range',
+            text: '"Period From" cannot be greater than "Period To"',
             timer: 2000,
             showConfirmButton: false
         });
+        $('#periodTo').val(periodFromId);
         return;
     }
     
-    // Add period to list
-    selectedPeriodsList.push({id: periodId, name: periodName});
-    updateSelectedPeriodsDisplay();
-    updateHiddenPeriodField();
-    
-    // Reset selector to default
-    $('#PeriodSelector').val('');
-}
-
-function removePeriod(periodId) {
-    selectedPeriodsList = selectedPeriodsList.filter(period => period.id != periodId);
-    updateSelectedPeriodsDisplay();
-    updateHiddenPeriodField();
-}
-
-function updateSelectedPeriodsDisplay() {
-    const displayDiv = $('#selectedPeriodsDisplay');
-    
-    if (selectedPeriodsList.length === 0) {
-        displayDiv.html('<span class="text-gray-500 text-sm">No periods selected</span>');
-        return;
-    }
-    
-    let html = '';
-    selectedPeriodsList.forEach(period => {
-        html += `
-            <div class="inline-flex items-center gap-2 bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm font-medium shadow-sm">
-                <i class="fa fa-calendar-alt"></i>
-                <span>${period.name}</span>
-                <button type="button" onclick="removePeriod('${period.id}')" class="text-indigo-600 hover:text-red-600 ml-1 font-bold text-lg">
-                    ×
-                </button>
-            </div>
-        `;
+    // Get periods in range
+    selectedPeriodsList = allPeriodsData.filter(period => {
+        const periodId = parseInt(period.Periodid);
+        return periodId >= periodToId && periodId <= periodFromId; // Note: Reversed because periods are DESC
     });
     
-    displayDiv.html(html);
-}
-
-function updateHiddenPeriodField() {
-    const periodIds = selectedPeriodsList.map(period => period.id).join(',');
-    $('#selectedPeriods').val(periodIds);
-}
-
-function clearAllPeriods() {
-    selectedPeriodsList = [];
-    updateSelectedPeriodsDisplay();
-    updateHiddenPeriodField();
+    // Display preview
+    if (selectedPeriodsList.length > 0) {
+        $('#periodRangePreview').removeClass('hidden');
+        $('#periodCount').text(`${selectedPeriodsList.length} period(s)`);
+        
+        let html = '';
+        selectedPeriodsList.forEach(period => {
+            html += `
+                <div class="inline-flex items-center gap-2 bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-medium">
+                    <i class="fa fa-calendar-alt"></i>
+                    <span>${period.PayrollPeriod}</span>
+                </div>
+            `;
+        });
+        $('#selectedPeriodsDisplay').html(html);
+    } else {
+        $('#periodRangePreview').addClass('hidden');
+    }
 }
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -154,42 +145,25 @@ document.addEventListener("DOMContentLoaded", function() {
         .then(response => response.json())
         .then(data => {
             allPeriodsData = data;
-            const select = document.getElementById('PeriodSelector');
-            select.innerHTML = '<option value="">Select a period to add...</option>';
-            data.forEach(row => {
-                const option = document.createElement('option');
-                option.value = row.Periodid;
-                option.textContent = row.PayrollPeriod;
-                select.appendChild(option);
-            });
+            const optionsHtml = '<option value="">Select period...</option>' + 
+                data.map(row => `<option value="${row.Periodid}">${row.PayrollPeriod}</option>`).join('');
+            
+            document.getElementById('periodFrom').innerHTML = optionsHtml;
+            document.getElementById('periodTo').innerHTML = optionsHtml;
         })
         .catch(() => {
-            document.getElementById('PeriodSelector').innerHTML =
-                '<option value="">Unable to load periods</option>';
+            const errorHtml = '<option value="">Unable to load periods</option>';
+            document.getElementById('periodFrom').innerHTML = errorHtml;
+            document.getElementById('periodTo').innerHTML = errorHtml;
         });
     
-    // Add Period button click handler
-    $('#addPeriodBtn').on('click', function() {
-        const periodId = $('#PeriodSelector').val();
-        if (!periodId || periodId === '') {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Select Period',
-                text: 'Please select a period from the dropdown first.',
-                timer: 2000,
-                showConfirmButton: false
-            });
-            return;
+    // Update preview when period selection changes
+    $('#periodFrom, #periodTo').on('change', function() {
+        // Auto-set periodTo if periodFrom is selected and periodTo is empty
+        if ($(this).attr('id') === 'periodFrom' && $('#periodTo').val() === '') {
+            $('#periodTo').val($('#periodFrom').val());
         }
-        
-        const selectedOption = $('#PeriodSelector option:selected');
-        const periodName = selectedOption.text();
-        addPeriod(periodId, periodName);
-    });
-    
-    // Clear All button click handler
-    $('#clearAllPeriodsBtn').on('click', function() {
-        clearAllPeriods();
+        updatePeriodRangePreview();
     });
 });
 const sessionId = '<?php echo session_id(); ?>';
@@ -230,27 +204,29 @@ function pollProgress(sessionId) {
 $(function() {
     $('#deductionForm').on('submit', function(event) {
         event.preventDefault();
-        const selectedPeriods = $('#selectedPeriods').val();
+        const periodFromId = $('#periodFrom').val();
+        const periodToId = $('#periodTo').val();
         const sms = $('#sms').is(':checked') ? 1 : 0;
         const email = $('#email').is(':checked') ? 1 : 0;
 
-        if (!selectedPeriods || selectedPeriods === '') {
+        if (!periodFromId || !periodToId) {
             Swal.fire({
                 icon: 'warning',
-                title: 'Select Periods',
-                text: 'Please select at least one period before processing.'
+                title: 'Select Period Range',
+                text: 'Please select both "Period From" and "Period To" before processing.'
             });
             return false;
         }
 
-        const periodIds = selectedPeriods.split(',');
+        // Get period IDs from the selected range
+        const periodIds = selectedPeriodsList.map(p => p.Periodid);
         const periodCount = periodIds.length;
         
         // Build notification message
         let notifMsg = `This will process transactions for <strong>${periodCount} period(s)</strong>.<br>`;
         notifMsg += '<div class="mt-2 text-left"><strong>Selected Periods:</strong><ul class="list-disc ml-5">';
         selectedPeriodsList.forEach(period => {
-            notifMsg += `<li>${period.name}</li>`;
+            notifMsg += `<li>${period.PayrollPeriod}</li>`;
         });
         notifMsg += '</ul></div>';
         
@@ -324,8 +300,8 @@ function processMultiplePeriods(periodIds, sms, email, index) {
     }
     
     const periodId = periodIds[index];
-    const periodData = selectedPeriodsList.find(p => p.id == periodId);
-    const periodName = periodData ? periodData.name : `Period ${periodId}`;
+    const periodData = selectedPeriodsList.find(p => p.Periodid == periodId);
+    const periodName = periodData ? periodData.PayrollPeriod : `Period ${periodId}`;
     
     // Update current period display
     $('#currentPeriodName').text(periodName);
@@ -400,8 +376,11 @@ function showFinalResults() {
         confirmButtonText: 'OK',
         width: '600px'
     }).then(() => {
-        // Optionally reload the page or reset the form
-        clearAllPeriods();
+        // Reset the form
+        $('#periodFrom').val('');
+        $('#periodTo').val('');
+        $('#periodRangePreview').addClass('hidden');
+        selectedPeriodsList = [];
     });
 }
 
