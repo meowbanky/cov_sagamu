@@ -100,15 +100,15 @@ $status = $statusStmt->get_result();
 // PREPARED STATEMENT FOR TOTAL SUM QUERY
 $totalQuery = "
 SELECT
-    ANY_VALUE(tbl_personalinfo.memberid) AS memberid,
-    ANY_VALUE(tlb_mastertransaction.transactionid) AS transactionid,
+    MAX(tbl_personalinfo.memberid) AS memberid,
+    MAX(tlb_mastertransaction.transactionid) AS transactionid,
     IFNULL(SUM(tlb_mastertransaction.loanAmount), 0) AS loan,
     IFNULL(SUM(tlb_mastertransaction.loanRepayment), 0) AS loanrepayments,
     IFNULL(SUM(tlb_mastertransaction.withdrawal), 0) AS withdrawals,
     (IFNULL(SUM(tlb_mastertransaction.loanRepayment), 0) + IFNULL(SUM(tlb_mastertransaction.entryFee), 0) + IFNULL(SUM(tlb_mastertransaction.savings), 0) + 
     IFNULL(SUM(tlb_mastertransaction.shares), 0) + IFNULL(SUM(tlb_mastertransaction.interestPaid), 0)) AS total,
-    ANY_VALUE(tbpayrollperiods.PayrollPeriod) AS PayrollPeriod,
-    ANY_VALUE(tlb_mastertransaction.periodid) AS periodid,
+    MAX(tbpayrollperiods.PayrollPeriod) AS PayrollPeriod,
+    MAX(tlb_mastertransaction.periodid) AS periodid,
     IFNULL(SUM(tlb_mastertransaction.entryFee), 0) AS entryFee,
     IFNULL(SUM(tlb_mastertransaction.savings), 0) AS savings,
     IFNULL(SUM(tlb_mastertransaction.shares), 0) AS shares,
