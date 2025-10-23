@@ -4,6 +4,7 @@ if (!isset($_SESSION['UserID'])) {
     header("Location: index.php");
     exit();
 }
+
 require_once('Connections/cov.php');
 mysqli_select_db($cov, $database_cov);
 require_once('libs/services/EmailQueueManager.php');
@@ -187,9 +188,11 @@ $recentResult = mysqli_query($cov, $recentQuery);
                                 <?= $row['priority'] === 1 ? 'High' : ($row['priority'] === 2 ? 'Normal' : 'Low') ?>
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-gray-600"><?= date('M j, Y H:i', strtotime($row['created_at'])) ?>
+                        <td class="px-4 py-3 text-gray-600">
+                            <span class="utc-time" data-utc="<?= $row['created_at'] ?>"><?= $row['created_at'] ?></span>
                         </td>
-                        <td class="px-4 py-3 text-gray-600"><?= date('M j, Y H:i', strtotime($row['scheduled_at'])) ?>
+                        <td class="px-4 py-3 text-gray-600">
+                            <span class="utc-time" data-utc="<?= $row['scheduled_at'] ?>"><?= $row['scheduled_at'] ?></span>
                         </td>
                     </tr>
                     <?php endwhile; ?>
@@ -223,5 +226,36 @@ $recentResult = mysqli_query($cov, $recentQuery);
         </div>
     </div>
 </div>
+
+<script>
+// Convert all UTC timestamps to user's local time
+document.addEventListener('DOMContentLoaded', function() {
+    const utcElements = document.querySelectorAll('.utc-time');
+    
+    utcElements.forEach(function(element) {
+        const utcTime = element.getAttribute('data-utc');
+        if (utcTime && utcTime !== 'NULL' && utcTime !== '') {
+            // Parse UTC time and convert to local
+            const date = new Date(utcTime + ' UTC'); // Treat as UTC
+            
+            // Format: Oct 23, 2025 11:52
+            const options = {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            };
+            
+            const localTime = date.toLocaleString('en-US', options);
+            element.textContent = localTime;
+            
+            // Add tooltip showing original UTC time
+            element.title = 'UTC: ' + utcTime;
+        }
+    });
+});
+</script>
 
 <?php require_once('footer.php'); ?>
