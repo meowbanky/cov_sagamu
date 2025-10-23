@@ -2,9 +2,11 @@
 
 class EmailTemplateService {
     private $db;
+    private $database_name;
     
     public function __construct($database_connection, $database_name = null) {
         $this->db = $database_connection;
+        $this->database_name = $database_name;
         if ($database_name) {
             mysqli_select_db($this->db, $database_name);
         }
@@ -134,27 +136,27 @@ class EmailTemplateService {
                         <tbody>
                             <tr>
                                 <td>Entry Fee</td>
-                                <td>' . number_format($transaction['entryFee'], 2) . '</td>
+                                <td>' . number_format($transaction['entryFee'] ?? 0, 2) . '</td>
                             </tr>
                             <tr>
                                 <td>Savings</td>
-                                <td>' . number_format($transaction['savings'], 2) . '</td>
+                                <td>' . number_format($transaction['savings'] ?? 0, 2) . '</td>
                             </tr>
                             <tr>
                                 <td>Shares</td>
-                                <td>' . number_format($transaction['shares'], 2) . '</td>
+                                <td>' . number_format($transaction['shares'] ?? 0, 2) . '</td>
                             </tr>
                             <tr>
                                 <td>Interest Paid</td>
-                                <td>' . number_format($transaction['interestPaid'], 2) . '</td>
+                                <td>' . number_format($transaction['interestPaid'] ?? 0, 2) . '</td>
                             </tr>
                             <tr>
                                 <td>Loan Repayment</td>
-                                <td>' . number_format($transaction['loanRepayment'], 2) . '</td>
+                                <td>' . number_format($transaction['loanRepayment'] ?? 0, 2) . '</td>
                             </tr>
                             <tr class="total">
                                 <td><strong>Total Contribution</strong></td>
-                                <td><strong>₦' . number_format($transaction['total'], 2) . '</strong></td>
+                                <td><strong>₦' . number_format($transaction['total'] ?? 0, 2) . '</strong></td>
                             </tr>
                         </tbody>
                     </table>
@@ -170,19 +172,19 @@ class EmailTemplateService {
                         <tbody>
                             <tr>
                                 <td>Savings Balance</td>
-                                <td>' . number_format($balances['savingsBalance'], 2) . '</td>
+                                <td>' . number_format($balances['savingsBalance'] ?? 0, 2) . '</td>
                             </tr>
                             <tr>
                                 <td>Shares Balance</td>
-                                <td>' . number_format($balances['sharesBalance'], 2) . '</td>
+                                <td>' . number_format($balances['sharesBalance'] ?? 0, 2) . '</td>
                             </tr>
                             <tr>
                                 <td>Loan Balance</td>
-                                <td>' . number_format($balances['loanBalance'], 2) . '</td>
+                                <td>' . number_format($balances['loanBalance'] ?? 0, 2) . '</td>
                             </tr>
                             <tr>
                                 <td>Unpaid Interest</td>
-                                <td>' . number_format($balances['interestBalance'], 2) . '</td>
+                                <td>' . number_format($balances['interestBalance'] ?? 0, 2) . '</td>
                             </tr>
                         </tbody>
                     </table>
@@ -218,7 +220,7 @@ class EmailTemplateService {
      */
     public function queueEmail($memberId, $periodId, $recipientEmail, $recipientName, $subject, $messageBody, $scheduledAt = null, $metadata = null) {
         require_once('EmailQueueManager.php');
-        $queueManager = new EmailQueueManager($this->db, $database_cov);
+        $queueManager = new EmailQueueManager($this->db, $this->database_name);
         
         return $queueManager->addToQueue(
             $memberId,
@@ -239,7 +241,7 @@ class EmailTemplateService {
      */
     public function queueTransactionSummaryEmails($periodId) {
         require_once('EmailQueueManager.php');
-        $queueManager = new EmailQueueManager($this->db, $database_cov);
+        $queueManager = new EmailQueueManager($this->db, $this->database_name);
         
         // Get all members with transactions in this period
         $membersQuery = "SELECT DISTINCT memberid FROM tlb_mastertransaction WHERE periodid = ?";
