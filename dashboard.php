@@ -33,6 +33,10 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
     <meta charset="UTF-8">
     <title><?= htmlspecialchars($row_title['value']) ?> - Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($row_logo['value']) ?>">
+    <link rel="shortcut icon" type="image/x-icon" href="<?= htmlspecialchars($row_logo['value']) ?>">
+    <link rel="apple-touch-icon" href="<?= htmlspecialchars($row_logo['value']) ?>">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome CDN -->
