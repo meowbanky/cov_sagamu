@@ -188,6 +188,9 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="email_queue_dashboard.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='email_queue_dashboard.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-envelope fa-fw mr-2"></i> Email Queue</a></li>
+                    <li><a href="queue_members_email.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='queue_members_email.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-paper-plane fa-fw mr-2"></i> Queue Members Email</a></li>
                 </ul>
             </nav>
         </aside>

@@ -214,6 +214,27 @@ class EmailTemplateService {
     }
     
     /**
+     * Queue a single email
+     */
+    public function queueEmail($memberId, $periodId, $recipientEmail, $recipientName, $subject, $messageBody, $scheduledAt = null, $metadata = null) {
+        require_once('EmailQueueManager.php');
+        $queueManager = new EmailQueueManager($this->db, $database_cov);
+        
+        return $queueManager->addToQueue(
+            $memberId,
+            $periodId,
+            'transaction_summary',
+            $recipientEmail,
+            $recipientName,
+            $subject,
+            $messageBody,
+            2, // Normal priority
+            $scheduledAt, // Can be null for immediate or specific datetime
+            $metadata
+        );
+    }
+
+    /**
      * Queue transaction summary emails for all members in a period
      */
     public function queueTransactionSummaryEmails($periodId) {
