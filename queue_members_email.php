@@ -13,13 +13,21 @@ $emailTemplateService = new EmailTemplateService($cov, $database_cov);
 
 // Handle form submission
 if ($_POST) {
-    $selectedMembers = $_POST['selectedMembers'] ?? [];
+    $selectedMembersJson = $_POST['selectedMembers'] ?? '[]';
+    $selectedMembers = json_decode($selectedMembersJson, true);
+    
+    // Handle JSON decode errors
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $message = "Error: Invalid member selection data. Please try again.";
+        $selectedMembers = [];
+    }
+    
     $periodId = $_POST['periodId'] ?? null;
     $scheduleType = $_POST['scheduleType'] ?? 'immediate';
     $scheduledDate = $_POST['scheduledDate'] ?? null;
     $scheduledTime = $_POST['scheduledTime'] ?? null;
     
-    if (!empty($selectedMembers) && $periodId) {
+    if (!empty($selectedMembers) && is_array($selectedMembers) && $periodId) {
         $queued = 0;
         $failed = 0;
         $errors = [];
@@ -66,10 +74,19 @@ if ($_POST) {
         
         $message = "Email Queue Summary: ✅ Queued: $queued, ❌ Failed: $failed";
         if (!empty($errors)) {
-            $message .= "\nErrors: " . implode(', ', $errors);
+            $message .= "\n\nErrors:\n" . implode("\n", array_slice($errors, 0, 10));
+            if (count($errors) > 10) {
+                $message .= "\n... and " . (count($errors) - 10) . " more errors";
+            }
         }
     } else {
-        $message = "Please select members and a period.";
+        if (empty($selectedMembers) || !is_array($selectedMembers)) {
+            $message = "❌ Error: Please select at least one member.";
+        } elseif (!$periodId) {
+            $message = "❌ Error: Please select a period.";
+        } else {
+            $message = "❌ Error: Invalid request. Please try again.";
+        }
     }
 }
 
@@ -183,16 +200,20 @@ require_once('header.php');
                     <table class="w-full">
                         <thead class="bg-gray-100 sticky top-0">
                             <tr>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider w-12">
+                                <th
+                                    class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider w-12">
                                     <input type="checkbox" id="toggleAll" class="rounded" title="Toggle All Visible">
                                 </th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                <th
+                                    class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                                     Member Name
                                 </th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider w-24">
+                                <th
+                                    class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider w-24">
                                     ID
                                 </th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                <th
+                                    class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                                     Email
                                 </th>
                             </tr>
@@ -249,7 +270,7 @@ let filteredMembers = [];
 function toggleScheduleFields() {
     const scheduleType = document.getElementById('scheduleType').value;
     const futureFields = document.getElementById('futureScheduleFields');
-    
+
     if (scheduleType === 'future') {
         futureFields.style.display = 'block';
     } else {
@@ -283,7 +304,7 @@ function loadAllMembers() {
 // Display members table
 function displayMembersTable() {
     const tbody = document.getElementById('membersTableBody');
-    
+
     if (filteredMembers.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -295,7 +316,7 @@ function displayMembersTable() {
         `;
         return;
     }
-    
+
     const html = filteredMembers.map(member => {
         const isSelected = selectedMembersList.some(selected => selected.id === member.memberid);
         return `
@@ -314,7 +335,7 @@ function displayMembersTable() {
             </tr>
         `;
     }).join('');
-    
+
     tbody.innerHTML = html;
     updateSelectedCount();
 }
@@ -323,7 +344,7 @@ function displayMembersTable() {
 function toggleMemberSelection(checkbox) {
     const memberId = parseInt(checkbox.dataset.memberId);
     const memberName = checkbox.dataset.memberName;
-    
+
     if (checkbox.checked) {
         if (!selectedMembersList.some(member => member.id === memberId)) {
             selectedMembersList.push({
@@ -334,7 +355,7 @@ function toggleMemberSelection(checkbox) {
     } else {
         selectedMembersList = selectedMembersList.filter(member => member.id !== memberId);
     }
-    
+
     updateSelectedMembersField();
     updateSelectedCount();
 }
@@ -354,17 +375,17 @@ function updateSelectedMembersField() {
 // Filter members
 document.getElementById('memberSearch').addEventListener('input', function(e) {
     const searchTerm = e.target.value.toLowerCase().trim();
-    
+
     if (searchTerm === '') {
         filteredMembers = allMembers;
     } else {
-        filteredMembers = allMembers.filter(member => 
-            member.name.toLowerCase().includes(searchTerm) || 
+        filteredMembers = allMembers.filter(member =>
+            member.name.toLowerCase().includes(searchTerm) ||
             member.memberid.toString().includes(searchTerm) ||
             (member.email && member.email.toLowerCase().includes(searchTerm))
         );
     }
-    
+
     displayMembersTable();
 });
 
