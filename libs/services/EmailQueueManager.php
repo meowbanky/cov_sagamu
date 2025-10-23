@@ -65,19 +65,25 @@ class EmailQueueManager {
      * Add email to queue
      */
     public function addToQueue($memberId, $periodId, $emailType, $recipientEmail, $recipientName, $subject, $messageBody, $priority = 2, $scheduledAt = null, $metadata = null) {
-        // If no scheduled time provided, schedule for immediate processing
-        // Use CURRENT_TIMESTAMP to match database timezone
-        if ($scheduledAt === null) {
-            $scheduledAt = date('Y-m-d H:i:s'); // Will be converted to DB timezone
-        }
         $metadata = $metadata ? json_encode($metadata) : null;
         
-        $sql = "INSERT INTO tbl_email_queue 
-                (member_id, period_id, email_type, recipient_email, recipient_name, subject, message_body, priority, scheduled_at, metadata) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        
-        $stmt = mysqli_prepare($this->db, $sql);
-        mysqli_stmt_bind_param($stmt, "iisssssiss", $memberId, $periodId, $emailType, $recipientEmail, $recipientName, $subject, $messageBody, $priority, $scheduledAt, $metadata);
+        // Use MySQL's NOW() for immediate scheduling (timezone-safe)
+        // Or use provided scheduled time for future scheduling
+        if ($scheduledAt === null) {
+            $sql = "INSERT INTO tbl_email_queue 
+                    (member_id, period_id, email_type, recipient_email, recipient_name, subject, message_body, priority, scheduled_at, metadata) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+            
+            $stmt = mysqli_prepare($this->db, $sql);
+            mysqli_stmt_bind_param($stmt, "iisssssis", $memberId, $periodId, $emailType, $recipientEmail, $recipientName, $subject, $messageBody, $priority, $metadata);
+        } else {
+            $sql = "INSERT INTO tbl_email_queue 
+                    (member_id, period_id, email_type, recipient_email, recipient_name, subject, message_body, priority, scheduled_at, metadata) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            
+            $stmt = mysqli_prepare($this->db, $sql);
+            mysqli_stmt_bind_param($stmt, "iisssssiss", $memberId, $periodId, $emailType, $recipientEmail, $recipientName, $subject, $messageBody, $priority, $scheduledAt, $metadata);
+        }
         
         if (mysqli_stmt_execute($stmt)) {
             $queueId = mysqli_insert_id($this->db);
