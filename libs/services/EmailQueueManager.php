@@ -65,7 +65,11 @@ class EmailQueueManager {
      * Add email to queue
      */
     public function addToQueue($memberId, $periodId, $emailType, $recipientEmail, $recipientName, $subject, $messageBody, $priority = 2, $scheduledAt = null, $metadata = null) {
-        $scheduledAt = $scheduledAt ?: date('Y-m-d H:i:s');
+        // If no scheduled time provided, schedule for immediate processing
+        // Use CURRENT_TIMESTAMP to match database timezone
+        if ($scheduledAt === null) {
+            $scheduledAt = date('Y-m-d H:i:s'); // Will be converted to DB timezone
+        }
         $metadata = $metadata ? json_encode($metadata) : null;
         
         $sql = "INSERT INTO tbl_email_queue 
@@ -127,6 +131,9 @@ class EmailQueueManager {
      * Get pending emails for processing
      */
     private function getPendingEmails($limit) {
+        // Debug: Log current time and query
+        error_log("EmailQueueManager: Getting pending emails. Current server time: " . date('Y-m-d H:i:s'));
+        
         $sql = "SELECT * FROM tbl_email_queue 
                 WHERE status = 'pending' 
                 AND scheduled_at <= NOW() 
@@ -141,6 +148,20 @@ class EmailQueueManager {
         $emails = [];
         while ($row = mysqli_fetch_assoc($result)) {
             $emails[] = $row;
+        }
+        
+        error_log("EmailQueueManager: Found " . count($emails) . " pending emails");
+        
+        // Debug: Check if there are pending emails with future scheduled_at
+        if (count($emails) == 0) {
+            $checkSql = "SELECT COUNT(*) as total, MIN(scheduled_at) as earliest 
+                        FROM tbl_email_queue 
+                        WHERE status = 'pending'";
+            $checkResult = mysqli_query($this->db, $checkSql);
+            if ($checkRow = mysqli_fetch_assoc($checkResult)) {
+                error_log("EmailQueueManager: Total pending emails: " . $checkRow['total'] . 
+                         ", Earliest scheduled_at: " . $checkRow['earliest']);
+            }
         }
         
         mysqli_stmt_close($stmt);
