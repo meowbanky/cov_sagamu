@@ -1,9 +1,13 @@
 <?php
-require_once('header.php');
+// Check authentication BEFORE including header
+session_start();
 if (!isset($_SESSION['UserID'])) {
     header("Location:index.php");
     exit;
 }
+
+// Now include header after authentication check
+require_once('header.php');
 require_once('Connections/cov.php');
 
 // Fetch all periods for dropdowns
