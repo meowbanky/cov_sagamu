@@ -35,6 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
 
     // Set font
     $pdf->SetFont('helvetica', '', 7); // Small font for horizontal fit
+    
+    // Store header HTML for repetition on each page
+    $headerHtml = '';
 
     // Add a page
     $pdf->AddPage();
@@ -82,9 +85,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         // Process rows
         $rows = $table->getElementsByTagName('tr');
         $rowIndex = 0;
+        $headerRowHtml = '';
         
         foreach ($rows as $row) {
-            $html .= '<tr>';
+            $rowHtml = '<tr>';
             
             // Get cells (th or td)
             $cells = $row->getElementsByTagName('th');
@@ -121,12 +125,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
                 // Align text columns left (Coop No, Period, Name) and numbers right
                 $alignment = ($cellIndex <= 3) ? 'text-left' : 'text-right';
                 
-                $html .= "<$cellTag class='$alignment'>$value</$cellTag>";
+                $rowHtml .= "<$cellTag class='$alignment'>$value</$cellTag>";
                 
                 $cellIndex++;
             }
             
-            $html .= '</tr>';
+            $rowHtml .= '</tr>';
+            
+            // Store header row for repetition
+            if ($rowIndex == 0) {
+                $headerRowHtml = $rowHtml;
+            }
+            
+            $html .= $rowHtml;
             $rowIndex++;
         }
         
@@ -139,9 +150,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         $pdf->writeHTML($tableHtml, true, false, true, false, '');
     }
     
-    // Add custom footer with filename and page numbers
+    // Custom PDF class with repeating header and footer
     class CustomPDF extends TCPDF {
         public $customFilename = '';
+        public $tableHeaderHtml = '';
+        
+        public function Header() {
+            if (!empty($this->tableHeaderHtml)) {
+                // Position at top with small margin
+                $this->SetY(10);
+                $this->SetFont('helvetica', '', 7);
+                
+                // Write the table header HTML
+                $this->writeHTML($this->tableHeaderHtml, true, false, true, false, '');
+            }
+        }
         
         public function Footer() {
             $this->SetY(-15);
@@ -151,26 +174,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         }
     }
     
-    // Recreate PDF with custom footer
+    // Recreate PDF with custom header and footer
     $pdf = new CustomPDF('L', 'mm', 'A4', true, 'UTF-8', false);
     $pdf->customFilename = $filename;
+    
+    // Set the table header HTML for repetition on each page
+    if (!empty($headerRowHtml)) {
+        $styleTag = '<style>
+            table { border-collapse: collapse; width: 100%; font-size: 7pt; }
+            th { background-color: #1E40AF; color: #FFFFFF; font-weight: bold; text-align: center; 
+                 padding: 4px 2px; border: 1px solid #000000; font-size: 7pt; }
+            .text-left { text-align: left; }
+            .text-right { text-align: right; }
+        </style>';
+        $pdf->tableHeaderHtml = $styleTag . '<table cellpadding="2" cellspacing="0" border="1">' . $headerRowHtml . '</table>';
+    }
     
     $pdf->SetCreator('Cooperative Management System');
     $pdf->SetAuthor('VCMS');
     $pdf->SetTitle($filename);
     $pdf->SetSubject('Master Transaction Report');
     
-    $pdf->setPrintHeader(false);
+    $pdf->setPrintHeader(true);  // Enable header for repeating table header
     $pdf->setPrintFooter(true);
     
-    $pdf->SetMargins(5, 10, 5);
-    $pdf->SetHeaderMargin(0);
+    $pdf->SetMargins(5, 20, 5);  // Increased top margin to 20mm for header
+    $pdf->SetHeaderMargin(5);
     $pdf->SetFooterMargin(10);
     $pdf->SetAutoPageBreak(TRUE, 15);
     $pdf->SetFont('helvetica', '', 7);
     
     $pdf->AddPage();
-    $pdf->writeHTML($html, true, false, true, false, '');
+    
+    // Write only the data rows (skip the header row as it's now in Header())
+    // Remove the header row from the HTML before writing
+    $htmlWithoutHeader = preg_replace('/<tr>.*?<\/tr>/', '', $html, 1);
+    $pdf->writeHTML($htmlWithoutHeader, true, false, true, false, '');
 
     // Set the filename
     $pdfFilename = $filename . '.pdf';
