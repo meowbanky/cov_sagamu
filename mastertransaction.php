@@ -179,7 +179,7 @@ $(document).on('click','#exportpdf',function(){
 
     showBlockingLoader("Exporting PDF...");
     $.ajax({
-        url: 'export_pdf.php',
+        url: 'export_pdf_formatted.php',
         type: 'POST',
         data: {html: table, filename: filename},
         xhrFields: {
