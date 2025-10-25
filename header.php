@@ -192,6 +192,15 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="email_queue_dashboard.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='email_queue_dashboard.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-envelope fa-fw mr-2"></i> Email Queue</a></li>
+                    
+                    <!-- Accounting Section -->
+                    <li class="mt-4 pt-4 border-t border-gray-200">
+                        <span class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Accounting</span>
+                    </li>
+                    <li><a href="coop_trial_balance.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_trial_balance.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-balance-scale fa-fw mr-2"></i> Trial Balance</a></li>
+                    
                     <li><a href="queue_members_email.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='queue_members_email.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-paper-plane fa-fw mr-2"></i> Queue Members Email</a></li>
