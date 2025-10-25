@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $lastColumn = 'A';
     
     foreach ($rows as $row) {
-        $colIndex = 'B'; // Start from column B (skip column A for Select checkbox)
+        $colIndex = 'A'; // Start from column A now (no empty column)
         $cells = $row->getElementsByTagName('td');
         
         if ($cells->length == 0) {
@@ -45,6 +45,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
             
             // Clean up value - remove extra spaces and format numbers
             $value = preg_replace('/\s+/', ' ', $value);
+            
+            // Shorten month names in Period column (column B after skipping checkbox)
+            if ($colIndex == 'B' && !$isHeaderRow) {
+                // Convert "September - 2025" to "Sep-2025"
+                $monthMap = [
+                    'January' => 'Jan', 'February' => 'Feb', 'March' => 'Mar',
+                    'April' => 'Apr', 'May' => 'May', 'June' => 'Jun',
+                    'July' => 'Jul', 'August' => 'Aug', 'September' => 'Sep',
+                    'October' => 'Oct', 'November' => 'Nov', 'December' => 'Dec'
+                ];
+                foreach ($monthMap as $fullMonth => $shortMonth) {
+                    $value = str_replace($fullMonth . ' - ', $shortMonth . '-', $value);
+                }
+            }
             
             // Check if value is numeric (with commas)
             if (preg_match('/^[\d,]+\.?\d*$/', str_replace(',', '', $value))) {
@@ -75,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     // ===== FORMATTING =====
     
     // 1. Header Row Styling (Row 1)
-    $headerRange = 'B1:' . $lastColumn . '1';
+    $headerRange = 'A1:' . $lastColumn . '1';
     $sheet->getStyle($headerRange)->applyFromArray([
         'font' => [
             'bold' => true,
@@ -84,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         ],
         'fill' => [
             'fillType' => Fill::FILL_SOLID,
-            'startColor' => ['rgb' => '1E40AF'], // Dark green/blue
+            'startColor' => ['rgb' => '1E40AF'], // Dark blue
         ],
         'alignment' => [
             'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -93,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     ]);
     
     // 2. Apply borders to all cells
-    $dataRange = 'B1:' . $lastColumn . $lastRow;
+    $dataRange = 'A1:' . $lastColumn . $lastRow;
     $sheet->getStyle($dataRange)->applyFromArray([
         'borders' => [
             'allBorders' => [
@@ -104,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     ]);
     
     // 3. Align text columns (left) and number columns (right)
-    $textColumns = ['B', 'C', 'D']; // Coop No, Period, Name
+    $textColumns = ['A', 'B', 'C']; // Coop No, Period, Name
     foreach ($textColumns as $col) {
         $sheet->getStyle($col . '2:' . $col . $lastRow)
               ->getAlignment()
@@ -112,14 +126,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     }
     
     // 4. Right-align all number columns
-    for ($col = 'E'; $col <= $lastColumn; $col++) {
+    for ($col = 'D'; $col <= $lastColumn; $col++) {
         $sheet->getStyle($col . '2:' . $col . $lastRow)
               ->getAlignment()
               ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
     }
     
     // 5. Format total row (last row) - bold and gray background
-    $totalRowRange = 'B' . $lastRow . ':' . $lastColumn . $lastRow;
+    $totalRowRange = 'A' . $lastRow . ':' . $lastColumn . $lastRow;
     $sheet->getStyle($totalRowRange)->applyFromArray([
         'font' => [
             'bold' => true,
@@ -131,24 +145,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         ],
     ]);
     
-    // 6. Auto-size columns with minimum width
-    foreach (range('B', $lastColumn) as $col) {
-        $sheet->getColumnDimension($col)->setAutoSize(true);
+    // 6. Set optimized column widths for horizontal fit
+    // Don't use auto-size, set specific widths to ensure page fit
+    $sheet->getColumnDimension('A')->setWidth(8);   // Coop No
+    $sheet->getColumnDimension('B')->setWidth(10);  // Period (shortened: Sep-2025)
+    $sheet->getColumnDimension('C')->setWidth(26);  // Name
+    
+    // Set numeric columns to narrower widths
+    for ($col = 'D'; $col <= $lastColumn; $col++) {
+        $sheet->getColumnDimension($col)->setWidth(11); // Narrower for numbers
     }
     
-    // After auto-size, set minimum widths
-    $sheet->getColumnDimension('B')->setWidth(10);  // Coop No
-    $sheet->getColumnDimension('C')->setWidth(15);  // Period
-    $sheet->getColumnDimension('D')->setWidth(30);  // Name
+    // 6b. Reduce font size slightly for better fit
+    $sheet->getStyle('A1:' . $lastColumn . $lastRow)
+          ->getFont()
+          ->setSize(10);
     
     // ===== PAGE SETUP FOR PRINTING =====
     
-    // 7. Page Setup - A4 Landscape
+    // 7. Page Setup - A4 Landscape with aggressive fit settings
     $sheet->getPageSetup()
           ->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)
           ->setPaperSize(PageSetup::PAPERSIZE_A4)
           ->setFitToWidth(1)   // Fit to 1 page wide
-          ->setFitToHeight(0); // As many pages tall as needed
+          ->setFitToHeight(0)  // As many pages tall as needed
+          ->setScale(95);      // Scale down to 95% if needed
     
     // 8. Set print area
     $sheet->getPageSetup()->setPrintArea($dataRange);
@@ -156,14 +177,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     // 9. Repeat header row on every page
     $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, 1);
     
-    // 10. Set margins (in inches)
+    // 10. Set smaller margins for maximum space (in inches)
     $sheet->getPageMargins()
-          ->setTop(0.75)
-          ->setRight(0.25)
-          ->setLeft(0.25)
-          ->setBottom(0.75)
-          ->setHeader(0.3)
-          ->setFooter(0.3);
+          ->setTop(0.5)    // Reduced from 0.75
+          ->setRight(0.2)  // Reduced from 0.25
+          ->setLeft(0.2)   // Reduced from 0.25
+          ->setBottom(0.5) // Reduced from 0.75
+          ->setHeader(0.2) // Reduced from 0.3
+          ->setFooter(0.2); // Reduced from 0.3
     
     // 11. Center on page horizontally
     $sheet->getPageSetup()->setHorizontalCentered(true);
@@ -200,4 +221,3 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     exit;
 }
 ?>
-
