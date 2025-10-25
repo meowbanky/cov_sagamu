@@ -40,12 +40,16 @@ CREATE TABLE IF NOT EXISTS coop_accounts (
   description TEXT COMMENT 'Additional notes about account usage',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (parent_id) REFERENCES coop_accounts(id) ON DELETE RESTRICT,
   INDEX idx_account_code (account_code),
   INDEX idx_account_type (account_type),
   INDEX idx_parent (parent_id),
   INDEX idx_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Master chart of accounts for double-entry bookkeeping';
+
+-- Add foreign key constraint after table is created
+ALTER TABLE coop_accounts 
+ADD CONSTRAINT fk_coop_accounts_parent 
+FOREIGN KEY (parent_id) REFERENCES coop_accounts(id) ON DELETE RESTRICT;
 
 -- ============================================================================
 -- TABLE 2: JOURNAL ENTRIES (Transaction Headers)
@@ -678,9 +682,41 @@ DELIMITER ;
 -- ============================================================================
 
 -- Additional composite indexes for common queries
-CREATE INDEX idx_period_account_date ON coop_journal_entries(periodid, account_id, entry_date);
+CREATE INDEX idx_period_entry_date ON coop_journal_entries(periodid, entry_date);
 CREATE INDEX idx_member_period_type ON coop_member_accounts(memberid, periodid, account_type);
 CREATE INDEX idx_asset_status_category ON coop_fixed_assets(status, asset_category);
+
+-- ============================================================================
+-- ADD FOREIGN KEY CONSTRAINTS AFTER DATA POPULATION
+-- ============================================================================
+
+-- Note: Foreign keys added after data to avoid insertion order issues
+
+-- Already added: coop_accounts parent_id FK
+
+-- Journal entry lines to journal entries
+-- Already in table definition
+
+-- Period balances to accounts
+-- Already in table definition
+
+-- Depreciation schedule to fixed assets
+-- Already in table definition
+
+-- Depreciation schedule to journal entries
+-- Already in table definition
+
+-- Budget to accounts
+-- Already in table definition
+
+-- Reserves to accounts
+-- Already in table definition
+
+-- Appropriation to journal entries
+-- Already in table definition
+
+-- Bank reconciliation to accounts
+-- Already in table definition
 
 -- ============================================================================
 -- DATABASE SETUP COMPLETE
