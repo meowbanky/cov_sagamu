@@ -78,15 +78,13 @@ CREATE TABLE IF NOT EXISTS coop_journal_entries (
   notes TEXT COMMENT 'Additional notes or audit information',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (periodid) REFERENCES tbpayrollperiods(Periodid),
-  FOREIGN KEY (created_by) REFERENCES tblogininfo(UserID),
-  FOREIGN KEY (approved_by) REFERENCES tblogininfo(UserID),
-  FOREIGN KEY (reversed_by_entry_id) REFERENCES coop_journal_entries(id),
   INDEX idx_entry_date (entry_date),
   INDEX idx_period (periodid),
   INDEX idx_status (status),
   INDEX idx_entry_type (entry_type),
-  INDEX idx_entry_number (entry_number)
+  INDEX idx_entry_number (entry_number),
+  INDEX idx_created_by (created_by),
+  INDEX idx_approved_by (approved_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Journal entry headers for all accounting transactions';
 
 -- ============================================================================
@@ -135,13 +133,12 @@ CREATE TABLE IF NOT EXISTS coop_period_balances (
   closed_by INT NULL COMMENT 'User who closed the period',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (periodid) REFERENCES tbpayrollperiods(Periodid),
-  FOREIGN KEY (account_id) REFERENCES coop_accounts(id),
-  FOREIGN KEY (closed_by) REFERENCES tblogininfo(UserID),
+  FOREIGN KEY (account_id) REFERENCES coop_accounts(id) ON DELETE RESTRICT,
   UNIQUE KEY unique_period_account (periodid, account_id),
   INDEX idx_period (periodid),
   INDEX idx_account (account_id),
-  INDEX idx_closed (is_closed)
+  INDEX idx_closed (is_closed),
+  INDEX idx_closed_by (closed_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Period-end account balances for fast report generation';
 
 -- ============================================================================
@@ -167,8 +164,6 @@ CREATE TABLE IF NOT EXISTS coop_member_accounts (
   closing_balance DECIMAL(15,2) DEFAULT 0.00 COMMENT 'Balance at end of period',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (memberid) REFERENCES tbl_personalinfo(memberid),
-  FOREIGN KEY (periodid) REFERENCES tbpayrollperiods(Periodid),
   UNIQUE KEY unique_member_account_period (memberid, account_type, periodid),
   INDEX idx_member (memberid),
   INDEX idx_period (periodid),
@@ -205,11 +200,11 @@ CREATE TABLE IF NOT EXISTS coop_fixed_assets (
   notes TEXT COMMENT 'Additional asset information',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (acquisition_periodid) REFERENCES tbpayrollperiods(Periodid),
   INDEX idx_status (status),
   INDEX idx_category (asset_category),
   INDEX idx_acquisition_date (acquisition_date),
-  INDEX idx_asset_number (asset_number)
+  INDEX idx_asset_number (asset_number),
+  INDEX idx_acquisition_period (acquisition_periodid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Fixed assets register with depreciation tracking';
 
 -- ============================================================================
@@ -229,8 +224,7 @@ CREATE TABLE IF NOT EXISTS coop_depreciation_schedule (
   notes TEXT COMMENT 'Calculation notes or adjustments',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (asset_id) REFERENCES coop_fixed_assets(id) ON DELETE CASCADE,
-  FOREIGN KEY (periodid) REFERENCES tbpayrollperiods(Periodid),
-  FOREIGN KEY (journal_entry_id) REFERENCES coop_journal_entries(id),
+  FOREIGN KEY (journal_entry_id) REFERENCES coop_journal_entries(id) ON DELETE SET NULL,
   UNIQUE KEY unique_asset_period (asset_id, periodid),
   INDEX idx_period (periodid),
   INDEX idx_posted (is_posted),
@@ -253,12 +247,12 @@ CREATE TABLE IF NOT EXISTS coop_budget (
   status ENUM('draft', 'approved', 'revised') DEFAULT 'draft' COMMENT 'Budget status',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (account_id) REFERENCES coop_accounts(id),
-  FOREIGN KEY (created_by) REFERENCES tblogininfo(UserID),
-  FOREIGN KEY (approved_by) REFERENCES tblogininfo(UserID),
+  FOREIGN KEY (account_id) REFERENCES coop_accounts(id) ON DELETE RESTRICT,
   UNIQUE KEY unique_year_account (fiscal_year, account_id),
   INDEX idx_year (fiscal_year),
-  INDEX idx_status (status)
+  INDEX idx_status (status),
+  INDEX idx_created_by (created_by),
+  INDEX idx_approved_by (approved_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Annual budget by account for variance analysis';
 
 -- ============================================================================
@@ -283,8 +277,7 @@ CREATE TABLE IF NOT EXISTS coop_reserves (
   account_id INT NOT NULL COMMENT 'Linked account in chart of accounts',
   notes TEXT COMMENT 'Reserve fund notes',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (periodid) REFERENCES tbpayrollperiods(Periodid),
-  FOREIGN KEY (account_id) REFERENCES coop_accounts(id),
+  FOREIGN KEY (account_id) REFERENCES coop_accounts(id) ON DELETE RESTRICT,
   UNIQUE KEY unique_reserve_period (reserve_type, periodid),
   INDEX idx_period (periodid),
   INDEX idx_type (reserve_type)
@@ -313,12 +306,11 @@ CREATE TABLE IF NOT EXISTS coop_appropriation (
   approval_date DATE NULL COMMENT 'When appropriation was approved',
   notes TEXT COMMENT 'Appropriation notes or AGM resolution reference',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (periodid) REFERENCES tbpayrollperiods(Periodid),
-  FOREIGN KEY (journal_entry_id) REFERENCES coop_journal_entries(id),
-  FOREIGN KEY (approved_by) REFERENCES tblogininfo(UserID),
+  FOREIGN KEY (journal_entry_id) REFERENCES coop_journal_entries(id) ON DELETE SET NULL,
   UNIQUE KEY unique_period_appropriation (periodid),
   INDEX idx_period (periodid),
-  INDEX idx_posted (is_posted)
+  INDEX idx_posted (is_posted),
+  INDEX idx_approved_by (approved_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Surplus appropriation decisions per period';
 
 -- ============================================================================
@@ -344,13 +336,12 @@ CREATE TABLE IF NOT EXISTS coop_bank_reconciliation (
   notes TEXT COMMENT 'Reconciliation notes',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (periodid) REFERENCES tbpayrollperiods(Periodid),
-  FOREIGN KEY (bank_account_id) REFERENCES coop_accounts(id),
-  FOREIGN KEY (reconciled_by) REFERENCES tblogininfo(UserID),
-  FOREIGN KEY (reviewed_by) REFERENCES tblogininfo(UserID),
+  FOREIGN KEY (bank_account_id) REFERENCES coop_accounts(id) ON DELETE RESTRICT,
   INDEX idx_period (periodid),
   INDEX idx_date (reconciliation_date),
-  INDEX idx_account (bank_account_id)
+  INDEX idx_account (bank_account_id),
+  INDEX idx_reconciled_by (reconciled_by),
+  INDEX idx_reviewed_by (reviewed_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Bank reconciliation records';
 
 -- ============================================================================
@@ -379,7 +370,6 @@ CREATE TABLE IF NOT EXISTS coop_audit_trail (
   user_agent VARCHAR(500) COMMENT 'Browser/application identifier',
   notes TEXT COMMENT 'Additional audit notes',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES tblogininfo(UserID),
   INDEX idx_user (user_id),
   INDEX idx_action (action_type),
   INDEX idx_table_record (table_name, record_id),
