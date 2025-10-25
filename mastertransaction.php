@@ -227,7 +227,7 @@ $(document).on('click', '#exportexcel', function() {
         if (result.isConfirmed) {
             showBlockingLoader("Exporting Excel...");
             $.ajax({
-                url: 'export.php',
+                url: 'export_excel_formatted.php',
                 type: 'POST',
                 data: {
                     html: table,
