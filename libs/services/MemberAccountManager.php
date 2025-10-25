@@ -319,7 +319,7 @@ class MemberAccountManager {
      * @return array|null Member data
      */
     private function getMemberDetails($memberid) {
-        $sql = "SELECT memberid, CooperativeNo, 
+        $sql = "SELECT memberid, 
                 CONCAT(Lname, ', ', Fname, ' ', IFNULL(Mname, '')) as full_name,
                 EmailAddress, Phone
                 FROM tbl_personalinfo
@@ -345,7 +345,6 @@ class MemberAccountManager {
     public function getAllMemberBalances($periodid, $account_type = null) {
         $sql = "SELECT 
                     ma.memberid,
-                    p.CooperativeNo,
                     CONCAT(p.Lname, ', ', p.Fname, ' ', IFNULL(p.Mname, '')) as member_name,
                     ma.account_type,
                     ma.opening_balance,
@@ -360,7 +359,7 @@ class MemberAccountManager {
             $sql .= " AND ma.account_type = ?";
         }
         
-        $sql .= " ORDER BY p.CooperativeNo, ma.account_type";
+        $sql .= " ORDER BY ma.memberid, ma.account_type";
         
         $stmt = mysqli_prepare($this->db, $sql);
         
