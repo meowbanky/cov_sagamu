@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         'font' => [
             'bold' => true,
             'color' => ['rgb' => 'FFFFFF'],
-            'size' => 11,
+            'size' => 9, // Match body font size
         ],
         'fill' => [
             'fillType' => Fill::FILL_SOLID,
@@ -103,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         'alignment' => [
             'horizontal' => Alignment::HORIZONTAL_CENTER,
             'vertical' => Alignment::VERTICAL_CENTER,
+            'wrapText' => true, // Wrap text in headers if needed
         ],
     ]);
     
@@ -125,6 +126,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
               ->setHorizontal(Alignment::HORIZONTAL_LEFT);
     }
     
+    // 3b. Enable text wrapping for Name column to prevent overflow
+    $sheet->getStyle('C2:C' . $lastRow)
+          ->getAlignment()
+          ->setWrapText(true);
+    
     // 4. Right-align all number columns
     for ($col = 'D'; $col <= $lastColumn; $col++) {
         $sheet->getStyle($col . '2:' . $col . $lastRow)
@@ -145,21 +151,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         ],
     ]);
     
-    // 6. Set optimized column widths for horizontal fit
-    // Don't use auto-size, set specific widths to ensure page fit
-    $sheet->getColumnDimension('A')->setWidth(8);   // Coop No
-    $sheet->getColumnDimension('B')->setWidth(10);  // Period (shortened: Sep-2025)
-    $sheet->getColumnDimension('C')->setWidth(26);  // Name
+    // 6. Set very narrow column widths to fit 15 columns (A-O) on one page
+    // Total target width for A4 landscape: ~260mm or ~10.2 inches
+    // With 0.2" margins on each side = 9.8" usable width
+    // For 15 columns: 9.8 / 15 = 0.653" per column average
     
-    // Set numeric columns to narrower widths
+    $sheet->getColumnDimension('A')->setWidth(7);   // Coop No (shorter)
+    $sheet->getColumnDimension('B')->setWidth(9);   // Period (Sep-2025)
+    $sheet->getColumnDimension('C')->setWidth(22);  // Name (much shorter)
+    
+    // Set numeric columns to very narrow widths (9 units each)
     for ($col = 'D'; $col <= $lastColumn; $col++) {
-        $sheet->getColumnDimension($col)->setWidth(11); // Narrower for numbers
+        $sheet->getColumnDimension($col)->setWidth(9); // Very narrow for numbers
     }
     
-    // 6b. Reduce font size slightly for better fit
+    // 6b. Reduce font size to 9pt for better fit
     $sheet->getStyle('A1:' . $lastColumn . $lastRow)
           ->getFont()
-          ->setSize(10);
+          ->setSize(9);
     
     // ===== PAGE SETUP FOR PRINTING =====
     
@@ -167,9 +176,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $sheet->getPageSetup()
           ->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)
           ->setPaperSize(PageSetup::PAPERSIZE_A4)
-          ->setFitToWidth(1)   // Fit to 1 page wide
-          ->setFitToHeight(0)  // As many pages tall as needed
-          ->setScale(95);      // Scale down to 95% if needed
+          ->setFitToWidth(1)   // FORCE fit to 1 page wide
+          ->setFitToHeight(0); // As many pages tall as needed
+    
+    // Note: When FitToWidth is set, scale is automatically adjusted
+    // Don't set both scale and fitToWidth as they conflict
     
     // 8. Set print area
     $sheet->getPageSetup()->setPrintArea($dataRange);
