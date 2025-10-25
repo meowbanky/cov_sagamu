@@ -13,6 +13,8 @@ require_once('Connections/cov.php');
 require_once __DIR__ . '/libs/services/NotificationService.php';
 require_once __DIR__ . '/libs/services/EmailQueueManager.php';
 require_once __DIR__ . '/libs/services/EmailTemplateService.php';
+require_once __DIR__ . '/libs/services/AccountingEngine.php';
+require_once __DIR__ . '/libs/services/MemberAccountManager.php';
 
 use App\Services\NotificationService;
 
@@ -29,6 +31,14 @@ try {
     $emailTemplateService = new EmailTemplateService($cov, $database_cov);
 } catch (Exception $e) {
     error_log("Failed to initialize email services: " . $e->getMessage());
+}
+
+// Initialize accounting services
+try {
+    $accountingEngine = new AccountingEngine($cov, $database_cov);
+    $memberAccountManager = new MemberAccountManager($cov, $database_cov);
+} catch (Exception $e) {
+    error_log("Failed to initialize accounting services: " . $e->getMessage());
 }
 
 if (!function_exists("GetSQLValueString")) {
@@ -164,7 +174,7 @@ $entryFees = (int)($row_entrySettings['value']);
 			return mysqli_fetch_assoc($result);
 		}
 
-		function processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService = null) {
+		function processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService = null, $accountingEngine = null, $memberAccountManager = null) {
 			$loans_early = [];
 			$loans_late = [];
 			// Check if already processed
@@ -382,6 +392,219 @@ $entryFees = (int)($row_entrySettings['value']);
 				}
 			}
 			
+			// POST TO ACCOUNTING SYSTEM (Double-Entry Bookkeeping)
+			if ($accountingEngine && $memberAccountManager && $totalRows_completed == 0) {
+				try {
+					// Get transaction details from the database
+					$query_transaction = "SELECT entryFee, savings, shares, loanRepayment, loanAmount, interestPaid 
+					                     FROM tlb_mastertransaction 
+					                     WHERE memberid = '" . $row_member['memberid'] . "' 
+					                     AND periodid = " . $_GET["PeriodID"] . " 
+					                     AND completed = " . COMPLETED_STATUS . "
+					                     ORDER BY id DESC LIMIT 1";
+					$transaction_result = db_query($cov, $query_transaction);
+					$transaction_data = db_fetch_assoc($transaction_result);
+					mysqli_free_result($transaction_result);
+					
+					if ($transaction_data) {
+						$entryFee = floatval($transaction_data['entryFee'] ?? 0);
+						$savings = floatval($transaction_data['savings'] ?? 0);
+						$shares = floatval($transaction_data['shares'] ?? 0);
+						$loanRepayment = floatval($transaction_data['loanRepayment'] ?? 0);
+						$loanDisbursed = floatval($transaction_data['loanAmount'] ?? 0);
+						$interestPaid = floatval($transaction_data['interestPaid'] ?? 0);
+						
+						// Calculate total contribution (money received)
+						$total_contribution = $entryFee + $savings + $shares + $loanRepayment + $interestPaid;
+						
+						// Only create journal entry if there are contributions
+						if ($total_contribution > 0 || $loanDisbursed > 0) {
+							$journal_lines = [];
+							$member_name = $row_member['Lname'] . ', ' . $row_member['Fname'];
+							
+							// DEBIT: Bank (Asset increases) - Money received
+							if ($total_contribution > 0) {
+								$journal_lines[] = [
+									'account_id' => 3, // Bank - Main Account (1102)
+									'debit_amount' => $total_contribution,
+									'credit_amount' => 0,
+									'description' => "Receipt from {$member_name}",
+									'reference_type' => 'member',
+									'reference_id' => $row_member['memberid']
+								];
+							}
+							
+							// CREDIT: Entry Fee (Revenue)
+							if ($entryFee > 0) {
+								$journal_lines[] = [
+									'account_id' => 49, // Entrance Fees Income (4101)
+									'debit_amount' => 0,
+									'credit_amount' => $entryFee,
+									'description' => 'Entrance fee',
+									'reference_type' => 'member',
+									'reference_id' => $row_member['memberid']
+								];
+							}
+							
+							// CREDIT: Savings (Equity increases)
+							if ($savings > 0) {
+								$journal_lines[] = [
+									'account_id' => 37, // Ordinary Savings (3201)
+									'debit_amount' => 0,
+									'credit_amount' => $savings,
+									'description' => 'Savings contribution',
+									'reference_type' => 'member',
+									'reference_id' => $row_member['memberid']
+								];
+								
+								// Update member account
+								$memberAccountManager->recordMemberTransaction(
+									$row_member['memberid'],
+									'savings',
+									$savings,
+									$_GET["PeriodID"],
+									'Monthly savings contribution'
+								);
+							}
+							
+							// CREDIT: Shares (Equity increases)
+							if ($shares > 0) {
+								$journal_lines[] = [
+									'account_id' => 33, // Ordinary Shares (3101)
+									'debit_amount' => 0,
+									'credit_amount' => $shares,
+									'description' => 'Share contribution',
+									'reference_type' => 'member',
+									'reference_id' => $row_member['memberid']
+								];
+								
+								// Update member account
+								$memberAccountManager->recordMemberTransaction(
+									$row_member['memberid'],
+									'shares',
+									$shares,
+									$_GET["PeriodID"],
+									'Monthly share contribution'
+								);
+							}
+							
+							// CREDIT: Member Loans (Asset decreases) - Loan repayment
+							if ($loanRepayment > 0) {
+								$journal_lines[] = [
+									'account_id' => 6, // Member Loans (1110)
+									'debit_amount' => 0,
+									'credit_amount' => $loanRepayment,
+									'description' => 'Loan repayment',
+									'reference_type' => 'member',
+									'reference_id' => $row_member['memberid']
+								];
+								
+								// Update member loan account (negative = decrease)
+								$memberAccountManager->recordMemberTransaction(
+									$row_member['memberid'],
+									'loan',
+									-$loanRepayment,
+									$_GET["PeriodID"],
+									'Loan repayment'
+								);
+							}
+							
+							// CREDIT: Interest Income (Revenue)
+							if ($interestPaid > 0) {
+								$journal_lines[] = [
+									'account_id' => 50, // Interest on Loans to Members (4102)
+									'debit_amount' => 0,
+									'credit_amount' => $interestPaid,
+									'description' => 'Interest on loan',
+									'reference_type' => 'member',
+									'reference_id' => $row_member['memberid']
+								];
+							}
+							
+							// Handle loan disbursement separately (if any)
+							if ($loanDisbursed > 0) {
+								$loan_lines = [
+									// DEBIT: Member Loans (Asset increases)
+									[
+										'account_id' => 6, // Member Loans (1110)
+										'debit_amount' => $loanDisbursed,
+										'credit_amount' => 0,
+										'description' => "Loan disbursed to {$member_name}",
+										'reference_type' => 'member',
+										'reference_id' => $row_member['memberid']
+									],
+									// CREDIT: Bank (Asset decreases)
+									[
+										'account_id' => 3, // Bank - Main Account (1102)
+										'debit_amount' => 0,
+										'credit_amount' => $loanDisbursed,
+										'description' => "Loan payment to {$member_name}",
+										'reference_type' => 'member',
+										'reference_id' => $row_member['memberid']
+									]
+								];
+								
+								// Create loan disbursement journal entry
+								$loan_result = $accountingEngine->createJournalEntry(
+									$_GET["PeriodID"],
+									date('Y-m-d'),
+									'member_transaction',
+									"Loan disbursement - {$member_name}",
+									$loan_lines,
+									1, // System user ID
+									"LOAN-{$row_member['memberid']}-{$_GET['PeriodID']}"
+								);
+								
+								if ($loan_result['success']) {
+									// Post the loan entry
+									$accountingEngine->postEntry($loan_result['entry_id']);
+									
+									// Update member loan account
+									$memberAccountManager->recordMemberTransaction(
+										$row_member['memberid'],
+										'loan',
+										$loanDisbursed,
+										$_GET["PeriodID"],
+										'Loan disbursement'
+									);
+									
+									error_log("Loan journal entry posted: {$loan_result['entry_number']} for member {$row_member['memberid']}");
+								}
+							}
+							
+							// Create contribution journal entry (if any contributions)
+							if (!empty($journal_lines)) {
+								$result = $accountingEngine->createJournalEntry(
+									$_GET["PeriodID"],
+									date('Y-m-d'),
+									'member_transaction',
+									"Member contribution - {$member_name}",
+									$journal_lines,
+									1, // System user ID (use actual logged-in user if available)
+									"CONTRIB-{$row_member['memberid']}-{$_GET['PeriodID']}"
+								);
+								
+								if ($result['success']) {
+									// Post the entry to make it permanent and update balances
+									$post_result = $accountingEngine->postEntry($result['entry_id']);
+									
+									if ($post_result['success']) {
+										error_log("Journal entry posted: {$result['entry_number']} for member {$row_member['memberid']}");
+									} else {
+										error_log("Failed to post journal entry for member {$row_member['memberid']}: " . $post_result['error']);
+									}
+								} else {
+									error_log("Failed to create journal entry for member {$row_member['memberid']}: " . $result['error']);
+								}
+							}
+						}
+					}
+				} catch (Exception $e) {
+					error_log("Accounting integration error for member {$row_member['memberid']}: " . $e->getMessage());
+					// Don't stop processing - log error and continue
+				}
+			}
+			
 			// Progress
 			file_put_contents($progressFile, json_encode([
 				'percent' => intval($i / $totalRows_member * 100) . "%",
@@ -395,7 +618,7 @@ $entryFees = (int)($row_entrySettings['value']);
 		do {
 			set_time_limit(0);
 			try {
-				processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService);
+				processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService, $accountingEngine, $memberAccountManager);
 			} catch (Exception $e) {
 				error_log("Error processing member {$row_member['memberid']}: " . $e->getMessage());
 			}

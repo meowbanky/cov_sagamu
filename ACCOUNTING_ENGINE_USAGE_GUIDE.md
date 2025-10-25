@@ -27,6 +27,7 @@ $memberAccountManager = new MemberAccountManager($cov, $database_cov);
 ## 1️⃣ AccountingEngine - Creating Journal Entries
 
 ### Example 1: Member Contribution (₦10,000)
+
 **Transaction:** Member pays ₦10,000 (Savings: ₦5,000, Shares: ₦3,000, Loan Repayment: ₦2,000)
 
 ```php
@@ -46,7 +47,7 @@ $lines = [
         'reference_type' => 'member',
         'reference_id' => $memberid
     ],
-    
+
     // CREDIT: Member Savings (Equity increases)
     [
         'account_id' => 37, // Ordinary Savings (3201)
@@ -56,7 +57,7 @@ $lines = [
         'reference_type' => 'member',
         'reference_id' => $memberid
     ],
-    
+
     // CREDIT: Member Shares (Equity increases)
     [
         'account_id' => 33, // Ordinary Shares (3101)
@@ -66,7 +67,7 @@ $lines = [
         'reference_type' => 'member',
         'reference_id' => $memberid
     ],
-    
+
     // CREDIT: Member Loans (Asset decreases)
     [
         'account_id' => 6,  // Member Loans (1110)
@@ -92,10 +93,10 @@ $result = $accountingEngine->createJournalEntry(
 if ($result['success']) {
     echo "Journal entry created: {$result['entry_number']}\n";
     echo "Entry ID: {$result['entry_id']}\n";
-    
+
     // Post the entry (make it permanent)
     $postResult = $accountingEngine->postEntry($result['entry_id']);
-    
+
     if ($postResult['success']) {
         echo "Entry posted successfully!\n";
     }
@@ -115,7 +116,7 @@ $lines = [
         'credit_amount' => 0,
         'description' => 'Monthly salary payment'
     ],
-    
+
     // CREDIT: Bank
     [
         'account_id' => 3, // Bank - Main Account (1102)
@@ -148,7 +149,7 @@ $lines = [
         'credit_amount' => 0,
         'description' => "Loan disbursed to member #{$memberid}"
     ],
-    
+
     // CREDIT: Bank (Asset decreases)
     [
         'account_id' => 3, // Bank
@@ -357,19 +358,19 @@ $statement = $memberAccountManager->generateMemberStatement(
 
 if ($statement['success']) {
     $member = $statement['member'];
-    
+
     echo "MEMBER STATEMENT\n";
     echo "================\n";
     echo "Member: {$member['full_name']}\n";
     echo "Coop No: {$member['CooperativeNo']}\n\n";
-    
+
     foreach ($statement['statement'] as $account_type => $transactions) {
         echo strtoupper($account_type) . "\n";
         echo str_repeat("-", 80) . "\n";
-        echo sprintf("%-20s %12s %12s %12s %12s\n", 
+        echo sprintf("%-20s %12s %12s %12s %12s\n",
             "Period", "Opening", "Debit", "Credit", "Closing");
         echo str_repeat("-", 80) . "\n";
-        
+
         foreach ($transactions as $tx) {
             echo sprintf("%-20s %12s %12s %12s %12s\n",
                 $tx['PayrollPeriod'],
@@ -397,7 +398,7 @@ if ($reconciliation['all_match']) {
     echo "✅ All member accounts reconcile with control accounts!\n";
 } else {
     echo "❌ RECONCILIATION MISMATCHES FOUND:\n\n";
-    
+
     foreach ($reconciliation['mismatches'] as $mismatch) {
         echo "{$mismatch['account_type']}:\n";
         echo "  Member Total: ₦" . number_format($mismatch['member_total'], 2) . "\n";
@@ -470,7 +471,7 @@ if ($savings > 0) {
         'reference_type' => 'member',
         'reference_id' => $memberid
     ];
-    
+
     // Update member account
     $memberAccountManager->recordMemberTransaction(
         $memberid, 'savings', $savings, $periodid, 'Monthly savings'
@@ -487,7 +488,7 @@ if ($shares > 0) {
         'reference_type' => 'member',
         'reference_id' => $memberid
     ];
-    
+
     $memberAccountManager->recordMemberTransaction(
         $memberid, 'shares', $shares, $periodid, 'Monthly shares'
     );
@@ -503,7 +504,7 @@ if ($loan_repayment > 0) {
         'reference_type' => 'member',
         'reference_id' => $memberid
     ];
-    
+
     $memberAccountManager->recordMemberTransaction(
         $memberid, 'loan', -$loan_repayment, $periodid, 'Loan repayment'
     );
@@ -532,21 +533,25 @@ if ($result['success']) {
 ## ✅ Best Practices
 
 1. **Always Validate Before Posting**
+
    - Create entries as 'draft' first
    - Review before posting
    - Only posted entries update balances
 
 2. **Use Transactions**
+
    - All operations use database transactions
    - Automatic rollback on errors
    - Data integrity guaranteed
 
 3. **Reference Links**
+
    - Always set reference_type and reference_id
    - Links journal entries to source documents
    - Enables audit trail
 
 4. **Error Handling**
+
    - All methods return ['success' => bool, 'error' => string]
    - Check success before proceeding
    - Log errors for debugging
@@ -573,16 +578,19 @@ Now that you have the core engine, you can:
 ## 🔧 Troubleshooting
 
 **Trial Balance Doesn't Balance:**
+
 - Run `verifyAccountingEquation()` to check equation
 - Check for unposted entries
 - Review journal entries for errors
 
 **Control Accounts Don't Match:**
+
 - Run `reconcileMemberAccounts()` to identify mismatches
 - Check for missing member transactions
 - Verify account IDs in CONTROL_ACCOUNTS array
 
 **Entry Won't Post:**
+
 - Verify entry is in 'draft' status
 - Check that all accounts exist
 - Ensure period is not closed
@@ -590,4 +598,3 @@ Now that you have the core engine, you can:
 ---
 
 For more help, see the inline documentation in each class file.
-
