@@ -197,9 +197,18 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li class="mt-4 pt-4 border-t border-gray-200">
                         <span class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Accounting</span>
                     </li>
+                    <li><a href="coop_chart_of_accounts.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_chart_of_accounts.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-list-alt fa-fw mr-2"></i> Chart of Accounts</a></li>
+                    <li><a href="coop_journal_entries.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_journal_entries.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-book fa-fw mr-2"></i> Journal Entries</a></li>
                     <li><a href="coop_trial_balance.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_trial_balance.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-balance-scale fa-fw mr-2"></i> Trial Balance</a></li>
+                    <li><a href="coop_financial_statements.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_financial_statements.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-chart-line fa-fw mr-2"></i> Financial Statements</a></li>
                     
                     <li><a href="queue_members_email.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='queue_members_email.php'?'sidebar-active':'' ?>"><i
