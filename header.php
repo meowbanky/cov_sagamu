@@ -209,6 +209,9 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="coop_financial_statements.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_financial_statements.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-chart-line fa-fw mr-2"></i> Financial Statements</a></li>
+                    <li><a href="coop_member_statement.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_member_statement.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-user-circle fa-fw mr-2"></i> Member Statement</a></li>
                     
                     <li><a href="queue_members_email.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='queue_members_email.php'?'sidebar-active':'' ?>"><i

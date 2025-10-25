@@ -252,6 +252,16 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     <i class="fa fa-envelope fa-3x text-green-500 mb-4"></i>
                     <span class="font-semibold text-lg">Email Queue</span>
                 </a>
+                <a href="coop_trial_balance.php"
+                    class="bg-white shadow-lg rounded-xl p-6 flex flex-col items-center hover:shadow-2xl transition">
+                    <i class="fa fa-balance-scale fa-3x text-indigo-500 mb-4"></i>
+                    <span class="font-semibold text-lg">Trial Balance</span>
+                </a>
+                <a href="coop_financial_statements.php"
+                    class="bg-white shadow-lg rounded-xl p-6 flex flex-col items-center hover:shadow-2xl transition">
+                    <i class="fa fa-chart-line fa-3x text-purple-500 mb-4"></i>
+                    <span class="font-semibold text-lg">Financial Statements</span>
+                </a>
                 <a href="AlertSystem/index.php"
                     class="bg-white shadow-lg rounded-xl p-6 flex flex-col items-center hover:shadow-2xl transition">
                     <i class="fa fa-bell fa-3x text-blue-400 mb-4"></i>
