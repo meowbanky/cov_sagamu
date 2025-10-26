@@ -548,7 +548,23 @@ if ($selectedPeriod > 0) {
 
 <script>
 function exportToExcel() {
-    alert('Excel export will be implemented in the next phase!');
+    const periodid = <?php echo $selectedPeriod; ?>;
+    const statement = '<?php echo $statementType; ?>';
+    
+    if (!periodid) {
+        alert('Please select a period first');
+        return;
+    }
+    
+    let type = statement;
+    if (statement == 'all') {
+        // Ask which one to export
+        type = prompt('Export which statement?\n\nincome = Income & Expenditure\nbalance = Balance Sheet\ncashflow = Cashflow Statement', 'income');
+    }
+    
+    if (type) {
+        window.open('api/export_financial_statements.php?periodid=' + periodid + '&type=' + type, '_blank');
+    }
 }
 
 // Print styles

@@ -7,6 +7,62 @@ if (!isset($_SESSION['UserID'])) {
 require_once('Connections/cov.php'); 
 mysqli_select_db($cov, $database_cov);
 
+// Get latest period for dashboard widgets
+$latestPeriodQuery = "SELECT Periodid FROM tbpayrollperiods ORDER BY Periodid DESC LIMIT 1";
+$latestPeriodResult = mysqli_query($cov, $latestPeriodQuery);
+$latestPeriod = mysqli_fetch_assoc($latestPeriodResult);
+$currentPeriodId = $latestPeriod['Periodid'] ?? 0;
+
+// Get financial stats for dashboard
+$cashBalance = 0;
+$memberLoans = 0;
+$memberEquity = 0;
+$trialBalanceStatus = 'unknown';
+
+if ($currentPeriodId > 0) {
+    // Cash balance (Cash + Bank)
+    $cashQuery = "SELECT SUM(COALESCE(closing_debit, 0)) as total
+                  FROM coop_period_balances
+                  WHERE periodid = ? AND account_id IN (2,3,4)";
+    $stmt = mysqli_prepare($cov, $cashQuery);
+    mysqli_stmt_bind_param($stmt, "i", $currentPeriodId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    $cashBalance = floatval($row['total'] ?? 0);
+    mysqli_stmt_close($stmt);
+    
+    // Member Loans
+    $loansQuery = "SELECT COALESCE(closing_debit, 0) - COALESCE(closing_credit, 0) as total
+                   FROM coop_period_balances
+                   WHERE periodid = ? AND account_id = 6";
+    $stmt = mysqli_prepare($cov, $loansQuery);
+    mysqli_stmt_bind_param($stmt, "i", $currentPeriodId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    $memberLoans = floatval($row['total'] ?? 0);
+    mysqli_stmt_close($stmt);
+    
+    // Member Equity (Shares + Savings)
+    $equityQuery = "SELECT SUM(COALESCE(closing_credit, 0) - COALESCE(closing_debit, 0)) as total
+                    FROM coop_period_balances
+                    WHERE periodid = ? AND account_id IN (33,37,38)";
+    $stmt = mysqli_prepare($cov, $equityQuery);
+    mysqli_stmt_bind_param($stmt, "i", $currentPeriodId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    $memberEquity = floatval($row['total'] ?? 0);
+    mysqli_stmt_close($stmt);
+    
+    // Trial balance status
+    require_once('libs/services/AccountBalanceCalculator.php');
+    $calculator = new AccountBalanceCalculator($cov, $database_cov);
+    $trialBalance = $calculator->getTrialBalance($currentPeriodId);
+    $trialBalanceStatus = $trialBalance['is_balanced'] ? 'balanced' : 'unbalanced';
+}
+
 function curlPost($url) {
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -180,6 +236,51 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
         <main class="flex-1 py-8 px-4 md:px-10">
             <h1 class="text-3xl font-bold mb-8 text-blue-900 flex items-center gap-2"><i
                     class="fa fa-dashboard fa-lg"></i> Dashboard</h1>
+            <!-- Financial Overview Widgets -->
+            <?php if ($currentPeriodId > 0): ?>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-blue-100 text-sm mb-1">Cash & Bank</p>
+                            <p class="text-2xl font-bold">₦<?php echo number_format($cashBalance / 1000, 0); ?>K</p>
+                        </div>
+                        <i class="fa fa-wallet fa-2x text-blue-300"></i>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-lg p-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-purple-100 text-sm mb-1">Member Loans</p>
+                            <p class="text-2xl font-bold">₦<?php echo number_format($memberLoans / 1000, 0); ?>K</p>
+                        </div>
+                        <i class="fa fa-hand-holding-usd fa-2x text-purple-300"></i>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-lg p-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-green-100 text-sm mb-1">Member Equity</p>
+                            <p class="text-2xl font-bold">₦<?php echo number_format($memberEquity / 1000, 0); ?>K</p>
+                        </div>
+                        <i class="fa fa-users fa-2x text-green-300"></i>
+                    </div>
+                </div>
+
+                <a href="coop_trial_balance.php" class="bg-gradient-to-br from-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-500 to-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-600 text-white rounded-xl shadow-lg p-4 hover:shadow-2xl transition">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-100 text-sm mb-1">Trial Balance</p>
+                            <p class="text-2xl font-bold"><?php echo $trialBalanceStatus == 'balanced' ? '✓ Balanced' : '✗ Check'; ?></p>
+                        </div>
+                        <i class="fa fa-balance-scale fa-2x text-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-300"></i>
+                    </div>
+                </a>
+            </div>
+            <?php endif; ?>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 <!-- Example Card -->
                 <a href="registration.php"
