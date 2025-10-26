@@ -62,12 +62,9 @@ if ($searchQuery) {
 // Get journal entries
 $sql = "SELECT 
             je.*,
-            pp.PayrollPeriod,
-            u.FirstName,
-            u.LastName
+            pp.PayrollPeriod
         FROM coop_journal_entries je
         LEFT JOIN tbpayrollperiods pp ON je.periodid = pp.Periodid
-        LEFT JOIN tblogininfo u ON je.created_by = u.UserID
         WHERE " . implode(' AND ', $where) . "
         ORDER BY je.entry_date DESC, je.id DESC
         LIMIT 100";
@@ -253,7 +250,7 @@ $stats = mysqli_fetch_assoc($statsResult);
                             <span><i
                                     class="fa fa-clock mr-1"></i><?php echo htmlspecialchars($entry['PayrollPeriod']); ?></span>
                             <span><i
-                                    class="fa fa-user mr-1"></i><?php echo htmlspecialchars($entry['FirstName'] . ' ' . $entry['LastName']); ?></span>
+                                    class="fa fa-user mr-1"></i>User ID: <?php echo $entry['created_by']; ?></span>
                             <?php if ($entry['source_document']): ?>
                             <span><i
                                     class="fa fa-file mr-1"></i><?php echo htmlspecialchars($entry['source_document']); ?></span>

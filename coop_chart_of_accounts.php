@@ -20,19 +20,19 @@ $params = [];
 $types = '';
 
 if ($filterType) {
-    $where[] = "account_type = ?";
+    $where[] = "a.account_type = ?";
     $params[] = $filterType;
     $types .= 's';
 }
 
 if ($filterCategory) {
-    $where[] = "account_category = ?";
+    $where[] = "a.account_category = ?";
     $params[] = $filterCategory;
     $types .= 's';
 }
 
 if ($searchQuery) {
-    $where[] = "(account_code LIKE ? OR account_name LIKE ? OR description LIKE ?)";
+    $where[] = "(a.account_code LIKE ? OR a.account_name LIKE ? OR a.description LIKE ?)";
     $searchParam = "%{$searchQuery}%";
     $params[] = $searchParam;
     $params[] = $searchParam;
@@ -41,7 +41,7 @@ if ($searchQuery) {
 }
 
 if (!$showInactive) {
-    $where[] = "is_active = TRUE";
+    $where[] = "a.is_active = TRUE";
 }
 
 $whereClause = count($where) > 0 ? " WHERE " . implode(' AND ', $where) : "";

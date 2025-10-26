@@ -321,7 +321,7 @@ class MemberAccountManager {
     private function getMemberDetails($memberid) {
         $sql = "SELECT memberid, 
                 CONCAT(Lname, ', ', Fname, ' ', IFNULL(Mname, '')) as full_name,
-                EmailAddress, Phone
+                EmailAddress, MobileNo as Phone
                 FROM tbl_personalinfo
                 WHERE memberid = ?";
         

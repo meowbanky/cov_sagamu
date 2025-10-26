@@ -139,16 +139,16 @@ if ($selectedMember > 0 && $fromPeriod > 0 && $toPeriod > 0) {
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                    <h3 class="text-lg font-bold text-gray-900 mb-4">Member Information</h3>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Member ID:</span>
-                            <span class="font-semibold">#<?php echo htmlspecialchars($memberInfo['memberid']); ?></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Name:</span>
-                            <span class="font-semibold"><?php echo htmlspecialchars($memberInfo['full_name']); ?></span>
-                        </div>
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Member Information</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Member ID:</span>
+                        <span class="font-semibold">#<?php echo htmlspecialchars($memberInfo['memberid']); ?></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Name:</span>
+                        <span class="font-semibold"><?php echo htmlspecialchars($memberInfo['full_name']); ?></span>
+                    </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Email:</span>
                         <span class="font-semibold"><?php echo htmlspecialchars($memberInfo['EmailAddress']); ?></span>
