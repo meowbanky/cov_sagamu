@@ -54,7 +54,7 @@ if ($selectedAccount > 0 && $selectedPeriod > 0) {
     // Get opening balance
     $calculator = new AccountBalanceCalculator($cov, $database_cov);
     $balance = $calculator->getAccountBalance($selectedAccount, $selectedPeriod);
-    $runningBalance = floatval($balance['opening_debit']) - floatval($balance['opening_credit']);
+    $runningBalance = floatval($balance['opening_debit'] ?? 0) - floatval($balance['opening_credit'] ?? 0);
     
     // Get all transactions affecting this account
     $sql = "SELECT 

@@ -321,7 +321,7 @@ class MemberAccountManager {
     private function getMemberDetails($memberid) {
         $sql = "SELECT memberid, 
                 CONCAT(Lname, ', ', Fname, ' ', IFNULL(Mname, '')) as full_name,
-                EmailAddress, MobileNo as Phone
+                EmailAddress
                 FROM tbl_personalinfo
                 WHERE memberid = ?";
         
@@ -332,6 +332,11 @@ class MemberAccountManager {
         $member = mysqli_fetch_assoc($result);
         mysqli_stmt_close($stmt);
         
+        // Add empty phone if not set
+        if ($member) {
+            $member['Phone'] = '';
+        }
+
         return $member;
     }
     
