@@ -395,20 +395,25 @@ $entryFees = (int)($row_entrySettings['value']);
 			// POST TO ACCOUNTING SYSTEM (Double-Entry Bookkeeping)
 			if ($accountingEngine && $memberAccountManager && $totalRows_completed == 0) {
 				try {
-					// Get transaction details from the database
-					$query_transaction = "SELECT entryFee, savings, shares, loanRepayment, loanAmount, interestPaid 
+					// Get ALL transaction details for this member/period (including special savings)
+					$query_transaction = "SELECT 
+					                         SUM(entryFee) as entryFee, 
+					                         SUM(savings) as savings, 
+					                         SUM(shares) as shares, 
+					                         SUM(loanRepayment) as loanRepayment, 
+					                         SUM(loanAmount) as loanAmount, 
+					                         SUM(interestPaid) as interestPaid
 					                     FROM tlb_mastertransaction 
 					                     WHERE memberid = '" . $row_member['memberid'] . "' 
 					                     AND periodid = " . $_GET["PeriodID"] . " 
-					                     AND completed = " . COMPLETED_STATUS . "
-					                     ORDER BY tlb_mastertransaction.transactionid DESC LIMIT 1";
+					                     AND completed = " . COMPLETED_STATUS;
 					$transaction_result = db_query($cov, $query_transaction);
 					$transaction_data = db_fetch_assoc($transaction_result);
 					mysqli_free_result($transaction_result);
 					
 					if ($transaction_data) {
 						$entryFee = floatval($transaction_data['entryFee'] ?? 0);
-						$savings = floatval($transaction_data['savings'] ?? 0);
+						$savings = floatval($transaction_data['savings'] ?? 0); // This now includes special savings
 						$shares = floatval($transaction_data['shares'] ?? 0);
 						$loanRepayment = floatval($transaction_data['loanRepayment'] ?? 0);
 						$loanDisbursed = floatval($transaction_data['loanAmount'] ?? 0);
