@@ -8,6 +8,7 @@ if (!isset($_SESSION['UserID'])) {
 require_once('Connections/cov.php');
 require_once('libs/reports/IncomeExpenditureStatement.php');
 require_once('libs/reports/BalanceSheet.php');
+require_once('libs/reports/CashflowStatement.php');
 require_once('header.php');
 
 // Get periods for dropdown
@@ -36,13 +37,16 @@ $statementType = isset($_GET['statement']) ? $_GET['statement'] : 'income';
 // Generate statements
 $incomeStatement = null;
 $balanceSheet = null;
+$cashflowStatement = null;
 
 if ($selectedPeriod > 0) {
     $incomeGenerator = new IncomeExpenditureStatement($cov, $database_cov);
     $balanceGenerator = new BalanceSheet($cov, $database_cov);
+    $cashflowGenerator = new CashflowStatement($cov, $database_cov);
     
     $incomeStatement = $incomeGenerator->generateStatement($selectedPeriod);
     $balanceSheet = $balanceGenerator->generateStatement($selectedPeriod);
+    $cashflowStatement = $cashflowGenerator->generateStatement($selectedPeriod);
 }
 ?>
 
@@ -89,7 +93,8 @@ if ($selectedPeriod > 0) {
                 <select name="statement" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500" onchange="this.form.submit()">
                     <option value="income" <?php echo ($statementType == 'income') ? 'selected' : ''; ?>>Income & Expenditure</option>
                     <option value="balance" <?php echo ($statementType == 'balance') ? 'selected' : ''; ?>>Balance Sheet</option>
-                    <option value="both" <?php echo ($statementType == 'both') ? 'selected' : ''; ?>>Both Statements</option>
+                    <option value="cashflow" <?php echo ($statementType == 'cashflow') ? 'selected' : ''; ?>>Cashflow Statement</option>
+                    <option value="all" <?php echo ($statementType == 'all') ? 'selected' : ''; ?>>All Statements</option>
                 </select>
             </div>
         </form>
@@ -406,6 +411,124 @@ if ($selectedPeriod > 0) {
                             <?php endif; ?>
                         </div>
                     </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- CASHFLOW STATEMENT -->
+        <?php if (($statementType == 'cashflow' || $statementType == 'all') && $cashflowStatement && $cashflowStatement['success']): ?>
+            <?php $data = $cashflowStatement['statement'][$selectedPeriod]; ?>
+            
+            <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6" id="cashflowStatement">
+                <div class="px-6 py-4 bg-gradient-to-r from-teal-600 to-teal-700 text-white">
+                    <h2 class="text-2xl font-bold">Cashflow Statement</h2>
+                    <p class="text-sm text-teal-100">For the Period: <?php echo htmlspecialchars($selectedPeriodName); ?></p>
+                </div>
+
+                <div class="p-6">
+                    <!-- OPERATING ACTIVITIES -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-200">NET CASHFLOW FROM OPERATING ACTIVITIES</h3>
+                        <table class="w-full text-sm">
+                            <tr class="border-b border-gray-200">
+                                <td class="py-2 px-4">Net Profit</td>
+                                <td class="py-2 px-4 text-right font-mono">₦<?php echo number_format($data['operating']['net_profit'], 2); ?></td>
+                            </tr>
+                            <tr class="border-b border-gray-200">
+                                <td class="py-2 px-4 pl-8">Add: Depreciation</td>
+                                <td class="py-2 px-4 text-right font-mono">₦<?php echo number_format($data['operating']['depreciation'], 2); ?></td>
+                            </tr>
+                            <tr class="border-b border-gray-200">
+                                <td class="py-2 px-4 pl-8">Add: Accrued Income</td>
+                                <td class="py-2 px-4 text-right font-mono">₦<?php echo number_format($data['operating']['accrued_income'], 2); ?></td>
+                            </tr>
+                            <tr class="bg-gray-50 font-semibold">
+                                <td class="py-2 px-4 pl-4" colspan="2">Increase/(Decrease) in Working Capital:</td>
+                            </tr>
+                            <?php foreach ($data['operating']['working_capital'] as $key => $value): ?>
+                                <?php if ($value != 0): ?>
+                                    <tr class="border-b border-gray-200">
+                                        <td class="py-2 px-4 pl-12"><?php echo str_replace('_', ' ', ucwords($key, '_')); ?></td>
+                                        <td class="py-2 px-4 text-right font-mono"><?php echo ($value >= 0 ? '₦' : '-₦') . number_format(abs($value), 2); ?></td>
+                                    </tr>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                            <tr class="bg-teal-50 font-bold text-teal-900">
+                                <td class="py-3 px-4">NET CASHFLOW FROM OPERATING ACTIVITIES</td>
+                                <td class="py-3 px-4 text-right font-mono">₦<?php echo number_format($data['operating']['net_cashflow_operating'], 2); ?></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- INVESTING ACTIVITIES -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-200">NET CASHFLOW FROM INVESTING ACTIVITIES</h3>
+                        <table class="w-full text-sm">
+                            <tr class="border-b border-gray-200">
+                                <td class="py-2 px-4">Fixed Asset Purchases</td>
+                                <td class="py-2 px-4 text-right font-mono">-₦<?php echo number_format($data['investing']['fixed_asset_purchases'], 2); ?></td>
+                            </tr>
+                            <tr class="border-b border-gray-200">
+                                <td class="py-2 px-4">Fixed Asset Proceeds</td>
+                                <td class="py-2 px-4 text-right font-mono">₦<?php echo number_format($data['investing']['fixed_asset_proceeds'], 2); ?></td>
+                            </tr>
+                            <tr class="bg-teal-50 font-bold text-teal-900">
+                                <td class="py-3 px-4">NET CASHFLOW FROM INVESTING ACTIVITIES</td>
+                                <td class="py-3 px-4 text-right font-mono">₦<?php echo number_format($data['investing']['net_cashflow_investing'], 2); ?></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- FINANCING ACTIVITIES -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-200">NET CASHFLOW FROM FINANCING ACTIVITIES</h3>
+                        <table class="w-full text-sm">
+                            <tr class="border-b border-gray-200">
+                                <td class="py-2 px-4">Members Fund</td>
+                                <td class="py-2 px-4 text-right font-mono">₦<?php echo number_format($data['financing']['members_fund_change'], 2); ?></td>
+                            </tr>
+                            <tr class="border-b border-gray-200">
+                                <td class="py-2 px-4">Borrowed Loans</td>
+                                <td class="py-2 px-4 text-right font-mono">₦<?php echo number_format($data['financing']['borrowed_loans_change'], 2); ?></td>
+                            </tr>
+                            <tr class="bg-teal-50 font-bold text-teal-900">
+                                <td class="py-3 px-4">NET CASHFLOW FROM FINANCING ACTIVITIES</td>
+                                <td class="py-3 px-4 text-right font-mono">₦<?php echo number_format($data['financing']['net_cashflow_financing'], 2); ?></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- SUMMARY CASHFLOW -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-200">SUMMARY CASHFLOW</h3>
+                        <table class="w-full text-sm">
+                            <tr class="border-b border-gray-200">
+                                <td class="py-2 px-4">Net Cashflow for the Year</td>
+                                <td class="py-2 px-4 text-right font-mono font-bold">₦<?php echo number_format($data['net_cashflow'], 2); ?></td>
+                            </tr>
+                            <tr class="border-b border-gray-200">
+                                <td class="py-2 px-4">Cash Balance B/D (Beginning)</td>
+                                <td class="py-2 px-4 text-right font-mono">₦<?php echo number_format($data['cash_beginning'], 2); ?></td>
+                            </tr>
+                            <tr class="bg-gradient-to-r from-teal-100 to-teal-50 font-bold text-teal-900 border-2 border-teal-500">
+                                <td class="py-3 px-4 text-lg">Cash Balance C/F (Ending)</td>
+                                <td class="py-3 px-4 text-right font-mono text-lg">₦<?php echo number_format($data['cash_ending'], 2); ?></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- VERIFICATION -->
+                    <?php if ($data['verification']): ?>
+                        <div class="p-4 bg-green-100 border-2 border-green-500 rounded-lg">
+                            <p class="text-green-800 font-bold">✓ CASHFLOW VERIFIED</p>
+                            <p class="text-sm text-green-700">Beginning + Net Cashflow = Ending Balance</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="p-4 bg-red-100 border-2 border-red-500 rounded-lg">
+                            <p class="text-red-800 font-bold">⚠️ CASHFLOW MISMATCH</p>
+                            <p class="text-sm text-red-700">Reconciliation needed</p>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         <?php endif; ?>

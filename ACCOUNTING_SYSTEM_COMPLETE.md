@@ -9,9 +9,11 @@ Your cooperative management system now has **professional-grade double-entry acc
 ## 📊 ALL INPUT METHODS (How to Enter Data)
 
 ### **1️⃣ AUTOMATIC - Member Contributions** ✅
+
 **Via:** `process.php` / `process2.php`
 
 **What Happens:**
+
 - Member contributions processed as usual
 - **NEW:** Journal entries auto-created!
   ```
@@ -24,6 +26,7 @@ Your cooperative management system now has **professional-grade double-entry acc
 - Zero manual effort required
 
 **Use For:**
+
 - Monthly deductions
 - Member contributions
 - Loan repayments
@@ -32,15 +35,18 @@ Your cooperative management system now has **professional-grade double-entry acc
 ---
 
 ### **2️⃣ MANUAL - Journal Entry Form** ✅ NEW!
+
 **Via:** `coop_journal_entry_form.php`
 
 **What It Does:**
+
 - Create manual journal entries
 - Real-time debit/credit validation
 - Add multiple lines
 - Auto-post on submission
 
 **Use For:**
+
 - Salary payments
 - Utility bills
 - Office expenses
@@ -50,6 +56,7 @@ Your cooperative management system now has **professional-grade double-entry acc
 - Any non-member transaction
 
 **Example - Salary Payment:**
+
 ```
 Period: October 2024
 Date: 2024-10-25
@@ -70,15 +77,18 @@ Status: ✓ Balanced
 These can be added later if needed:
 
 **A. Period Closing Entries** (Auto)
+
 - Surplus appropriation
 - Reserve fund transfers
 - Closing revenue/expense accounts
 
 **B. Depreciation Entries** (Auto)
+
 - Monthly asset depreciation
 - Auto-calculated and posted
 
 **C. Bank Reconciliation Adjustments** (Manual)
+
 - Bank charges not recorded
 - Interest earned
 - Reconciliation differences
@@ -90,30 +100,35 @@ These can be added later if needed:
 ### **Complete List - 6 Pages:**
 
 1. **📋 Chart of Accounts** (`coop_chart_of_accounts.php`)
+
    - View all 90 accounts
    - Hierarchical display
    - Filter by type/category
    - Search functionality
 
 2. **✍️ New Journal Entry** (`coop_journal_entry_form.php`) ⭐ NEW!
+
    - Create manual entries
    - Real-time validation
    - Auto-post entries
    - Quick account reference
 
 3. **📒 View Journal Entries** (`coop_journal_entries.php`)
+
    - List all entries
    - Filter by period/status/type
    - Expand to see debit/credit details
    - Search entries
 
 4. **⚖️ Trial Balance** (`coop_trial_balance.php`)
+
    - Verify books balance
    - Accounting equation check
    - Export to Excel
    - Print reports
 
 5. **📊 Financial Statements** (`coop_financial_statements.php`)
+
    - Income & Expenditure Statement
    - Balance Sheet
    - Professional formatting
@@ -174,6 +189,7 @@ cov/
 ### **Day-to-Day Operations:**
 
 **1. Process Member Contributions (Automatic)**
+
 ```
 process2.php → Select Period → Process
 ↓
@@ -187,6 +203,7 @@ Period balances updated ✨
 ```
 
 **2. Record Expenses (Manual)**
+
 ```
 Accounting → New Journal Entry
 ↓
@@ -202,6 +219,7 @@ Accounts updated instantly ✨
 ```
 
 **3. View Reports (Anytime)**
+
 ```
 Accounting → Trial Balance
 ↓
@@ -214,6 +232,7 @@ Verify: Debits = Credits ✓
 ```
 
 **4. Generate Financial Statements (Monthly/Quarterly)**
+
 ```
 Accounting → Financial Statements
 ↓
@@ -227,6 +246,7 @@ Export for external auditors
 ```
 
 **5. Member Account Statements (On Request)**
+
 ```
 Accounting → Member Statement
 ↓
@@ -243,6 +263,7 @@ Print for member
 ## 🌟 KEY FEATURES SUMMARY
 
 ### **Automatic Features:**
+
 ✅ Member contributions → Journal entries (automatic)
 ✅ Double-entry validation (debits = credits)
 ✅ Real-time balance updates
@@ -251,6 +272,7 @@ Print for member
 ✅ Entry numbering (JE-2024-0001)
 
 ### **Manual Features:**
+
 ✅ Manual journal entry form
 ✅ Multiple account lines
 ✅ Real-time validation
@@ -258,6 +280,7 @@ Print for member
 ✅ Quick account reference
 
 ### **Reporting Features:**
+
 ✅ Trial balance with validation
 ✅ Income & Expenditure Statement
 ✅ Balance Sheet (Statement of Financial Position)
@@ -266,6 +289,7 @@ Print for member
 ✅ Chart of accounts viewer
 
 ### **Data Integrity:**
+
 ✅ Accounting equation verification
 ✅ Control account reconciliation
 ✅ Period-based tracking
@@ -278,6 +302,7 @@ Print for member
 ## 📈 WHAT YOU GET
 
 ### **For Management:**
+
 ✅ Real-time financial position
 ✅ Instant profit/loss reports
 ✅ Professional board reports
@@ -285,6 +310,7 @@ Print for member
 ✅ Financial health indicators
 
 ### **For Accountant:**
+
 ✅ Proper double-entry bookkeeping
 ✅ Trial balance verification
 ✅ Journal entry control
@@ -292,12 +318,14 @@ Print for member
 ✅ Audit-ready records
 
 ### **For Members:**
+
 ✅ Individual account statements
 ✅ Transaction history
 ✅ Balance tracking
 ✅ Transparent reporting
 
 ### **For External Auditors:**
+
 ✅ Complete chart of accounts
 ✅ Full journal entry trail
 ✅ Trial balance reports
@@ -309,12 +337,14 @@ Print for member
 ## 🚀 HOW TO USE (Quick Start)
 
 ### **For Automatic Entries (Member Contributions):**
+
 1. Go to `process2.php`
 2. Select period
 3. Process members
 4. ✨ Journal entries auto-created!
 
 ### **For Manual Entries (Expenses, etc.):**
+
 1. Go to **Accounting → New Journal Entry**
 2. Select period & date
 3. Enter description (e.g., "Salary payment")
@@ -326,6 +356,7 @@ Print for member
 7. Done! Entry posted and balances updated
 
 ### **To View Results:**
+
 1. **Trial Balance:** Accounting → Trial Balance
 2. **All Entries:** Accounting → View Journal Entries
 3. **Financial Reports:** Accounting → Financial Statements
@@ -349,6 +380,7 @@ Print for member
 ## 📊 REPORTS YOU CAN GENERATE
 
 ### **1. Trial Balance**
+
 - All account balances
 - Debit/Credit totals
 - Balance verification
@@ -356,6 +388,7 @@ Print for member
 - Print-ready
 
 ### **2. Income & Expenditure Statement**
+
 - Revenue breakdown
 - Expense categories
 - Gross profit
@@ -363,6 +396,7 @@ Print for member
 - Appropriation detail
 
 ### **3. Balance Sheet**
+
 - Assets (Current & Non-current)
 - Liabilities (Current & Non-current)
 - Equity (Shares, Savings, Reserves)
@@ -370,6 +404,7 @@ Print for member
 - Balance verification
 
 ### **4. Member Statement**
+
 - Individual member balances
 - Period-by-period movements
 - Shares, Savings, Loans
@@ -377,6 +412,7 @@ Print for member
 - Net member position
 
 ### **5. Journal Entry Reports**
+
 - All transactions by period
 - Filter by type/status
 - Detailed debit/credit breakdown
@@ -387,6 +423,7 @@ Print for member
 ## 🔐 SECURITY & AUDIT
 
 ### **Audit Trail Captures:**
+
 ✅ Who created each entry
 ✅ When it was created
 ✅ What was changed
@@ -394,6 +431,7 @@ Print for member
 ✅ Original vs new values
 
 ### **Data Protection:**
+
 ✅ System accounts can't be deleted
 ✅ Posted entries are permanent
 ✅ Period locking (future feature)
@@ -416,6 +454,7 @@ You now have:
 ✅ **Scalable** - Grows with your cooperative
 
 **Total Components Delivered:**
+
 - 12 Database tables
 - 90 Pre-populated accounts
 - 5 PHP service classes
@@ -444,4 +483,3 @@ You now have:
 **Ready to revolutionize your cooperative's financial management? 🚀**
 
 **Access via:** Accounting menu → New Journal Entry
-
