@@ -1,5 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
-<info>
-	<infoitem key="UD_getContriubtion" value="name:contri_input;datatype:real,name:contribution;datatype:real" />
-	<infoitem key="UD_title" value="name:value;datatype:string" />
-</info>

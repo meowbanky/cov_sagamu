@@ -200,9 +200,12 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="coop_chart_of_accounts.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_chart_of_accounts.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-list-alt fa-fw mr-2"></i> Chart of Accounts</a></li>
+                    <li><a href="coop_journal_entry_form.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_journal_entry_form.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-pen fa-fw mr-2"></i> New Journal Entry</a></li>
                     <li><a href="coop_journal_entries.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_journal_entries.php'?'sidebar-active':'' ?>"><i
-                                class="fa fa-book fa-fw mr-2"></i> Journal Entries</a></li>
+                                class="fa fa-book fa-fw mr-2"></i> View Journal Entries</a></li>
                     <li><a href="coop_trial_balance.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_trial_balance.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-balance-scale fa-fw mr-2"></i> Trial Balance</a></li>
