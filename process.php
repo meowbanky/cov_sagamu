@@ -401,7 +401,7 @@ $entryFees = (int)($row_entrySettings['value']);
 					                     WHERE memberid = '" . $row_member['memberid'] . "' 
 					                     AND periodid = " . $_GET["PeriodID"] . " 
 					                     AND completed = " . COMPLETED_STATUS . "
-					                     ORDER BY id DESC LIMIT 1";
+					                     ORDER BY tlb_mastertransaction.transactionid DESC LIMIT 1";
 					$transaction_result = db_query($cov, $query_transaction);
 					$transaction_data = db_fetch_assoc($transaction_result);
 					mysqli_free_result($transaction_result);
