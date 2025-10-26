@@ -74,7 +74,14 @@ SELECT
         tlb_mastertransaction.interestPaid + 
         tlb_mastertransaction.loanRepayment + 
         tlb_mastertransaction.repayment_bank
-    ) as total
+    ) as total,
+    -- Check if accounting entries exist for this transaction
+    (
+        SELECT COUNT(*) 
+        FROM coop_journal_entries 
+        WHERE source_document LIKE CONCAT('CONTRIB-', tlb_mastertransaction.memberid, '-%')
+        OR source_document LIKE CONCAT('LOAN-', tlb_mastertransaction.memberid, '-%')
+    ) as has_accounting_entries
 FROM tlb_mastertransaction
 INNER JOIN tbl_personalinfo ON tlb_mastertransaction.memberid = tbl_personalinfo.memberid
 LEFT JOIN tbpayrollperiods ON tlb_mastertransaction.periodid = tbpayrollperiods.Periodid
@@ -265,7 +272,12 @@ $row_totalsum = $totalsum->fetch_assoc();
                 <td data-label="Select" class="py-2 px-2 ">
                     <input name="memberid" type="checkbox"
                         value="<?= htmlspecialchars($row_status['memberid']) . ',' . htmlspecialchars($row_status['Periodid']) ?>"
-                        checked>
+                        data-has-entries="<?= $row_status['has_accounting_entries'] > 0 ? '1' : '0'; ?>"
+                        data-memberid="<?= $row_status['memberid']; ?>"
+                        data-periodid="<?= $row_status['Periodid']; ?>">
+                    <?php if ($row_status['has_accounting_entries'] > 0): ?>
+                        <span class="ml-1 text-xs text-blue-600" title="This transaction has journal entries (will be reversed automatically if deleted)">📒</span>
+                    <?php endif; ?>
                 </td>
                 <td data-label="Coop No." class="py-2 px-2 "><?= htmlspecialchars($row_status['memberid']); ?></td>
                 <td data-label="Period" class="py-2 px-2 "><?= htmlspecialchars($row_status['PayrollPeriod']); ?></td>

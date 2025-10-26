@@ -121,52 +121,154 @@ function getMasterTransaction() {
     });
 }
 
-// DELETE SELECTED ROWS
+// DELETE SELECTED ROWS WITH ACCOUNTING REVERSAL
 $(document).on('click', '#deleteT', function() {
     let checkboxes = $('input[name="memberid"]:checked');
     if (checkboxes.length === 0) {
         Swal.fire('Please select at least one item to delete', '', 'info');
         return;
     }
+    
+    // Check if any selected transactions have accounting entries
+    let transactionsWithEntries = [];
+    let transactionIds = [];
+    
+    checkboxes.each(function() {
+        const value = $(this).val();
+        transactionIds.push(value);
+        
+        if ($(this).data('has-entries') == '1') {
+            const memberId = $(this).data('memberid');
+            const periodId = $(this).data('periodid');
+            transactionsWithEntries.push({ memberId, periodId });
+        }
+    });
+    
+    // Show appropriate confirmation message
+    let confirmTitle = 'Are you sure?';
+    let confirmHtml = '<p class="mb-4">This action will delete the selected transaction(s).</p>';
+    
+    if (transactionsWithEntries.length > 0) {
+        confirmTitle = '⚠️ Transactions with Accounting Entries';
+        confirmHtml = `
+            <div class="text-left">
+                <p class="mb-4"><strong>${transactionsWithEntries.length} transaction(s) have been posted to the accounting system.</strong></p>
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <p class="font-semibold text-blue-900 mb-2">What will happen:</p>
+                    <ol class="list-decimal list-inside space-y-2 text-sm text-blue-800">
+                        <li><strong>Automatic Reversal:</strong> All related journal entries will be reversed</li>
+                        <li><strong>Member Accounts:</strong> Balances will be corrected automatically</li>
+                        <li><strong>Transaction Deleted:</strong> The transaction will be removed from the database</li>
+                        <li><strong>Audit Trail:</strong> All reversals will be logged for compliance</li>
+                    </ol>
+                </div>
+                <p class="text-sm text-gray-700 mb-2"><strong>This is safe and maintains accounting integrity.</strong></p>
+                <p class="text-xs text-gray-500">If you need to correct the transaction instead, cancel and re-process with correct values.</p>
+            </div>
+        `;
+    }
+    
     Swal.fire({
-        title: 'Are you sure?',
-        text: 'This action will delete the selected item(s)!',
+        title: confirmTitle,
+        html: confirmHtml,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Yes, delete',
-        cancelButtonText: 'Cancel'
+        confirmButtonText: transactionsWithEntries.length > 0 ? 'Yes, Reverse & Delete' : 'Yes, Delete',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#dc2626',
+        width: '600px'
     }).then((result) => {
         if (result.isConfirmed) {
-            showBlockingLoader("Deleting...");
-            let transactionIds = [];
-            checkboxes.each(function() {
-                transactionIds.push($(this).val());
-            });
-            $.ajax({
-                type: "POST",
-                url: "deletetransaction.php",
-                data: { transactionIds: transactionIds },
-                success: function(response) {
-                $('#wait').css('visibility', 'hidden');
-                $('#status').css('visibility', 'visible');
-                if (response.success) {
-                    Swal.fire("Deleted!", "Selected item(s) deleted successfully.", "success").then(() => {
-                        window.location.href = "mastertransaction.php";
-                    });
-                } else {
-                    Swal.fire("Error", "Delete failed: " + (response.error || "Unknown error"), "error");
-                }
-                },
-                error: function(xhr, status, error) {
-                    $('#wait').css('visibility', 'hidden');
-                    $('#status').css('visibility', 'visible');
-                    Swal.fire("AJAX Error", "There was a problem while using AJAX:\n" + xhr.statusText, "error");
-                }
-
-            });
+            // If there are accounting entries, reverse them first
+            if (transactionsWithEntries.length > 0) {
+                reverseAndDelete(transactionsWithEntries, transactionIds);
+            } else {
+                // No accounting entries, just delete
+                deleteTransactions(transactionIds);
+            }
         }
     });
 });
+
+// Function to reverse accounting entries and then delete transactions
+async function reverseAndDelete(transactionsWithEntries, transactionIds) {
+    showBlockingLoader("Step 1/2: Reversing accounting entries...");
+    
+    try {
+        // Reverse each transaction's accounting entries
+        let reversalErrors = [];
+        for (let i = 0; i < transactionsWithEntries.length; i++) {
+            const transaction = transactionsWithEntries[i];
+            
+            const response = await $.ajax({
+                type: "POST",
+                url: "api/reverse_transaction.php",
+                data: { 
+                    memberid: transaction.memberId,
+                    periodid: transaction.periodId
+                },
+                dataType: 'json'
+            });
+            
+            if (!response.success) {
+                reversalErrors.push(`Member ${transaction.memberId}: ${response.error}`);
+            }
+        }
+        
+        if (reversalErrors.length > 0) {
+            hideBlockingLoader();
+            Swal.fire({
+                icon: 'error',
+                title: 'Reversal Failed',
+                html: '<p class="mb-2">Could not reverse accounting entries:</p><ul class="text-left text-sm">' +
+                      reversalErrors.map(e => `<li>${e}</li>`).join('') + '</ul>',
+                confirmButtonColor: '#dc2626'
+            });
+            return;
+        }
+        
+        // All reversals successful, now delete transactions
+        showBlockingLoader("Step 2/2: Deleting transactions...");
+        deleteTransactions(transactionIds);
+        
+    } catch (error) {
+        hideBlockingLoader();
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to reverse accounting entries: ' + (error.responseText || error.message),
+            confirmButtonColor: '#dc2626'
+        });
+    }
+}
+
+// Function to delete transactions
+function deleteTransactions(transactionIds) {
+    $.ajax({
+        type: "POST",
+        url: "deletetransaction.php",
+        data: { transactionIds: transactionIds },
+        success: function(response) {
+            hideBlockingLoader();
+            if (response.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    html: '<p>Transactions deleted successfully.</p><p class="text-sm text-gray-600 mt-2">Accounting entries have been reversed and audit trail updated.</p>',
+                    confirmButtonColor: '#16a34a'
+                }).then(() => {
+                    window.location.href = "mastertransaction.php";
+                });
+            } else {
+                Swal.fire("Error", "Delete failed: " + (response.error || "Unknown error"), "error");
+            }
+        },
+        error: function(xhr, status, error) {
+            hideBlockingLoader();
+            Swal.fire("Error", "AJAX Error: " + xhr.statusText, "error");
+        }
+    });
+}
 
 // EXPORT PDF
 $(document).on('click','#exportpdf',function(){
