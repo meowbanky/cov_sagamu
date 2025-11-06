@@ -9,6 +9,7 @@ This is a **plug-and-play accounting module** you can add to any cooperative man
 ## 📋 WHAT'S INCLUDED
 
 ### **Complete Double-Entry Accounting System:**
+
 - ✅ Chart of Accounts (90 pre-configured accounts)
 - ✅ Journal Entry Management (Manual & Automatic)
 - ✅ Trial Balance
@@ -25,13 +26,16 @@ This is a **plug-and-play accounting module** you can add to any cooperative man
 ## 🎯 QUICK DEPLOYMENT (3 STEPS)
 
 ### **Step 1: Database Setup**
+
 ```sql
 -- Run this SQL file in your new database
 SETUP_FULL_ACCOUNTING_SYSTEM.sql
 ```
 
 ### **Step 2: Copy Files**
+
 Copy these folders to your new project:
+
 ```
 libs/services/    → Accounting engine classes
 libs/reports/     → Report generators
@@ -39,6 +43,7 @@ api/              → API endpoints (accounting related)
 ```
 
 Copy these pages to your new project root:
+
 ```
 coop_chart_of_accounts.php
 coop_journal_entry_form.php
@@ -53,6 +58,7 @@ coop_bank_reconciliation.php
 ```
 
 ### **Step 3: Integration**
+
 Add accounting menu to your navigation (see integration guide below)
 
 ---
@@ -224,17 +230,17 @@ $is_balanced = abs($trial_balance['total_debit'] - $trial_balance['total_credit'
         <h4>💰 Cash & Bank</h4>
         <p class="amount">₦<?php echo number_format($cash_total, 2); ?></p>
     </div>
-    
+
     <div class="widget">
         <h4>💵 Member Loans</h4>
         <p class="amount">₦<?php echo number_format($loans_total, 2); ?></p>
     </div>
-    
+
     <div class="widget">
         <h4>👥 Member Equity</h4>
         <p class="amount">₦<?php echo number_format($equity_total, 2); ?></p>
     </div>
-    
+
     <div class="widget">
         <h4>⚖️ Trial Balance</h4>
         <p class="status"><?php echo $is_balanced ? '✓ Balanced' : '✗ Out of Balance'; ?></p>
@@ -247,7 +253,9 @@ $is_balanced = abs($trial_balance['total_debit'] - $trial_balance['total_credit'
 ## 🎯 CUSTOMIZATION POINTS
 
 ### **1. Account Codes**
+
 The chart of accounts uses this structure:
+
 - **1000-1999:** Assets
 - **2000-2999:** Liabilities
 - **3000-3999:** Equity
@@ -258,6 +266,7 @@ The chart of accounts uses this structure:
 You can modify accounts in `coop_chart_of_accounts.php` or directly in the database.
 
 ### **2. Member Account Mapping**
+
 In `process.php` (or your equivalent), these account IDs are used:
 
 ```php
@@ -272,13 +281,16 @@ In `process.php` (or your equivalent), these account IDs are used:
 **Change these IDs** if your new project uses different account numbers.
 
 ### **3. Period Structure**
+
 The system assumes you have a `tbpayrollperiods` table with:
+
 - `Periodid` (INT) - Period ID
 - `PayrollPeriod` (VARCHAR) - Period name/description
 
 Update SQL queries if your periods table has different column names.
 
 ### **4. User Authentication**
+
 All pages check for `$_SESSION['UserID']`. Update if your session variable is different:
 
 ```php
@@ -294,11 +306,14 @@ if (!isset($_SESSION['your_user_id_variable'])) {
 ## 🔒 DATABASE REQUIREMENTS
 
 ### **Existing Tables Needed:**
+
 1. `tbpayrollperiods` - Your periods table
 2. `tbl_personalinfo` - Your members table
 
 ### **New Tables Created:**
+
 All accounting tables start with `coop_*` to avoid conflicts:
+
 - `coop_accounts`
 - `coop_journal_entries`
 - `coop_journal_entry_lines`
@@ -317,28 +332,33 @@ All accounting tables start with `coop_*` to avoid conflicts:
 ## ✅ PRE-CONFIGURED ACCOUNTS (90 Total)
 
 ### **ASSETS (1000-1999)**
+
 - Cash & Bank accounts
 - Member Loans
 - Fixed Assets
 - Inventory
 
 ### **LIABILITIES (2000-2999)**
+
 - Bank Loans
 - Payables
 - Accrued Expenses
 
 ### **EQUITY (3000-3999)**
+
 - Ordinary Shares
 - Savings Accounts
 - Reserves (Statutory, General, Education)
 - Retained Earnings
 
 ### **REVENUE (4000-4999)**
+
 - Entrance Fees
 - Interest on Loans
 - Other Income
 
 ### **EXPENSES (5000-6999)**
+
 - Cost of Sales
 - Salaries & Wages
 - Operating Expenses
@@ -370,6 +390,7 @@ See the SQL file for complete list.
 ## 📊 TESTING GUIDE
 
 ### **Test 1: Manual Journal Entry**
+
 1. Go to **New Journal Entry**
 2. Create a test entry:
    - DR Bank (1102): 10,000
@@ -377,11 +398,13 @@ See the SQL file for complete list.
 3. Submit and verify entry posted
 
 ### **Test 2: Trial Balance**
+
 1. Go to **Trial Balance**
 2. Verify debits = credits
 3. Check accounting equation: Assets = Liabilities + Equity
 
 ### **Test 3: Financial Statements**
+
 1. Go to **Financial Statements**
 2. Generate Income & Expenditure
 3. Generate Balance Sheet
@@ -396,18 +419,21 @@ See the SQL file for complete list.
 If your new project has different table/column names:
 
 **1. Update in `AccountingEngine.php`:**
+
 ```php
 // Change period reference:
 $sql = "... FROM your_periods_table WHERE your_period_id = ?";
 ```
 
 **2. Update in `MemberAccountManager.php`:**
+
 ```php
 // Change member table reference:
 $sql = "... FROM your_members_table WHERE your_member_id = ?";
 ```
 
 **3. Update in all page files:**
+
 ```php
 // Change database connection:
 require_once('your_connection_file.php');
@@ -425,6 +451,7 @@ require_once('your_connection_file.php');
 4. Start using manually!
 
 **That's it!** Users can now:
+
 - Enter journal entries manually
 - View financial statements
 - Run trial balance
@@ -443,11 +470,13 @@ Follow the same steps above, then:
 ## 📚 ADDITIONAL RESOURCES
 
 ### **Documentation Files:**
+
 - `ACCOUNTING_ENGINE_USAGE_GUIDE.md` - Code examples
 - `ACCOUNTING_DEPLOYMENT_GUIDE.md` - Detailed deployment
 - `FILES_TO_UPLOAD.md` - Complete file list
 
 ### **Need Help?**
+
 - Review the code comments (extensively documented)
 - Check error logs (all errors logged)
 - Use audit trail to track all changes
@@ -501,4 +530,3 @@ After deployment, you should be able to:
 This is a **complete, production-ready** accounting module that you can drop into any cooperative management project!
 
 **Next Step:** Create a checklist and start copying files! 🎯
-
