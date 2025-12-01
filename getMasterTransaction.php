@@ -147,6 +147,26 @@ $row_totalsum = $totalsum->fetch_assoc();
 
 <!-- Card-View CSS for Mobile -->
 <style>
+/* Ensure export buttons container doesn't cause horizontal scroll */
+@media (max-width: 767px) {
+    #status>div:first-of-type {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    #status>div:first-of-type button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        min-width: 0 !important;
+    }
+}
+
 @media (max-width: 640px) {
 
     /* Only apply these styles to table-related elements, not buttons */
@@ -215,25 +235,28 @@ $row_totalsum = $totalsum->fetch_assoc();
 <input type="hidden" name="filename" id="filename" value="<?php echo htmlspecialchars($_GET['filename'] ?? ''); ?>">
 
 <!-- Action Buttons -->
-<div class="flex flex-wrap justify-center sm:justify-end gap-2 mb-4 px-2">
+<div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4"
+    style="width: calc(100% - 0px); box-sizing: border-box; max-width: 100%; overflow: hidden; margin-left: 0; margin-right: 0;">
     <button name="exportpdf" id="exportpdf" type="button"
-        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition font-semibold text-sm sm:text-base">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor"
+        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 active:bg-blue-800 transition font-semibold text-sm sm:text-base"
+        style="box-sizing: border-box; min-width: 0; width: 100%; max-width: 100%;">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor"
             stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round"
                 d="M12 8v8m0 0-3-3m3 3 3-3m6 3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span class="whitespace-nowrap">Export PDF</span>
+        <span class="truncate">Export PDF</span>
     </button>
     <button name="exportexcel" id="exportexcel" type="button"
-        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition font-semibold text-sm sm:text-base">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor"
+        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 active:bg-purple-800 transition font-semibold text-sm sm:text-base"
+        style="box-sizing: border-box; min-width: 0; width: 100%; max-width: 100%;">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor"
             stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round"
                 d="M16 17v1a3 3 0 01-3 3H7a3 3 0 01-3-3V7a3 3 0 013-3h1" />
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8m-8 4h8m2-10v4a2 2 0 002 2h4" />
         </svg>
-        <span class="whitespace-nowrap">Export Excel</span>
+        <span class="truncate">Export Excel</span>
     </button>
 </div>
 
@@ -273,10 +296,10 @@ $row_totalsum = $totalsum->fetch_assoc();
                     <input name="memberid" type="checkbox"
                         value="<?= htmlspecialchars($row_status['memberid']) . ',' . htmlspecialchars($row_status['Periodid']) ?>"
                         data-has-entries="<?= $row_status['has_accounting_entries'] > 0 ? '1' : '0'; ?>"
-                        data-memberid="<?= $row_status['memberid']; ?>"
-                        data-periodid="<?= $row_status['Periodid']; ?>">
+                        data-memberid="<?= $row_status['memberid']; ?>" data-periodid="<?= $row_status['Periodid']; ?>">
                     <?php if ($row_status['has_accounting_entries'] > 0): ?>
-                        <span class="ml-1 text-xs text-blue-600" title="This transaction has journal entries (will be reversed automatically if deleted)">📒</span>
+                    <span class="ml-1 text-xs text-blue-600"
+                        title="This transaction has journal entries (will be reversed automatically if deleted)">📒</span>
                     <?php endif; ?>
                 </td>
                 <td data-label="Coop No." class="py-2 px-2 "><?= htmlspecialchars($row_status['memberid']); ?></td>
@@ -342,3 +365,221 @@ $row_totalsum = $totalsum->fetch_assoc();
 $statusStmt->close();
 $totalStmt->close();
 ?>
+
+<script>
+// EXPORT PDF with Email
+$(document).on('click', '#exportpdf', function() {
+    var table = document.getElementById('sample_1').outerHTML;
+    var filename = document.getElementById('filename') ? document.getElementById('filename').value :
+        'MasterTransaction';
+
+    // If filename is empty, try to get from URL parameters
+    if (!filename || filename === '') {
+        var urlParams = new URLSearchParams(window.location.search);
+        var periodFrom = urlParams.get('periodfrom') || '';
+        var periodTo = urlParams.get('periodTo') || '';
+        filename = 'MasterTransaction_' + periodFrom + '_' + periodTo;
+    }
+
+    Swal.fire({
+        title: "Recipient's Email",
+        input: "text",
+        inputLabel: "Please enter the email address where the PDF will be sent:",
+        inputPlaceholder: "someone@email.com",
+        showCancelButton: true,
+        confirmButtonText: 'Send PDF',
+        cancelButtonText: 'Cancel',
+        allowEnterKey: false,
+        allowOutsideClick: false,
+        inputAttributes: {
+            type: 'email',
+            autocapitalize: 'off',
+            autocorrect: 'off',
+            autocomplete: 'email'
+        },
+        didOpen: () => {
+            setTimeout(() => {
+                const input = Swal.getInput();
+                const confirmButton = Swal.getConfirmButton();
+
+                if (input) {
+                    // Prevent Enter key from submitting
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.keyCode === 13) {
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
+                            return false;
+                        }
+                    }, true);
+
+                    // Disable confirm button until user manually clicks it
+                    if (confirmButton) {
+                        confirmButton.disabled = true;
+                        input.addEventListener('input', function() {
+                            confirmButton.disabled = false;
+                        });
+                        // Re-enable after a short delay to allow typing
+                        setTimeout(() => {
+                            if (confirmButton) confirmButton.disabled = false;
+                        }, 500);
+                    }
+
+                    input.focus();
+                }
+            }, 100);
+        },
+        preConfirm: (value) => {
+            if (!value || !value.trim()) {
+                Swal.showValidationMessage('You need to enter an email address!');
+                return false;
+            }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value.trim())) {
+                Swal.showValidationMessage('Please enter a valid email address!');
+                return false;
+            }
+            return value.trim();
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            showBlockingLoader("Exporting PDF...");
+            $.ajax({
+                url: 'export_pdf_formatted.php',
+                type: 'POST',
+                data: {
+                    html: table,
+                    email: result.value,
+                    filename: filename
+                },
+                xhrFields: {
+                    responseType: 'blob'
+                },
+                success: function(data) {
+                    hideBlockingLoader();
+                    var a = document.createElement('a');
+                    var url = window.URL.createObjectURL(data);
+                    a.href = url;
+                    a.download = filename + '.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                    Swal.fire('Exported!', 'PDF file exported successfully.', 'success');
+                },
+                error: function() {
+                    hideBlockingLoader();
+                    Swal.fire('Failed', 'Failed to export table as PDF.', 'error');
+                }
+            });
+        }
+    });
+});
+
+// EXPORT EXCEL with Email
+$(document).on('click', '#exportexcel', function() {
+    var table = document.getElementById('sample_1').outerHTML;
+    var filename = document.getElementById('filename') ? document.getElementById('filename').value :
+        'MasterTransaction';
+
+    // If filename is empty, try to get from URL parameters
+    if (!filename || filename === '') {
+        var urlParams = new URLSearchParams(window.location.search);
+        var periodFrom = urlParams.get('periodfrom') || '';
+        var periodTo = urlParams.get('periodTo') || '';
+        filename = 'MasterTransaction_' + periodFrom + '_' + periodTo;
+    }
+
+    Swal.fire({
+        title: "Recipient's Email",
+        input: "text",
+        inputLabel: "Please enter the email address where the Excel file will be sent:",
+        inputPlaceholder: "someone@email.com",
+        showCancelButton: true,
+        confirmButtonText: 'Send Excel',
+        cancelButtonText: 'Cancel',
+        allowEnterKey: false,
+        allowOutsideClick: false,
+        inputAttributes: {
+            type: 'email',
+            autocapitalize: 'off',
+            autocorrect: 'off',
+            autocomplete: 'email'
+        },
+        didOpen: () => {
+            setTimeout(() => {
+                const input = Swal.getInput();
+                const confirmButton = Swal.getConfirmButton();
+
+                if (input) {
+                    // Prevent Enter key from submitting
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.keyCode === 13) {
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
+                            return false;
+                        }
+                    }, true);
+
+                    // Disable confirm button until user manually clicks it
+                    if (confirmButton) {
+                        confirmButton.disabled = true;
+                        input.addEventListener('input', function() {
+                            confirmButton.disabled = false;
+                        });
+                        // Re-enable after a short delay to allow typing
+                        setTimeout(() => {
+                            if (confirmButton) confirmButton.disabled = false;
+                        }, 500);
+                    }
+
+                    input.focus();
+                }
+            }, 100);
+        },
+        preConfirm: (value) => {
+            if (!value || !value.trim()) {
+                Swal.showValidationMessage('You need to enter an email address!');
+                return false;
+            }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value.trim())) {
+                Swal.showValidationMessage('Please enter a valid email address!');
+                return false;
+            }
+            return value.trim();
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            showBlockingLoader("Exporting Excel...");
+            $.ajax({
+                url: 'export_excel_formatted.php',
+                type: 'POST',
+                data: {
+                    html: table,
+                    email: result.value,
+                    filename: filename
+                },
+                xhrFields: {
+                    responseType: 'blob'
+                },
+                success: function(data) {
+                    hideBlockingLoader();
+                    var a = document.createElement('a');
+                    var url = window.URL.createObjectURL(data);
+                    a.href = url;
+                    a.download = filename + '.xlsx';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                    Swal.fire('Exported!', 'Excel file exported successfully.', 'success');
+                },
+                error: function() {
+                    hideBlockingLoader();
+                    Swal.fire('Failed', 'Failed to export table as Excel.', 'error');
+                }
+            });
+        }
+    });
+});
+</script>

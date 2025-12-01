@@ -7,6 +7,8 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $tableHtml = $_POST['html'];
@@ -213,6 +215,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $writer = new Xlsx($spreadsheet);
     $tempFileName = tempnam(sys_get_temp_dir(), 'xlsx');
     $writer->save($tempFileName);
+    
+    // Get email from POST if provided
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    
+    // Send email if email address is provided
+    if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        try {
+            $mail = new PHPMailer(true);
+            
+            // Server settings
+            $mail->isSMTP();
+            $mail->Host = 'mail.emmaggi.com';
+            $mail->SMTPAuth = true;
+            $mail->Username = 'cov@emmaggi.com';
+            $mail->Password = 'Banzoo@7980';
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = 587;
+            
+            // Recipients
+            $mail->setFrom('cov@emmaggi.com', 'VCMS');
+            $mail->addAddress($email);
+            
+            // Attachments
+            $mail->addAttachment($tempFileName, $filename . '.xlsx');
+            
+            // Content
+            $mail->isHTML(true);
+            $mail->Subject = 'Master Transaction Report - ' . $filename;
+            $mail->Body = 'Dear Recipient,<br><br>The Master Transaction Report "' . htmlspecialchars($filename) . '" is attached.<br><br>Best regards,<br>VCMS';
+            
+            $mail->send();
+        } catch (Exception $e) {
+            // Continue with download even if email fails
+            error_log("Email sending failed: " . (isset($mail) ? $mail->ErrorInfo : $e->getMessage()));
+        }
+    }
     
     // Send file to browser
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

@@ -5,42 +5,43 @@ require __DIR__ . '/vendor/autoload.php';
 // Explicitly include TCPDF
 require __DIR__ . '/vendor/tecnickcom/tcpdf/tcpdf.php';
 
+// Include PHPMailer for email functionality
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+// Custom PDF class with repeating header and footer - Define BEFORE using
+class CustomPDF extends TCPDF {
+    public $customFilename = '';
+    public $tableHeaderHtml = '';
+    
+    public function Header() {
+        if (!empty($this->tableHeaderHtml)) {
+            // Position at top with small margin
+            $this->SetY(10);
+            $this->SetFont('helvetica', '', 7);
+            
+            // Write the table header HTML
+            $this->writeHTML($this->tableHeaderHtml, true, false, true, false, '');
+        }
+    }
+    
+    public function Footer() {
+        $this->SetY(-15);
+        $this->SetFont('helvetica', '', 8);
+        $this->Cell(0, 10, 'Printed: ' . date('Y-m-d H:i') . ' | ' . $this->customFilename, 0, false, 'L', 0, '', 0, false, 'T', 'M');
+        $this->Cell(0, 10, 'Page ' . $this->getAliasNumPage() . ' of ' . $this->getAliasNbPages(), 0, false, 'R', 0, '', 0, false, 'T', 'M');
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $tableHtml = $_POST['html'];
     $filename = isset($_POST['filename']) ? $_POST['filename'] : 'MasterTransaction';
-
-    // Create new PDF document - Landscape A4
-    $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
-
-    // Set document information
-    $pdf->SetCreator('Cooperative Management System');
-    $pdf->SetAuthor('VCMS');
-    $pdf->SetTitle($filename);
-    $pdf->SetSubject('Master Transaction Report');
-
-    // Remove default header/footer
-    $pdf->setPrintHeader(false);
-    $pdf->setPrintFooter(true);
-
-    // Set footer with page numbers
-    $pdf->setFooterFont(Array('helvetica', '', 8));
-    
-    // Set margins - smaller for landscape fit
-    $pdf->SetMargins(5, 10, 5); // left, top, right (5mm = 0.2 inches)
-    $pdf->SetHeaderMargin(0);
-    $pdf->SetFooterMargin(10);
-
-    // Set auto page breaks
-    $pdf->SetAutoPageBreak(TRUE, 15);
-
-    // Set font
-    $pdf->SetFont('helvetica', '', 7); // Small font for horizontal fit
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
     
     // Store header HTML for repetition on each page
     $headerHtml = '';
-
-    // Add a page
-    $pdf->AddPage();
+    $html = '';
+    $headerRowHtml = '';
     
     // Parse HTML to clean and format it
     $dom = new DOMDocument();
@@ -143,38 +144,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         
         $html .= '</table>';
         
-        // Write the formatted HTML
-        $pdf->writeHTML($html, true, false, true, false, '');
+        // HTML is now prepared with header row stored separately
     } else {
         // Fallback: use original HTML
-        $pdf->writeHTML($tableHtml, true, false, true, false, '');
+        $html = $tableHtml;
     }
     
-    // Custom PDF class with repeating header and footer
-    class CustomPDF extends TCPDF {
-        public $customFilename = '';
-        public $tableHeaderHtml = '';
-        
-        public function Header() {
-            if (!empty($this->tableHeaderHtml)) {
-                // Position at top with small margin
-                $this->SetY(10);
-                $this->SetFont('helvetica', '', 7);
-                
-                // Write the table header HTML
-                $this->writeHTML($this->tableHeaderHtml, true, false, true, false, '');
-            }
-        }
-        
-        public function Footer() {
-            $this->SetY(-15);
-            $this->SetFont('helvetica', '', 8);
-            $this->Cell(0, 10, 'Printed: ' . date('Y-m-d H:i') . ' | ' . $this->customFilename, 0, false, 'L', 0, '', 0, false, 'T', 'M');
-            $this->Cell(0, 10, 'Page ' . $this->getAliasNumPage() . ' of ' . $this->getAliasNbPages(), 0, false, 'R', 0, '', 0, false, 'T', 'M');
-        }
-    }
-    
-    // Recreate PDF with custom header and footer
+    // Create PDF with custom header and footer - Only create ONCE
     $pdf = new CustomPDF('L', 'mm', 'A4', true, 'UTF-8', false);
     $pdf->customFilename = $filename;
     
@@ -207,15 +183,63 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $pdf->AddPage();
     
     // Write only the data rows (skip the header row as it's now in Header())
-    // Remove the header row from the HTML before writing
-    $htmlWithoutHeader = preg_replace('/<tr>.*?<\/tr>/', '', $html, 1);
-    $pdf->writeHTML($htmlWithoutHeader, true, false, true, false, '');
+    // Only remove header if we have headerRowHtml defined (from table parsing)
+    if (!empty($headerRowHtml) && !empty($html)) {
+        // Remove the header row from the HTML before writing
+        $htmlWithoutHeader = preg_replace('/<tr>.*?<\/tr>/', '', $html, 1);
+        $pdf->writeHTML($htmlWithoutHeader, true, false, true, false, '');
+    } else {
+        // Use full HTML if no header separation was done
+        $pdf->writeHTML($html, true, false, true, false, '');
+    }
 
     // Set the filename
     $pdfFilename = $filename . '.pdf';
+    
+    // Save PDF to temporary file for email attachment
+    $tempFilePath = sys_get_temp_dir() . '/' . uniqid('pdf_') . '.pdf';
+    $pdf->Output($tempFilePath, 'F');
+    
+    // Send email if email address is provided
+    if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        try {
+            $mail = new PHPMailer(true);
+            
+            // Server settings
+            $mail->isSMTP();
+            $mail->Host = 'mail.emmaggi.com';
+            $mail->SMTPAuth = true;
+            $mail->Username = 'cov@emmaggi.com';
+            $mail->Password = 'Banzoo@7980';
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = 587;
+            
+            // Recipients
+            $mail->setFrom('cov@emmaggi.com', 'VCMS');
+            $mail->addAddress($email);
+            
+            // Attachments
+            $mail->addAttachment($tempFilePath, $pdfFilename);
+            
+            // Content
+            $mail->isHTML(true);
+            $mail->Subject = 'Master Transaction Report - ' . $filename;
+            $mail->Body = 'Dear Recipient,<br><br>The Master Transaction Report "' . htmlspecialchars($filename) . '" is attached.<br><br>Best regards,<br>VCMS';
+            
+            $mail->send();
+        } catch (Exception $e) {
+            // Continue with download even if email fails
+            error_log("Email sending failed: " . (isset($mail) ? $mail->ErrorInfo : $e->getMessage()));
+        }
+    }
 
     // Output the PDF as a download
-    $pdf->Output($pdfFilename, 'D');
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $pdfFilename . '"');
+    readfile($tempFilePath);
+    
+    // Clean up temporary file
+    @unlink($tempFilePath);
+    exit;
 }
 ?>
-
