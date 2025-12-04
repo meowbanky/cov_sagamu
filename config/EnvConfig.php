@@ -83,6 +83,13 @@ class EnvConfig {
         return self::get('OPENAI_API_KEY', '');
     }
     
+    /**
+     * Get Google Maps API key
+     */
+    public static function getGoogleMapsApiKey() {
+        return self::get('GOOGLE_MAPS_API_KEY', '');
+    }
+    
 
     /**
      * Check if OpenAI key is configured
@@ -140,6 +147,13 @@ class EnvConfig {
      */
     public static function getEncryptionKey() {
         return self::get('ENCRYPTION_KEY', 'your_encryption_key_here');
+    }
+    
+    /**
+     * Get API secret key
+     */
+    public static function getAPISecret() {
+        return self::get('API_SECRET', '');
     }
     
     /**
