@@ -1,10 +1,10 @@
 <?php
-require_once('header.php');
 session_start();
 if (!isset($_SESSION['UserID'])) {
     header("Location:index.php");
     exit;
 }
+require_once('header.php');
 require_once('Connections/cov.php');
 
 // Fetch all periods

@@ -57,6 +57,28 @@ $current = basename($_SERVER['PHP_SELF']);
         background: #e0e7ff;
         color: #1d4ed8;
     }
+
+    /* Mobile sidebar styles */
+    @media (max-width: 767px) {
+        #sidebar {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        #sidebar.show {
+            transform: translateX(0);
+        }
+
+        #sidebar-overlay {
+            display: block;
+        }
+    }
+
+    @media (min-width: 768px) {
+        #sidebar-overlay {
+            display: none !important;
+        }
+    }
     </style>
 </head>
 
@@ -143,7 +165,7 @@ $current = basename($_SERVER['PHP_SELF']);
     <div class="flex min-h-screen">
         <!-- SIDEBAR: mobile & desktop -->
         <aside id="sidebar"
-            class="fixed top-0 left-0 z-40 w-64 h-full bg-white shadow-lg flex flex-col py-6 px-3 transition-transform duration-200 -translate-x-full md:static md:translate-x-0 md:flex md:w-64">
+            class="fixed top-0 left-0 z-50 w-64 h-full bg-white shadow-lg flex flex-col py-6 px-3 transition-transform duration-200 -translate-x-full md:static md:translate-x-0 md:flex md:w-64">
             <div class="flex justify-between mb-6 md:hidden">
                 <span class="text-lg font-bold text-blue-900"><?= htmlspecialchars($row_title['value']) ?></span>
                 <button id="close-sidebar" class="text-gray-500 text-2xl focus:outline-none">&times;</button>
@@ -165,6 +187,9 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="addloan.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='addloan.php'?'sidebar-active sidebar-active':'' ?>"><i
                                 class="fa fa-hand-holding-usd fa-fw mr-2"></i> Add Loan</a></li>
+                    <li><a href="getoverdue.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='getoverdue.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-exclamation-triangle fa-fw mr-2"></i> Overdue Loans</a></li>
                     <li><a href="withdrawal_savings.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='withdrawal_savings.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-money-bill-wave fa-fw mr-2"></i> Withdraw from Savings</a></li>
@@ -189,13 +214,17 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="special_savings_management.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='special_savings_management.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-star fa-fw mr-2"></i> Special Savings</a></li>
+                    <li><a href="event-management.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='event-management.php' || $current=='event-details.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-calendar-check fa-fw mr-2"></i> Event Management</a></li>
                     <li><a href="email_queue_dashboard.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='email_queue_dashboard.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-envelope fa-fw mr-2"></i> Email Queue</a></li>
-                    
+
                     <!-- Accounting Section -->
                     <li class="mt-4 pt-4 border-t border-gray-200">
-                        <span class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Accounting</span>
+                        <span
+                            class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Accounting</span>
                     </li>
                     <li><a href="coop_chart_of_accounts.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_chart_of_accounts.php'?'sidebar-active':'' ?>"><i
@@ -227,7 +256,7 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="coop_bank_reconciliation.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_bank_reconciliation.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-university fa-fw mr-2"></i> Bank Reconciliation</a></li>
-                    
+
                     <li><a href="queue_members_email.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='queue_members_email.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-paper-plane fa-fw mr-2"></i> Queue Members Email</a></li>

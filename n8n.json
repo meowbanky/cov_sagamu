@@ -1,0 +1,749 @@
+{
+  "name": "WhatsApp AI Banking Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "whatsapp-banking"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.entry[0].changes[0].value.messages }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-message-exists",
+      "name": "Has Message?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract message data\nconst entry = $input.item.json.body.entry[0];\nconst message = entry.changes[0].value.messages[0];\n\nconst from = message.from;\nconst messageId = message.id;\nconst messageText = message.text?.body || '';\n\n// Format phone number: strip 234 and add 0\nlet formattedNumber = from;\nif (formattedNumber.startsWith('234')) {\n  formattedNumber = '0' + formattedNumber.substring(3);\n}\n\nreturn {\n  original_number: from,\n  formatted_number: formattedNumber,\n  message_id: messageId,\n  message_text: messageText\n};"
+      },
+      "id": "extract-message-data",
+      "name": "Extract & Format Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM users WHERE phone_number = '{{ $json.formatted_number }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "check-user-exists",
+      "name": "MySQL - Check User",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "credentials": {
+        "mysql": {
+          "id": "1",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "user-exists-check",
+      "name": "User Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "messaging_product",
+              "value": "whatsapp"
+            },
+            {
+              "name": "to",
+              "value": "={{ $node['Extract & Format Data'].json.original_number }}"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "text",
+              "value": "={\"body\": \"Sorry, your phone number is not registered in our system. Please contact customer support for assistance.\"}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-not-registered",
+      "name": "Send Not Registered Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 150]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "conversation_history",
+        "columns": "user_id, role, message",
+        "values": "={{ $json[0].id }}, 'user', '{{ $node['Extract & Format Data'].json.message_text }}'"
+      },
+      "id": "save-user-message",
+      "name": "Save User Message",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1250, 450],
+      "credentials": {
+        "mysql": {
+          "id": "1",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT role, message FROM conversation_history WHERE user_id = {{ $node['MySQL - Check User'].json[0].id }} ORDER BY created_at DESC LIMIT 10",
+        "options": {}
+      },
+      "id": "get-history",
+      "name": "Get Conversation History",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1450, 450],
+      "credentials": {
+        "mysql": {
+          "id": "1",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare conversation for OpenAI\nconst userData = $node['MySQL - Check User'].json[0];\nconst currentMessage = $node['Extract & Format Data'].json.message_text;\nconst history = $input.all();\n\n// Reverse history (oldest first)\nconst messages = history.reverse().map(item => ({\n  role: item.json.role,\n  content: item.json.message\n}));\n\n// Add current message\nmessages.push({\n  role: 'user',\n  content: currentMessage\n});\n\nreturn {\n  user_id: userData.id,\n  user_name: userData.name,\n  messages: messages\n};"
+      },
+      "id": "prepare-openai-context",
+      "name": "Prepare OpenAI Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 450]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "create",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are a helpful banking assistant for a cooperative bank. You're chatting with {{ $json.user_name }} via WhatsApp.\n\nYou can help customers with the following services:\n1. Check share balance - [ACTION:GET_SHARES]\n2. Check savings balance - [ACTION:GET_SAVINGS]\n3. Check loan balance - [ACTION:GET_LOAN_BALANCE]\n4. Check outstanding interest - [ACTION:GET_INTEREST]\n5. View recent transactions - [ACTION:GET_TRANSACTIONS]\n\nInstructions:\n- Be friendly, professional, and conversational\n- Use natural Nigerian English where appropriate\n- Ask clarifying questions if needed\n- When a customer requests information, confirm what they want before proceeding\n- If a request is unclear, politely ask for clarification\n- Keep responses concise for WhatsApp\n\nIMPORTANT: When you're ready to execute an action (like fetching balance), end your response with the appropriate action code in square brackets. For example: [ACTION:GET_SHARES]\n\nOnly include ONE action code when the customer has clearly confirmed what they want. Do not include action codes in general conversation."
+            }
+          ]
+        },
+        "text": "={{ JSON.stringify($json.messages) }}",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 500
+        }
+      },
+      "id": "openai-chat",
+      "name": "OpenAI Chat",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [1850, 450],
+      "credentials": {
+        "openAiApi": {
+          "id": "2",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract action from AI response\nconst aiResponse = $input.item.json.message.content;\nconst userId = $node['Prepare OpenAI Context'].json.user_id;\nconst userName = $node['Prepare OpenAI Context'].json.user_name;\n\n// Check for action codes\nconst actionMatch = aiResponse.match(/\\[ACTION:([A-Z_]+)\\]/);\nconst action = actionMatch ? actionMatch[1] : null;\n\n// Clean response (remove action code)\nconst cleanMessage = aiResponse.replace(/\\[ACTION:[A-Z_]+\\]/g, '').trim();\n\nreturn {\n  ai_message: cleanMessage,\n  action: action,\n  user_id: userId,\n  user_name: userName,\n  full_response: aiResponse\n};"
+      },
+      "id": "parse-action",
+      "name": "Parse Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2050, 450]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "GET_SHARES"
+                  }
+                ]
+              },
+              "output": 0
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "GET_SAVINGS"
+                  }
+                ]
+              },
+              "output": 1
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "GET_LOAN_BALANCE"
+                  }
+                ]
+              },
+              "output": 2
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "GET_INTEREST"
+                  }
+                ]
+              },
+              "output": 3
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "GET_TRANSACTIONS"
+                  }
+                ]
+              },
+              "output": 4
+            }
+          ]
+        },
+        "fallbackOutput": 5
+      },
+      "id": "switch-action",
+      "name": "Switch Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [2250, 450]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT share_balance, last_updated FROM shares WHERE user_id = {{ $json.user_id }}",
+        "options": {}
+      },
+      "id": "get-shares",
+      "name": "Get Shares",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2450, 150],
+      "credentials": {
+        "mysql": {
+          "id": "1",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT savings_balance, account_type, last_updated FROM savings WHERE user_id = {{ $json.user_id }}",
+        "options": {}
+      },
+      "id": "get-savings",
+      "name": "Get Savings",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2450, 300],
+      "credentials": {
+        "mysql": {
+          "id": "1",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT loan_balance, loan_type, disbursement_date, due_date FROM loans WHERE user_id = {{ $json.user_id }} AND status = 'active'",
+        "options": {}
+      },
+      "id": "get-loan",
+      "name": "Get Loan Balance",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2450, 450],
+      "credentials": {
+        "mysql": {
+          "id": "1",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT outstanding_interest, interest_rate, due_date FROM loans WHERE user_id = {{ $json.user_id }} AND status = 'active'",
+        "options": {}
+      },
+      "id": "get-interest",
+      "name": "Get Interest",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2450, 600],
+      "credentials": {
+        "mysql": {
+          "id": "1",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT transaction_type, amount, description, created_at FROM transactions WHERE user_id = {{ $json.user_id }} ORDER BY created_at DESC LIMIT 10",
+        "options": {}
+      },
+      "id": "get-transactions",
+      "name": "Get Transactions",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2450, 750],
+      "credentials": {
+        "mysql": {
+          "id": "1",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "create",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are formatting banking data for a customer. Present it clearly and conversationally for WhatsApp. Use emojis sparingly if appropriate. Keep it concise."
+            },
+            {
+              "role": "user",
+              "content": "=Format this banking information naturally:\n\n{{ JSON.stringify($json) }}\n\nFor user: {{ $node['Parse Action'].json.user_name }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 300
+        }
+      },
+      "id": "format-response",
+      "name": "Format Response with AI",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [2650, 450],
+      "credentials": {
+        "openAiApi": {
+          "id": "2",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition"
+      },
+      "id": "merge-responses",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2850, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the final message to send\nconst parseActionData = $node['Parse Action'].json;\nlet finalMessage;\n\nif (parseActionData.action) {\n  // We have data from database\n  const formattedData = $input.item.json;\n  finalMessage = formattedData.message?.content || JSON.stringify(formattedData);\n} else {\n  // No action, just conversational\n  finalMessage = parseActionData.ai_message;\n}\n\nreturn {\n  message: finalMessage,\n  user_id: parseActionData.user_id,\n  to: $node['Extract & Format Data'].json.original_number\n};"
+      },
+      "id": "prepare-final-message",
+      "name": "Prepare Final Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3050, 450]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "conversation_history",
+        "columns": "user_id, role, message",
+        "values": "={{ $json.user_id }}, 'assistant', '{{ $json.message }}'"
+      },
+      "id": "save-assistant-message",
+      "name": "Save Assistant Message",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [3250, 450],
+      "credentials": {
+        "mysql": {
+          "id": "1",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.to }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": {{ JSON.stringify($json.message) }}\n  }\n}",
+        "options": {}
+      },
+      "id": "send-whatsapp-message",
+      "name": "Send WhatsApp Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [3450, 450],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "3",
+          "name": "WhatsApp Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"success\" }",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3650, 450]
+    }
+  ],
+  "connections": {
+    "WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "Has Message?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Message?": {
+      "main": [
+        [
+          {
+            "node": "Extract & Format Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract & Format Data": {
+      "main": [
+        [
+          {
+            "node": "MySQL - Check User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MySQL - Check User": {
+      "main": [
+        [
+          {
+            "node": "User Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Exists?": {
+      "main": [
+        [
+          {
+            "node": "Save User Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Not Registered Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save User Message": {
+      "main": [
+        [
+          {
+            "node": "Get Conversation History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation History": {
+      "main": [
+        [
+          {
+            "node": "Prepare OpenAI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare OpenAI Context": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat": {
+      "main": [
+        [
+          {
+            "node": "Parse Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Action": {
+      "main": [
+        [
+          {
+            "node": "Switch Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Action": {
+      "main": [
+        [
+          {
+            "node": "Get Shares",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Savings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Loan Balance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Interest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Transactions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Shares": {
+      "main": [
+        [
+          {
+            "node": "Format Response with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Savings": {
+      "main": [
+        [
+          {
+            "node": "Format Response with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Loan Balance": {
+      "main": [
+        [
+          {
+            "node": "Format Response with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Interest": {
+      "main": [
+        [
+          {
+            "node": "Format Response with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Transactions": {
+      "main": [
+        [
+          {
+            "node": "Format Response with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response with AI": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Message": {
+      "main": [
+        [
+          {
+            "node": "Save Assistant Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Assistant Message": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Message": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}
