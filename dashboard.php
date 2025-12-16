@@ -269,13 +269,18 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     </div>
                 </div>
 
-                <a href="coop_trial_balance.php" class="bg-gradient-to-br from-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-500 to-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-600 text-white rounded-xl shadow-lg p-4 hover:shadow-2xl transition">
+                <a href="coop_trial_balance.php"
+                    class="bg-gradient-to-br from-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-500 to-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-600 text-white rounded-xl shadow-lg p-4 hover:shadow-2xl transition">
                     <div class="flex justify-between items-start">
                         <div>
-                            <p class="text-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-100 text-sm mb-1">Trial Balance</p>
-                            <p class="text-2xl font-bold"><?php echo $trialBalanceStatus == 'balanced' ? '✓ Balanced' : '✗ Check'; ?></p>
+                            <p
+                                class="text-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-100 text-sm mb-1">
+                                Trial Balance</p>
+                            <p class="text-2xl font-bold">
+                                <?php echo $trialBalanceStatus == 'balanced' ? '✓ Balanced' : '✗ Check'; ?></p>
                         </div>
-                        <i class="fa fa-balance-scale fa-2x text-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-300"></i>
+                        <i
+                            class="fa fa-balance-scale fa-2x text-<?php echo $trialBalanceStatus == 'balanced' ? 'teal' : 'red'; ?>-300"></i>
                     </div>
                 </a>
             </div>
@@ -288,7 +293,7 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     <i class="fa fa-user-plus fa-3x text-blue-500 mb-4"></i>
                     <span class="font-semibold text-lg">New Member</span>
                 </a>
-                <a href="registration_search.php"
+                <a href="memberlist.php"
                     class="bg-white shadow-lg rounded-xl p-6 flex flex-col items-center hover:shadow-2xl transition">
                     <i class="fa fa-user-edit fa-3x text-green-500 mb-4"></i>
                     <span class="font-semibold text-lg">Edit Member's Record</span>

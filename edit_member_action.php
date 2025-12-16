@@ -69,8 +69,8 @@ if (!$ok2) {
 // Optionally update password if provided
 if ($passwordGen) {
     $hashed = password_hash($passwordGen, PASSWORD_DEFAULT);
-    $stmt3 = $cov->prepare("UPDATE tbl_personalinfo SET password=? WHERE memberid=?");
-    $stmt3->bind_param('si', $hashed, $memberid);
+    $stmt3 = $cov->prepare("UPDATE tblusers SET UPassword=?, PlainPassword=? WHERE UserID=?");
+    $stmt3->bind_param('ssi', $hashed, $passwordGen, $memberid);
     $stmt3->execute();
     $stmt3->close();
 }

@@ -24,12 +24,13 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <!-- Selected Periods Preview -->
                     <div id="periodRangePreview" class="mt-3 p-3 border-2 border-gray-200 rounded-lg bg-gray-50 hidden">
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-sm font-semibold text-gray-700">Periods to Process:</span>
-                            <span id="periodCount" class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-semibold"></span>
+                            <span id="periodCount"
+                                class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-semibold"></span>
                         </div>
                         <div id="selectedPeriodsDisplay" class="flex flex-wrap gap-2"></div>
                     </div>
@@ -94,36 +95,36 @@ let selectedPeriodsList = [];
 function updatePeriodRangePreview() {
     const periodFromId = parseInt($('#periodFrom').val());
     const periodToId = parseInt($('#periodTo').val());
-    
+
     console.log('Period From ID:', periodFromId, 'Period To ID:', periodToId);
-    
+
     if (!periodFromId || !periodToId) {
         $('#periodRangePreview').addClass('hidden');
         selectedPeriodsList = [];
         return;
     }
-    
+
     // Since periods are in DESC order (higher ID = newer), 
     // "From" should have higher ID than "To" for chronological order
     // But for user clarity, we allow From <= To in the dropdown
     const minPeriodId = Math.min(periodFromId, periodToId);
     const maxPeriodId = Math.max(periodFromId, periodToId);
-    
+
     console.log('Range:', minPeriodId, 'to', maxPeriodId);
-    
-    // Get periods in range (inclusive)
+
+    // Get periods in range (inclusive) and sort by Periodid ascending (oldest to newest)
     selectedPeriodsList = allPeriodsData.filter(period => {
         const periodId = parseInt(period.Periodid);
         return periodId >= minPeriodId && periodId <= maxPeriodId;
-    });
-    
+    }).sort((a, b) => parseInt(a.Periodid) - parseInt(b.Periodid)); // Sort ascending (lowest to highest)
+
     console.log('Selected periods:', selectedPeriodsList.length, selectedPeriodsList);
-    
+
     // Display preview
     if (selectedPeriodsList.length > 0) {
         $('#periodRangePreview').removeClass('hidden');
         $('#periodCount').text(`${selectedPeriodsList.length} period(s)`);
-        
+
         let html = '';
         selectedPeriodsList.forEach(period => {
             html += `
@@ -155,11 +156,11 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!data || data.length === 0) {
                 throw new Error('No periods data received');
             }
-            
+
             allPeriodsData = data;
-            const optionsHtml = '<option value="">Select period...</option>' + 
+            const optionsHtml = '<option value="">Select period...</option>' +
                 data.map(row => `<option value="${row.Periodid}">${row.PayrollPeriod}</option>`).join('');
-            
+
             document.getElementById('periodFrom').innerHTML = optionsHtml;
             document.getElementById('periodTo').innerHTML = optionsHtml;
             console.log('Periods loaded successfully');
@@ -169,7 +170,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const errorHtml = '<option value="">Unable to load periods</option>';
             document.getElementById('periodFrom').innerHTML = errorHtml;
             document.getElementById('periodTo').innerHTML = errorHtml;
-            
+
             Swal.fire({
                 icon: 'error',
                 title: 'Error Loading Periods',
@@ -177,7 +178,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 footer: error.message
             });
         });
-    
+
     // Update preview when period selection changes
     $('#periodFrom, #periodTo').on('change', function() {
         // Auto-set periodTo if periodFrom is selected and periodTo is empty
@@ -239,18 +240,20 @@ $(function() {
             return false;
         }
 
-        // Get period IDs from the selected range
+        // Get period IDs from the selected range (already sorted ascending)
         const periodIds = selectedPeriodsList.map(p => p.Periodid);
         const periodCount = periodIds.length;
-        
+
         // Build notification message
-        let notifMsg = `This will process transactions for <strong>${periodCount} period(s)</strong>.<br>`;
-        notifMsg += '<div class="mt-2 text-left"><strong>Selected Periods:</strong><ul class="list-disc ml-5">';
+        let notifMsg =
+            `This will process transactions for <strong>${periodCount} period(s)</strong>.<br>`;
+        notifMsg +=
+            '<div class="mt-2 text-left"><strong>Selected Periods:</strong><ul class="list-disc ml-5">';
         selectedPeriodsList.forEach(period => {
             notifMsg += `<li>${period.PayrollPeriod}</li>`;
         });
         notifMsg += '</ul></div>';
-        
+
         if (sms && email) {
             notifMsg += '<br><strong>SMS and Email notifications will be sent.</strong>';
         } else if (sms) {
@@ -286,7 +289,7 @@ function processMultiplePeriods(periodIds, sms, email, index) {
         currentPeriodIndex = 0;
         totalPeriods = periodIds.length;
         processResults = [];
-        
+
         // Show overall progress dialog
         Swal.fire({
             title: 'Processing Multiple Periods',
@@ -313,83 +316,88 @@ function processMultiplePeriods(periodIds, sms, email, index) {
             width: '600px'
         });
     }
-    
+
     if (index >= periodIds.length) {
         // All periods processed
         showFinalResults();
         return;
     }
-    
+
     const periodId = periodIds[index];
     const periodData = selectedPeriodsList.find(p => p.Periodid == periodId);
     const periodName = periodData ? periodData.PayrollPeriod : `Period ${periodId}`;
-    
+
     // Update current period display
     $('#currentPeriodName').text(periodName);
-    
+
     // Update overall progress
     const overallPercent = Math.round((index / totalPeriods) * 100);
     $('#overallProgress').css('width', overallPercent + '%').text(overallPercent + '%');
-    
+
     // Add to results log
-    $('#resultsLog').append(`<div class="text-blue-600"><i class="fa fa-spinner fa-spin"></i> Processing ${periodName}...</div>`);
-    
+    $('#resultsLog').append(
+        `<div class="text-blue-600"><i class="fa fa-spinner fa-spin"></i> Processing ${periodName}...</div>`);
+
     // Process this period
     $.get('process.php', {
-        PeriodID: periodId,
-        sms: sms,
-        email: email
-    })
-    .done(function(data) {
-        processResults.push({
-            period: periodName,
-            success: true,
-            message: 'Completed successfully'
+            PeriodID: periodId,
+            sms: sms,
+            email: email
+        })
+        .done(function(data) {
+            processResults.push({
+                period: periodName,
+                success: true,
+                message: 'Completed successfully'
+            });
+
+            // Update log
+            $('#resultsLog div:last').html(
+                `<div class="text-green-600"><i class="fa fa-check-circle"></i> ${periodName} - Completed</div>`
+            );
+
+            // Move to next period after a short delay
+            setTimeout(function() {
+                processMultiplePeriods(periodIds, sms, email, index + 1);
+            }, 1000);
+        })
+        .fail(function(xhr, status, error) {
+            processResults.push({
+                period: periodName,
+                success: false,
+                message: error || 'Processing failed'
+            });
+
+            // Update log
+            $('#resultsLog div:last').html(
+                `<div class="text-red-600"><i class="fa fa-times-circle"></i> ${periodName} - Failed: ${error}</div>`
+            );
+
+            // Continue with next period even if this one failed
+            setTimeout(function() {
+                processMultiplePeriods(periodIds, sms, email, index + 1);
+            }, 1000);
         });
-        
-        // Update log
-        $('#resultsLog div:last').html(`<div class="text-green-600"><i class="fa fa-check-circle"></i> ${periodName} - Completed</div>`);
-        
-        // Move to next period after a short delay
-        setTimeout(function() {
-            processMultiplePeriods(periodIds, sms, email, index + 1);
-        }, 1000);
-    })
-    .fail(function(xhr, status, error) {
-        processResults.push({
-            period: periodName,
-            success: false,
-            message: error || 'Processing failed'
-        });
-        
-        // Update log
-        $('#resultsLog div:last').html(`<div class="text-red-600"><i class="fa fa-times-circle"></i> ${periodName} - Failed: ${error}</div>`);
-        
-        // Continue with next period even if this one failed
-        setTimeout(function() {
-            processMultiplePeriods(periodIds, sms, email, index + 1);
-        }, 1000);
-    });
 }
 
 function showFinalResults() {
     const successCount = processResults.filter(r => r.success).length;
     const failCount = processResults.filter(r => !r.success).length;
-    
+
     let resultsHtml = '<div class="text-left">';
     resultsHtml += `<div class="mb-4"><strong>Summary:</strong></div>`;
     resultsHtml += `<div class="mb-2">✅ Successful: ${successCount}</div>`;
     resultsHtml += `<div class="mb-4">❌ Failed: ${failCount}</div>`;
     resultsHtml += '<div class="max-h-60 overflow-y-auto"><strong>Details:</strong><ul class="mt-2 space-y-1">';
-    
+
     processResults.forEach(result => {
         const icon = result.success ? '✅' : '❌';
         const color = result.success ? 'text-green-600' : 'text-red-600';
         resultsHtml += `<li class="${color}">${icon} ${result.period} - ${result.message}</li>`;
     });
-    
+
     resultsHtml += '</ul></div></div>';
-    
+
     Swal.fire({
         title: 'Processing Complete!',
         html: resultsHtml,

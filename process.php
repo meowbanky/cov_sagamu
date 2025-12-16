@@ -283,7 +283,9 @@ $entryFees = (int)($row_entrySettings['value']);
 			mysqli_free_result($Result2);
 			$interestBalance = $row_balances['interestBalance'];
 			$loanBalance = $row_balances['Loanbalance'];
-			$interestRate = $row_interestRate['value'] * $row_member['interest'];
+			// Ensure interest rate is a float (convert string to float if needed)
+			$baseInterestRate = floatval($row_interestRate['value']);
+			$interestRate = $baseInterestRate * floatval($row_member['interest']);
 			$currentInterest = ($totalRows_OnlinePaymentCheck > 0) ? 0 : $row_balances['Loanbalance'] * $interestRate;
 			$interest = $interestBalance + $currentInterest;
 			if ($loanBalance > 0) {

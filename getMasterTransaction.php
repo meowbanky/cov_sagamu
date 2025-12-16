@@ -266,11 +266,19 @@ $row_totalsum = $totalsum->fetch_assoc();
         <thead class="bg-blue-800 text-white sticky top-0 z-10">
             <tr>
                 <th class="py-3 px-2 text-left font-semibold">
-                    <span>Select</span>
-                    <button type="button" id="deleteT" name="deleteT"
-                        class="ml-2 inline-block px-2 py-1 bg-red-600 hover:bg-red-700 text-xs font-bold rounded transition text-white">
-                        Delete
-                    </button>
+                    <div class="flex flex-col gap-1">
+                        <div>
+                            <span>Select</span>
+                            <button type="button" id="selectAllBtn" name="selectAllBtn"
+                                class="ml-2 inline-block px-2 py-1 bg-green-600 hover:bg-green-700 text-xs font-bold rounded transition text-white">
+                                Select All
+                            </button>
+                        </div>
+                        <button type="button" id="deleteT" name="deleteT"
+                            class="inline-block px-2 py-1 bg-red-600 hover:bg-red-700 text-xs font-bold rounded transition text-white">
+                            Delete
+                        </button>
+                    </div>
                 </th>
                 <th class="py-3 px-2 text-left font-semibold">Coop No.</th>
                 <th class="py-3 px-2 text-left font-semibold">Period</th>
@@ -367,6 +375,41 @@ $totalStmt->close();
 ?>
 
 <script>
+// SELECT ALL functionality
+$(document).on('click', '#selectAllBtn', function() {
+    const checkboxes = $('input[name="memberid"][type="checkbox"]');
+    const allChecked = checkboxes.length > 0 && checkboxes.length === checkboxes.filter(':checked').length;
+
+    // Toggle all checkboxes
+    checkboxes.prop('checked', !allChecked);
+
+    // Update button text and styling
+    const $btn = $(this);
+    if (allChecked) {
+        $btn.text('Select All');
+        $btn.removeClass('bg-gray-600 hover:bg-gray-700').addClass('bg-green-600 hover:bg-green-700');
+    } else {
+        $btn.text('Deselect All');
+        $btn.removeClass('bg-green-600 hover:bg-green-700').addClass('bg-gray-600 hover:bg-gray-700');
+    }
+});
+
+// Update Select All button text when individual checkboxes are clicked
+$(document).on('change', 'input[name="memberid"][type="checkbox"]', function() {
+    const checkboxes = $('input[name="memberid"][type="checkbox"]');
+    const checkedCount = checkboxes.filter(':checked').length;
+    const allChecked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+
+    const $selectAllBtn = $('#selectAllBtn');
+    if (allChecked) {
+        $selectAllBtn.text('Deselect All');
+        $selectAllBtn.removeClass('bg-green-600 hover:bg-green-700').addClass('bg-gray-600 hover:bg-gray-700');
+    } else {
+        $selectAllBtn.text('Select All');
+        $selectAllBtn.removeClass('bg-gray-600 hover:bg-gray-700').addClass('bg-green-600 hover:bg-green-700');
+    }
+});
+
 // EXPORT PDF with Email
 $(document).on('click', '#exportpdf', function() {
     var table = document.getElementById('sample_1').outerHTML;
