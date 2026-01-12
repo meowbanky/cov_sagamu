@@ -1,109 +1,112 @@
-# Chapel of Victory Cooperative Society Management System
+# Chapel of Victory (COV) Enterprise Management Suite
 
-A comprehensive software suite for managing the Chapel of Victory (COV) Cooperative Society operations, including membership, finances, loans, and event attendance.
+> **A robust, full-stack ecosystem for institutional financial management and location-verified attendance tracking.**
 
-## 📂 Project Structure
+[![PHP Version](https://img.shields.io/badge/php-%5E7.4%20%7C%208.1%2B-blue.svg)](https://www.php.net/)
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg)]()
+[![Architecture](https://img.shields.io/badge/Architecture-Monorepo%20%7C%20Modular-orange.svg)]()
 
-This repository contains two main components:
+## 📌 Executive Summary
 
-### 1. [COV Admin Panel](./cov_admin) (`cov_admin`)
-
-The core administrative interface for the details about the cooperative's day-to-day operations.
-
-**Key Features:**
-
-- **Member Management**: Complete database of members, registration, and profile updates.
-- **Financial Accounting**: Robust double-entry accounting system with General Ledger, Journal Entries, and Trial Balances.
-- **Loan Management**: Processing, approval, and tracking of loans (Standard, Special, etc.).
-- **Contribution Tracking**: Management of monthly contributions and savings.
-- **Bank Reconciliation**: Automated processing of bank statements and reconciliation with internal records.
-- **Reporting**: Generation of financial statements, member statements, and dividend reports.
-- **Communication**: Integrated email and SMS notification systems.
-
-**Documentation:**
-
-- [Accounting System Guide](./cov_admin/docs/ACCOUNTING_SYSTEM_COMPLETE.md)
-- [Bank Statement Processor](./cov_admin/docs/BANK_STATEMENT_SYSTEM_README.md)
-- [Deployment Checklist](./cov_admin/docs/FINAL_DEPLOYMENT_CHECKLIST.md)
-
-### 2. [Event Attendance](./event-attendance) (`event-attendance`)
-
-A specialized module for managing event attendance with location-based validation.
-
-**Key Features:**
-
-- **Geofencing**: Validates user presence within a specific radius of the event location using Google Maps API.
-- **Device Binding**: Prevents proxy attendance by binding a user's check-in to a specific device.
-- **Admin Controls**: Manual override capabilities, grace period configuration, and device lock resets.
-- **Reporting**: Excel exports of attendance data.
-- **Mobile Integration**: Designed to backend a Flutter mobile application.
-
-**Documentation:**
-
-- [Implementation Guide](./event-attendance/README.md)
+The **COV Management Suite** is a mission-critical platform engineered for the Chapel of Victory Cooperative Society. It integrates a sophisticated **Double-Entry Accounting Engine** with a **Geofenced Attendance System**. The suite is designed to ensure financial transparency, automate complex loan lifecycles, and eliminate proxy attendance through hardware-level device binding.
 
 ---
 
-## 🚀 Getting Started
+## 🏗 System Architecture
 
-### Prerequisites
+The repository is structured as a modular monorepo, separating administrative core logic from specialized edge services:
 
-- **PHP**: 7.4 or higher (8.1+ recommended)
-- **MySQL**: 5.7 or higher
-- **Composer**: For PHP dependency management
-- **Node.js & npm**: For building frontend assets (Tailwind CSS)
-- **Web Server**: Apache or Nginx
+### 1. 🏦 COV Admin Core (`/cov_admin`)
 
-### Installation
+The central nervous system of the cooperative. Unlike basic CRUD apps, this module implements a strict **General Ledger (GL)** framework.
 
-1.  **Clone the Repository**
+- **Financial Engineering:** Implements a full Double-Entry system. Every transaction is journalized, ensuring a real-time, balanced Trial Balance.
+- **Loan Lifecycle Automation:** Handles multi-tier loan products (Standard, Special) with automated interest amortization and repayment scheduling.
+- **Bank Reconciliation Engine:** A high-performance processor that parses bank statements and reconciles them against internal ledgers to identify discrepancies.
+- **Institutional Reporting:** Generates fiscal-grade PDF/Excel reports including Member Equity Statements and Dividend Distributions.
+
+### 2. 📍 Geofenced Attendance Module (`/event-attendance`)
+
+A high-integrity service designed to validate physical presence for corporate/society events.
+
+- **Geofencing Logic:** Leverages the Google Maps API to enforce a strict radius-based check-in (validation occurs server-side to prevent spoofing).
+- **Anti-Proxy Security:** Implements **Device Binding** (Hardware Fingerprinting) to ensure one account per physical device, preventing users from checking in for colleagues.
+- **Mobile-First API:** Optimized to serve as a high-availability backend for Flutter-based mobile applications.
+
+---
+
+## 🛠 Technical Stack & Implementation
+
+| Layer         | Technology        | Purpose                                                    |
+| :------------ | :---------------- | :--------------------------------------------------------- |
+| **Backend**   | PHP 8.1+ (OOP)    | Core business logic and financial calculations.            |
+| **Frontend**  | Tailwind CSS      | Utility-first responsive UI for administrative dashboards. |
+| **Database**  | MySQL 5.7+        | Relational schema optimized for ACID compliance.           |
+| **Services**  | Google Maps API   | Location validation and Geofencing.                        |
+| **Utilities** | TCPDF / PHPMailer | Secure document generation and transactional alerts.       |
+
+---
+
+## 🚀 Deployment & Configuration
+
+### Infrastructure Requirements
+
+- **Web Server:** Apache/Nginx (with `mod_rewrite` for clean routing).
+- **Environment:** PHP 8.1 recommended for JIT performance benefits in financial processing.
+- **Dependencies:** Managed via Composer (Backend) and NPM (Frontend assets).
+
+### Installation Workflow
+
+1.  **Initialize Environment:**
 
     ```bash
-    git clone <repository-url>
-    cd cov
+    git clone https://github.com/meowbanky/cov_sagamu.git
+    cd cov_sagamu
     ```
 
-2.  **Setup the Admin Panel**
+2.  **Core Backend Setup:**
 
     ```bash
     cd cov_admin
-
-    # Install PHP dependencies
     composer install
-
-    # Install Frontend dependencies
-    npm install
-
-    # Build Tailwind CSS
-    npm run build
+    cp config.env.example config.env # Define DB_CREDENTIALS and API_KEYS
     ```
 
-3.  **Database Configuration**
+3.  **Asset Pipeline:**
 
-    - Create a new MySQL database.
-    - Import the initial schema files found in `cov_admin/` (e.g., `SETUP_FULL_ACCOUNTING_SYSTEM.sql`).
-    - Copy the configuration example:
-      ```bash
-      cp config.env.example config.env
-      ```
-    - Edit `config.env` with your database credentials, API keys (Google Maps, Mailer, etc.).
+    ```bash
+    npm install
+    npm run build # Compiles production-ready Tailwind CSS
+    ```
 
-4.  **Event Attendance Setup**
-    - Refer to the [Event Attendance README](./event-attendance/README.md#database-setup) for specific migration files (e.g., `create_events_table.sql`).
+4.  **Database Migration:**
+    Execute `SETUP_FULL_ACCOUNTING_SYSTEM.sql` to initialize the chart of accounts and relational constraints.
 
-## 🛠️ Technologies Used
+---
 
-- **Backend**: Native PHP, Object-Oriented compliant.
-- **Frontend**: HTML5, Tailwind CSS, JavaScript.
-- **Database**: MySQL.
-- **PDF Generation**: TCPDF / DomPDF.
-- **Excel Processing**: PhpSpreadsheet.
-- **Email**: PHPMailer.
+## 🔐 Security & Compliance
 
-## 👥 Authors
+- **Financial Integrity:** All ledger entries are immutable; corrections require reversing entries (Journal Vouchers) to maintain an audit trail.
+- **RBAC:** Role-Based Access Control ensures that sensitive tasks (e.g., Loan Approval, Bank Reconciliation) are restricted to authorized personnel.
+- **Input Validation:** Strict sanitization and Prepared Statements are used throughout the data access layer to mitigate SQL Injection and XSS.
 
-- **Bankole Abiodun (Emmaggi)** - _Lead Developer_
+---
 
-## 📄 License
+## 📄 Documentation Indices
 
-This project is proprietary software developed for the Chapel of Victory Cooperative Society.
+Detailed technical specifications are available in the `/docs` directory:
+
+- [Full Accounting Logic & Schema](./cov_admin/docs/ACCOUNTING_SYSTEM_COMPLETE.md)
+- [Bank Statement Processor Logic](./cov_admin/docs/BANK_STATEMENT_SYSTEM_README.md)
+- [Geofencing & API Implementation](./event-attendance/README.md)
+
+---
+
+## 👥 Lead Developer
+
+**Bankole Abiodun (Emmaggi)**  
+_Senior Software Engineer_
+
+---
+
+_© 2024 Chapel of Victory Cooperative Society. All Rights Reserved. (Proprietary Software)_
