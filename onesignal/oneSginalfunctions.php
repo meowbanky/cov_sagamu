@@ -21,9 +21,13 @@ use PHPUnit\Framework\TestCase;
 
 const APP_ID = '2ec0cda9-7643-471c-9b3f-f607768d243d';
 
-const APP_KEY_TOKEN = 'YTQzNWNkYmUtOGU3YS00NzFjLTk4YzgtMzhhMmM5YWQ4MWI1';
-const APP_KEY_TOKEN = 'os_v2_app_f3am3klwindrzgz76ydxndjehxdz7sg5w2ouuoe5jncrpi7duvrllmir3njseflpgp3xwgkpigugfma5wavgygbyk2vlyw2r4wahr5y';
-//const USER_KEY_TOKEN = '<YOUR_USER_KEY_TOKEN>';
+// Load env if not already loaded available
+if (!getenv('ONESIGNAL_APP_KEY_TOKEN')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+    $dotenv->safeLoad();
+}
+
+define('APP_KEY_TOKEN', getenv('ONESIGNAL_APP_KEY_TOKEN'));
 
 $config = Configuration::getDefaultConfiguration()
     ->setAppKeyToken(APP_KEY_TOKEN);
