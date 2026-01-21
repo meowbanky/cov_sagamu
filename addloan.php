@@ -37,11 +37,6 @@ if (isset($_GET['period'])) {
     var specialRateDisplay = "<?= $sp_rate_display ?>";
 </script>
 
-<div class="container mt-6">
-    <div class="flex justify-between items-center mb-4">
-        <h2 class="text-2xl font-semibold mb-4">Add / Edit Loan</h2>
-        <a href="dashboard.php" class="btn btn-sm bg-blue-600 text-white px-3 py-1 rounded">Dashboard</a>
-    </div>
 
     <div class="grid grid-cols-2 gap-4 mb-4">
         <div>
