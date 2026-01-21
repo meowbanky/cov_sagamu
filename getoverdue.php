@@ -17,12 +17,17 @@ require_once('Connections/cov.php');
 
             <!-- Refresh and Export Buttons -->
             <div class="flex flex-col sm:flex-row gap-3 mb-4 items-center sm:items-end">
+                <div class="w-full sm:w-auto">
+                    <label for="overdueMonths" class="block text-sm font-medium text-gray-700 mb-1">Overdue Threshold (Months)</label>
+                    <input type="number" id="overdueMonths" value="12" min="1" 
+                        class="border border-gray-300 rounded px-3 py-2 w-full focus:ring-blue-500 focus:border-blue-500">
+                </div>
                 <button onclick="getOverdueLoans()"
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full sm:w-auto">
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full sm:w-auto h-[42px]">
                     <i class="fas fa-sync-alt mr-2"></i>Load Overdue Loans
                 </button>
                 <button id="exportExcelBtn" onclick="exportToExcel()" disabled
-                    class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded w-full sm:w-auto">
+                    class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded w-full sm:w-auto h-[42px]">
                     <i class="fas fa-file-excel mr-2"></i>Export to Excel
                 </button>
             </div>
@@ -66,11 +71,13 @@ function hideBlockingLoader() {
 }
 
 function getOverdueLoans() {
+    const months = $('#overdueMonths').val() || 10;
+    
     showBlockingLoader('Loading overdue loans...');
     $('#overdueDisplay').html('');
     $('#wait').show();
 
-    $.get('api/get_overdue_loans.php', {}, function(response) {
+    $.get('api/get_overdue_loans.php', { months: months }, function(response) {
         hideBlockingLoader();
         $('#wait').hide();
 
@@ -124,7 +131,7 @@ function displayOverdueLoans(data) {
             </div>
             <div class="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
                 <div class="text-sm text-gray-600 mb-1">Overdue Criteria</div>
-                <div class="text-xl font-bold text-yellow-900">> 10 months</div>
+                <div class="text-xl font-bold text-yellow-900">> ${data.threshold} months</div>
                 <div class="text-xs text-gray-500">since last loan</div>
             </div>
         </div>

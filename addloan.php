@@ -24,17 +24,45 @@ if (isset($_GET['period'])) {
         <h2 class="text-2xl font-semibold mb-4">Add / Edit Loan</h2>
         <a href="dashboard.php" class="btn btn-sm bg-blue-600 text-white px-3 py-1 rounded">Dashboard</a>
     </div>
+<?
+    // Fetch Special Interest Rate
+    $sp_rate = 0.02; // Default
+    $res_rate = $cov->query("SELECT value FROM tbl_globa_settings WHERE setting_id = 9");
+    if ($res_rate && $row_rate = $res_rate->fetch_assoc()) {
+        $sp_rate = floatval($row_rate['value']);
+    }
+    $sp_rate_display = $sp_rate;
+?>
+<script>
+    var specialRateDisplay = "<?= $sp_rate_display ?>";
+</script>
 
-    <!-- Period Dropdown -->
-    <label for="PeriodId" class="block font-medium mb-1">Period:</label>
-    <select id="PeriodId" name="PeriodId" class="w-full rounded border mb-4 p-2">
-        <option value="">Select Period</option>
-        <?php foreach($periods as $period): ?>
-        <option value="<?= $period['Periodid'] ?>" <?= ($selected_period == $period['Periodid']) ? 'selected' : '' ?>>
-            <?= htmlspecialchars($period['PayrollPeriod']) ?>
-        </option>
-        <?php endforeach; ?>
-    </select>
+<div class="container mt-6">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-semibold mb-4">Add / Edit Loan</h2>
+        <a href="dashboard.php" class="btn btn-sm bg-blue-600 text-white px-3 py-1 rounded">Dashboard</a>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+            <label for="PeriodId" class="block font-medium mb-1">Period:</label>
+            <select id="PeriodId" name="PeriodId" class="w-full rounded border p-2">
+                <option value="">Select Period</option>
+                <?php foreach($periods as $period): ?>
+                <option value="<?= $period['Periodid'] ?>" <?= ($selected_period == $period['Periodid']) ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($period['PayrollPeriod']) ?>
+                </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div>
+            <label for="LoanType" class="block font-medium mb-1">Loan Type:</label>
+            <select id="LoanType" name="LoanType" class="w-full rounded border p-2">
+                <option value="regular" selected>Regular Loan</option>
+                <option value="special">Special Loan</option>
+            </select>
+        </div>
+    </div>
 
     <!-- Add/Edit Loan Form -->
     <form id="loanForm" autocomplete="off" class="space-y-4 bg-white p-4 rounded shadow">
@@ -53,14 +81,14 @@ if (isset($_GET['period'])) {
         <label for="txtAmountGranted" class="block font-medium">Amount Granted:</label>
         <input type="text" id="txtAmountGranted" name="txtAmountGranted" required pattern="\d+(\.\d{1,2})?"
             placeholder="e.g. 12000.00" class="w-full border rounded p-2">
+        <p id="interestHint" class="text-sm text-gray-500 mt-1" style="display:none;">Interest of <span id="spRateText"></span>% will be automatically calculated.</p>
 
         <label for="loan_date" class="block font-medium">Date:</label>
         <input type="text" id="loan_date" name="loan_date" required placeholder="Select date"
             class="w-full border rounded p-2">
 
         <div class="flex space-x-2 mt-2">
-            <button type="submit" id="submitBtn" class="bg-blue-600 text-white px-4 py-2 rounded shadow">Add
-                Loan</button>
+            <button type="submit" id="submitBtn" class="bg-blue-600 text-white px-4 py-2 rounded shadow">Add Loan</button>
             <button type="button" id="cancelEditBtn" style="display:none"
                 class="bg-gray-400 text-white px-4 py-2 rounded">Cancel Edit</button>
         </div>
@@ -112,11 +140,32 @@ $(function() {
     $("#PeriodId").on('change', function() {
         var pid = $(this).val();
         $("#formPeriodId").val(pid);
-        $("#edit_loanid").val('');
-        resetForm();
-        updateLoansTable(pid);
+        resetForm(); // Also clears edit state
+        refreshTable();
         window.history.replaceState({}, '', 'addloan.php?period=' + pid);
     });
+
+    // Loan Type selection logic
+    $("#LoanType").on('change', function() {
+        var type = $(this).val();
+        resetForm();
+        toggleTypeUI(type);
+        refreshTable();
+    });
+
+    function toggleTypeUI(type) {
+        if (type === 'special') {
+            $("#interestHint").show();
+            $("#spRateText").text(specialRateDisplay);
+            $("#submitBtn").text("Add Special Loan");
+        } else {
+            $("#interestHint").hide();
+            $("#submitBtn").text("Add Loan");
+        }
+    }
+
+    // Initial State
+    toggleTypeUI($("#LoanType").val());
 
     // AJAX submit (Add or Update)
     $("#loanForm").on("submit", function(e) {
@@ -128,27 +177,43 @@ $(function() {
         }
         $("#formPeriodId").val(pid);
         var formData = $(this).serialize();
-        $.post("save_loan.php", formData, function(resp) {
+        
+        var loanType = $("#LoanType").val();
+        var endpoint = (loanType === 'special') ? "save_special_loan.php" : "save_loan.php";
+
+        $.post(endpoint, formData, function(resp) {
             // Always expect JSON!
             if (resp.success) {
                 sweetMsg(resp.success, "success");
-                resetForm();
-                updateLoansTable(pid);
+                resetForm(); // Reset form but keep period/type
+                // Ensure Submit button text is correct after reset
+                toggleTypeUI(loanType); 
+                refreshTable();
             } else if (resp.error) {
                 sweetMsg(resp.error, "error");
             } else {
                 sweetMsg("Unknown response from server.", "error");
             }
-        }, 'json');
+        }, 'json').fail(function() {
+             sweetMsg("Server Request Failed", "error");
+        });
     });
 
     // AJAX edit: click Edit in table loads the row into form
     $(document).on("click", ".edit-loan-btn", function(e) {
         e.preventDefault();
         var loanid = $(this).data("loanid");
-        $.get("get_loan_row.php", {
-            loanid: loanid
-        }, function(row) {
+        var loanType = $("#LoanType").val();
+        
+        var endpoint = (loanType === 'special') ? "get_special_loans_by_period.php" : "get_loan_row.php";
+        // Note: get_loan_row.php takes 'loanid'. get_special_loans_by_period.php takes 'loanid' and 'action=get_one'.
+        
+        var data = { loanid: loanid };
+        if (loanType === 'special') {
+            data.action = 'get_one';
+        }
+
+        $.get(endpoint, data, function(row) {
             if (!row || typeof row !== "object") {
                 Swal.fire("Loan not found.", "", "error");
                 return;
@@ -156,13 +221,23 @@ $(function() {
             $("#edit_loanid").val(row.loanid);
             $("#PeriodId").val(row.periodid);
             $("#formPeriodId").val(row.periodid);
-            $("#CoopName").val(row.membername);
-            $("#txtCoopid").val(row.memberid);
-            $("#memberNameHint").text(row.membername);
-            $("#txtAmountGranted").val(row.loanamount);
-            $("#loan_date").val(row.loan_date);
-            $("#submitBtn").text("Update Loan");
+            
+            // Populate form
+            $("#CoopName").val(row.membername || row.CoopName || ''); // row keys might differ
+            $("#txtCoopid").val(row.memberid || row.MemberID || '');
+            $("#memberNameHint").text(row.membername || row.CoopName || '');
+            
+            $("#txtAmountGranted").val(row.loanamount || row.Amount || ''); // Handle potential key differences
+            $("#loan_date").val(row.loan_date || row.Date || '');
+
+            $("#submitBtn").text(loanType === 'special' ? "Update Special Loan" : "Update Loan");
             $("#cancelEditBtn").show();
+            
+            // Scroll to form
+            $('html, body').animate({
+                scrollTop: $("#loanForm").offset().top - 100
+            }, 500);
+
         }, 'json');
 
     });
@@ -176,10 +251,11 @@ $(function() {
     $(document).on("click", ".delete-loan-btn", function(e) {
         e.preventDefault();
         var loanid = $(this).data("loanid");
-        var pid = $("#PeriodId").val();
+        var loanType = $("#LoanType").val();
+        
         Swal.fire({
             title: 'Are you sure?',
-            text: "Delete this loan?",
+            text: "Delete this " + loanType + " loan?",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -187,32 +263,51 @@ $(function() {
             confirmButtonText: 'Yes, delete it!'
         }).then((result) => {
             if (result.isConfirmed) {
-                $.post("delete_loan.php", {
-                    loanid: loanid
-                }, function(resp) {
-                    updateLoansTable(pid);
-                    resetForm();
-                    Swal.fire('Deleted!', 'Loan has been deleted.', 'success');
-                });
+                if (loanType === 'special') {
+                    // Special Loan Delete
+                    // deleteSpecialLoan.php usually redirects. We need to handle it or update it.
+                    // Assuming we updated it or existing practice works. 
+                    // Best to use $.post and handle response. 
+                    // If deleteSpecialLoan.php isn't JSON ready, this might fail or return HTML.
+                    $.post("deleteSpecialLoan.php?loanID=" + loanid, {}, function(resp) { 
+                        refreshTable();
+                        resetForm();
+                        Swal.fire('Deleted!', 'Loan has been deleted.', 'success');
+                    });
+                } else {
+                    // Regular Loan Delete
+                    $.post("delete_loan.php", { loanid: loanid }, function(resp) {
+                        refreshTable();
+                        resetForm();
+                        Swal.fire('Deleted!', 'Loan has been deleted.', 'success');
+                    });
+                }
             }
         });
     });
 
     // Load table at page load
     var pid = $("#PeriodId").val();
-    if (pid) updateLoansTable(pid);
+    if (pid) refreshTable();
 
     // Helper: update loan table
-    function updateLoansTable(pid) {
+    function refreshTable() {
+        var pid = $("#PeriodId").val();
+        var loanType = $("#LoanType").val();
+        
         if (!pid) {
             $("#loansTableArea").html('');
             return;
         }
-        $("#loansTableArea").html('<div style="padding:1em;">Loading loans for selected period...</div>');
-        $.post("get_loans_by_period.php", {
-            periodid: pid
-        }, function(data) {
-            $("#loansTableArea").html(data);
+        
+        $("#loansTableArea").html('<div style="padding:1em;">Loading ' + loanType + ' loans...</div>');
+        
+        var endpoint = (loanType === 'special') ? "get_special_loans_by_period.php" : "get_loans_by_period.php";
+        var data = { periodid: pid };
+        if (loanType === 'special') data.action = 'list';
+
+        $.post(endpoint, data, function(htmlData) {
+            $("#loansTableArea").html(htmlData);
         });
     }
 
@@ -227,11 +322,20 @@ $(function() {
     }
 
     function resetForm() {
-        $("#loanForm")[0].reset();
+        var pid = $("#PeriodId").val();
+        var loanType = $("#LoanType").val();
+        
+        // Clear inputs but manage state
         $("#edit_loanid").val('');
-        $("#submitBtn").text("Add Loan");
-        $("#cancelEditBtn").hide();
+        $("#CoopName").val('');
+        $("#txtCoopid").val('');
+        $("#txtAmountGranted").val('');
+        $("#loan_date").val('');
         $("#memberNameHint").text('');
+        
+        // Reset buttons
+        toggleTypeUI(loanType);
+        $("#cancelEditBtn").hide();
     }
 });
 </script>

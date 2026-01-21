@@ -228,6 +228,9 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     <li><a href="ai_bank_statement_upload.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
                                 class="fa fa-robot fa-fw mr-2"></i> AI Bank Statement Upload</a></li>
+                    <li><a href="property_liquidation.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
+                                class="fa fa-building fa-fw mr-2"></i> Property Liquidation</a></li>
                     <!-- Add more menu items as needed -->
                 </ul>
             </nav>
@@ -382,6 +385,11 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     class="bg-white shadow-lg rounded-xl p-6 flex flex-col items-center hover:shadow-2xl transition">
                     <i class="fa fa-robot fa-3x text-blue-600 mb-4"></i>
                     <span class="font-semibold text-lg">AI Bank Statement Upload</span>
+                </a>
+                <a href="property_liquidation.php"
+                    class="bg-white shadow-lg rounded-xl p-6 flex flex-col items-center hover:shadow-2xl transition">
+                    <i class="fa fa-building fa-3x text-purple-600 mb-4"></i>
+                    <span class="font-semibold text-lg">Property Liquidation</span>
                 </a>
                 <!-- Add more feature cards as needed -->
             </div>

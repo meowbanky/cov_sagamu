@@ -3,7 +3,7 @@
 if (!function_exists("GetSQLValueString")) {
 function GetSQLValueString($conn_vote, $theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "") 
     {
-      $theValue = get_magic_quotes_gpc() ? stripslashes($theValue) : $theValue;
+      $theValue = $theValue; // get_magic_quotes_gpc() removed
 
       $theValue = function_exists("mysqli_real_escape_string") ? mysqli_real_escape_string($conn_vote, $theValue) : mysqli_escape_string($conn_vote, $theValue);
 
@@ -46,37 +46,35 @@ if (isset($_GET['id'])) {
 }
 
 mysqli_select_db($cov,$database_cov);
-$query_Batch = sprintf("SELECT CONCAT(tbl_personalinfo.Lname,' , ',tbl_personalinfo.Fname,' ',(ifnull(tbl_personalinfo.Mname,' '))) AS `name`,tbl_special_loan.loanamount, tbl_special_loan.loanid, tbl_special_loan.periodid, tbl_special_loan.memberid FROM tbl_personalinfo INNER JOIN tbl_special_loan ON tbl_special_loan.memberid = tbl_personalinfo.memberid WHERE tbl_special_loan.periodid= %s ", GetSQLValueString($cov,$col_Batch, "int"));
-$Batch = mysqli_query($cov,$query_Batch) or die(mysqli_error($cov));
-$row_Batch = mysqli_fetch_assoc($Batch);
-$totalRows_Batch = mysqli_num_rows($Batch);
 
-$colname_batchsum = "-1";
-if (isset($_GET['id'])) {
-  $colname_batchsum = $_GET['id'];
-}
-mysqli_select_db($cov,$database_cov);
-$query_batchsum = sprintf("SELECT (sum( tbl_special_loan.loanamount)) as amount FROM tbl_special_loan WHERE periodId =%s", GetSQLValueString($cov,$colname_batchsum, "int"));
-$batchsum = mysqli_query($cov,$query_batchsum) or die(mysqli_error($cov));
-$row_batchsum = mysqli_fetch_assoc($batchsum);
-$totalRows_batchsum = mysqli_num_rows($batchsum);
-?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>Untitled Document</title>
-</head>
+    mysqli_select_db($cov,$database_cov);
+    $query_Batch = sprintf("SELECT 
+        CONCAT(p.Lname, ' , ', p.Fname, ' ', IFNULL(p.Mname, ' ')) AS `name`, 
+        sl.loanamount, 
+        sl.interest, 
+        (sl.loanamount + sl.interest) AS total_payable,
+        sl.loanid, 
+        sl.periodid, 
+        sl.memberid,
+        (SELECT IFNULL(SUM(sc.contribution), 0) 
+         FROM tbl_contributions sc 
+         WHERE sc.membersid = sl.memberid AND sc.periodid = sl.periodid) AS total_repaid
+    FROM tbl_personalinfo p
+    INNER JOIN tbl_special_loan sl ON sl.memberid = p.memberid 
+    WHERE sl.periodid = %s", GetSQLValueString($cov, $col_Batch, "int"));
 
-<body>
-<table width="96%" align="center" cellpadding="4" cellspacing="0">
-  <tbody>
-    <script language="javascript" type="text/javascript">document.getElementById("PeriodId2").selectedIndex</script>
+    $Batch = mysqli_query($cov, $query_Batch) or die(mysqli_error($cov));
+    $row_Batch = mysqli_fetch_assoc($Batch);
+    $totalRows_Batch = mysqli_num_rows($Batch);
+    ?>
+
     <tr valign="top">
       <td class="greyBgdHeader" valign="middle" height="35"><strong>Name</strong></td>
       <td class="greyBgdHeader" valign="middle"><strong>Loan Amount</strong></td>
-      <td class="greyBgdHeader" valign="middle">&nbsp;</td>
-      <td valign="middle" class="greyBgdHeader">&nbsp;</td>
+      <td class="greyBgdHeader" valign="middle"><strong>Interest (2%)</strong></td>
+      <td class="greyBgdHeader" valign="middle"><strong>Total Payable</strong></td>
+      <td class="greyBgdHeader" valign="middle"><strong>Repaid</strong></td>
+      <td class="greyBgdHeader" valign="middle"><strong>Balance</strong></td>
       <td class="greyBgdHeader" valign="middle"><strong>Surety</strong></td>
       <td class="greyBgdHeader" valign="middle"><strong>Add Guarantor</strong></td>
       <td colspan="2" class="greyBgdHeader" valign="middle"><?php if ($totalRows_Batch > 0) { // Show if recordset not empty ?>
@@ -84,12 +82,17 @@ $totalRows_batchsum = mysqli_num_rows($batchsum);
       <?php } // Show if recordset not empty ?></td>
     </tr>
     <?php do { ?>
-        <?php if ($totalRows_Batch > 0) { // Show if recordset not empty ?>
+        <?php if ($totalRows_Batch > 0) { // Show if recordset not empty 
+            $balance = $row_Batch['total_payable'] - $row_Batch['total_repaid'];
+        ?>
           <tr valign="top">
             <td class="greyBgd" valign="middle" height="35"><?php echo $row_Batch['name']; ?></td>
             <td class="greyBgd" valign="middle"><?php echo number_format($row_Batch['loanamount'],2,'.',','); ?></td>
-            <td class="greyBgd" valign="middle">&nbsp;</td>
-            <td class="greyBgd" valign="middle">&nbsp;</td>
+            <td class="greyBgd" valign="middle"><?php echo number_format($row_Batch['interest'],2,'.',','); ?></td>
+            <td class="greyBgd" valign="middle"><?php echo number_format($row_Batch['total_payable'],2,'.',','); ?></td>
+            <td class="greyBgd" valign="middle"><?php echo number_format($row_Batch['total_repaid'],2,'.',','); ?></td>
+            <td class="greyBgd" valign="middle" style="font-weight:bold; color: <?= $balance > 0 ? 'red' : 'green' ?>"><?php echo number_format($balance,2,'.',','); ?></td>
+            
             <td class="greyBgd" valign="middle"><?php mysqli_select_db($cov,$database_cov);
 $query_suretyInfo = sprintf("SELECT tbl_personalinfo.Lname,tbl_personalinfo.Fname,tbl_personalinfo.Mname FROM tbl_surety
 INNER JOIN tbl_personalinfo ON tbl_surety.surety = tbl_personalinfo.memberid WHERE loanid = %s",GetSQLValueString($cov,$row_Batch['loanid'], "int"));

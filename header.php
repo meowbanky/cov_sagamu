@@ -187,6 +187,9 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="addloan.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='addloan.php'?'sidebar-active sidebar-active':'' ?>"><i
                                 class="fa fa-hand-holding-usd fa-fw mr-2"></i> Add Loan</a></li>
+                    <li><a href="property_liquidation.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='property_liquidation.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-building fa-fw mr-2"></i> Property Liquidation</a></li>
                     <li><a href="getoverdue.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='getoverdue.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-exclamation-triangle fa-fw mr-2"></i> Overdue Loans</a></li>

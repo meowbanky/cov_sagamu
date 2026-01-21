@@ -43,6 +43,12 @@ SELECT
     SUM(tlb_mastertransaction.interest) as interest,
     SUM(tlb_mastertransaction.loanAmount) as loan,
     SUM(tlb_mastertransaction.loanRepayment) as loanRepayment,
+    
+    SUM(tlb_mastertransaction.specialLoanAmount) as specialLoanAmount,
+    SUM(tlb_mastertransaction.specialLoanRepayment) as specialLoanRepayment,
+    SUM(tlb_mastertransaction.specialInterest) as specialInterest,
+    SUM(tlb_mastertransaction.specialInterestPaid) as specialInterestPaid,
+
     (
         SELECT SUM(m2.interest) - SUM(m2.interestPaid)
         FROM tlb_mastertransaction m2
@@ -67,13 +73,27 @@ SELECT
         WHERE m2.memberid = tlb_mastertransaction.memberid
         AND m2.periodid <= tlb_mastertransaction.periodid
     ) as sharesBalance,
+    (
+        SELECT SUM(m2.specialLoanAmount) - SUM(m2.specialLoanRepayment)
+        FROM tlb_mastertransaction m2
+        WHERE m2.memberid = tlb_mastertransaction.memberid
+        AND m2.periodid <= tlb_mastertransaction.periodid
+    ) as specialLoanBalance,
+    (
+        SELECT SUM(m2.specialInterest) - SUM(m2.specialInterestPaid)
+        FROM tlb_mastertransaction m2
+        WHERE m2.memberid = tlb_mastertransaction.memberid
+        AND m2.periodid <= tlb_mastertransaction.periodid
+    ) as specialInterestBalance,
     SUM(
         tlb_mastertransaction.entryFee + 
         tlb_mastertransaction.savings + 
         tlb_mastertransaction.shares + 
         tlb_mastertransaction.interestPaid + 
         tlb_mastertransaction.loanRepayment + 
-        tlb_mastertransaction.repayment_bank
+        tlb_mastertransaction.repayment_bank +
+        IFNULL(tlb_mastertransaction.specialLoanRepayment, 0) + 
+        IFNULL(tlb_mastertransaction.specialInterestPaid, 0)
     ) as total,
     -- Check if accounting entries exist for this transaction
     (
@@ -111,9 +131,16 @@ SELECT
     MAX(tlb_mastertransaction.transactionid) AS transactionid,
     IFNULL(SUM(tlb_mastertransaction.loanAmount), 0) AS loan,
     IFNULL(SUM(tlb_mastertransaction.loanRepayment), 0) AS loanrepayments,
+    
+    IFNULL(SUM(tlb_mastertransaction.specialLoanAmount), 0) AS specialLoanAmount,
+    IFNULL(SUM(tlb_mastertransaction.specialLoanRepayment), 0) AS specialLoanRepayment,
+    IFNULL(SUM(tlb_mastertransaction.specialInterest), 0) AS specialInterest,
+    IFNULL(SUM(tlb_mastertransaction.specialInterestPaid), 0) AS specialInterestPaid,
+
     IFNULL(SUM(tlb_mastertransaction.withdrawal), 0) AS withdrawals,
     (IFNULL(SUM(tlb_mastertransaction.loanRepayment), 0) + IFNULL(SUM(tlb_mastertransaction.entryFee), 0) + IFNULL(SUM(tlb_mastertransaction.savings), 0) + 
-    IFNULL(SUM(tlb_mastertransaction.shares), 0) + IFNULL(SUM(tlb_mastertransaction.interestPaid), 0)) AS total,
+    IFNULL(SUM(tlb_mastertransaction.shares), 0) + IFNULL(SUM(tlb_mastertransaction.interestPaid), 0) + 
+    IFNULL(SUM(tlb_mastertransaction.specialLoanRepayment), 0) + IFNULL(SUM(tlb_mastertransaction.specialInterestPaid), 0)) AS total,
     MAX(tbpayrollperiods.PayrollPeriod) AS PayrollPeriod,
     MAX(tlb_mastertransaction.periodid) AS periodid,
     IFNULL(SUM(tlb_mastertransaction.entryFee), 0) AS entryFee,
@@ -294,6 +321,14 @@ $row_totalsum = $totalsum->fetch_assoc();
                 <th class="py-3 px-2  font-semibold">Interest</th>
                 <th class="py-3 px-2  font-semibold">Interest Paid</th>
                 <th class="py-3 px-2  font-semibold">Unpaid Interest</th>
+                
+                <th class="py-3 px-2  font-semibold">Sp. Loan</th>
+                <th class="py-3 px-2  font-semibold">Sp. Repayment</th>
+                <th class="py-3 px-2  font-semibold">Sp. Loan Bal.</th>
+                <th class="py-3 px-2  font-semibold">Sp. Interest</th>
+                <th class="py-3 px-2  font-semibold">Sp. Int. Paid</th>
+                <th class="py-3 px-2  font-semibold">Sp. Unpaid Interest</th>
+                
                 <th class="py-3 px-2  font-semibold">Total</th>
             </tr>
         </thead>
@@ -337,6 +372,20 @@ $row_totalsum = $totalsum->fetch_assoc();
                     <?= number_format($row_status['InterestPaid'] ?? 0, 2, '.', ','); ?></td>
                 <td data-label="Unpaid Interest" class="py-2 px-2  ">
                     <?= number_format($row_status['interestBalance'] ?? 0, 2, '.', ','); ?></td>
+                
+                <td data-label="Sp. Loan" class="py-2 px-2">
+                    <?= number_format($row_status['specialLoanAmount'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Sp. Repayment" class="py-2 px-2">
+                    <?= number_format($row_status['specialLoanRepayment'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Sp. Loan Bal." class="py-2 px-2 ">
+                    <?= number_format($row_status['specialLoanBalance'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Sp. Interest" class="py-2 px-2 ">
+                    <?= number_format($row_status['specialInterest'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Sp. Int. Paid" class="py-2 px-2 ">
+                    <?= number_format($row_status['specialInterestPaid'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Sp. Unpaid Interest" class="py-2 px-2 ">
+                    <?= number_format($row_status['specialInterestBalance'] ?? 0, 2, '.', ','); ?></td>
+                
                 <td data-label="Total" class="py-2 px-2  ">
                     <?= number_format(round($row_status['total'] ?? 0), 2, '.', ','); ?></td>
             </tr>
@@ -363,6 +412,18 @@ $row_totalsum = $totalsum->fetch_assoc();
                 <td class="py-3 px-2 " data-label="Interest Paid">
                     <?= number_format($row_totalsum['interestPaid'] ?? 0, 2, '.', ','); ?></td>
                 <td></td>
+                
+                <td class="py-3 px-2" data-label="Sp. Loan">
+                    <?= number_format($row_totalsum['specialLoanAmount'] ?? 0, 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Sp. Repayment">
+                    <?= number_format($row_totalsum['specialLoanRepayment'] ?? 0, 2, '.', ','); ?></td>
+                <td></td>
+                <td class="py-3 px-2 " data-label="Sp. Interest">
+                    <?= number_format($row_totalsum['specialInterest'] ?? 0, 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Sp. Int. Paid">
+                    <?= number_format($row_totalsum['specialInterestPaid'] ?? 0, 2, '.', ','); ?></td>
+                <td></td>
+                
                 <td class="py-3 px-2 " data-label="Total">
                     <?= number_format(round($row_totalsum['total'] ?? 0), 2, '.', ','); ?></td>
             </tr>
@@ -625,4 +686,56 @@ $(document).on('click', '#exportexcel', function() {
         }
     });
 });
+// DELETE Transaction
+$(document).on('click', '#deleteT', function() {
+    const checkboxes = $('input[name="memberid"]:checked');
+    if (checkboxes.length === 0) {
+        Swal.fire('Warning', 'Please select at least one transaction to delete.', 'warning');
+        return;
+    }
+
+    const transactionIds = [];
+    checkboxes.each(function() {
+        transactionIds.push($(this).val()); // val() is memberid,periodid
+    });
+
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "You are about to delete " + transactionIds.length + " transaction(s). This action cannot be undone!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            showBlockingLoader("Deleting...");
+            $.ajax({
+                url: 'deletetransaction.php',
+                type: 'POST',
+                data: { transactionIds: transactionIds },
+                dataType: 'json',
+                success: function(response) {
+                    hideBlockingLoader();
+                    if (response.success) {
+                        Swal.fire(
+                            'Deleted!',
+                            'Transactions have been deleted.',
+                            'success'
+                        ).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', 'Failed to delete: ' + (response.error || 'Unknown error'), 'error');
+                    }
+                },
+                error: function() {
+                    hideBlockingLoader();
+                    Swal.fire('Error', 'Server communication failed.', 'error');
+                }
+            });
+        }
+    });
+});
+
 </script>

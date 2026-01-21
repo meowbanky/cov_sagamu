@@ -342,6 +342,131 @@ $entryFees = (int)($row_entrySettings['value']);
 				);
 				db_query($cov, $shareSavings);
 			}
+
+            // === SPECIAL LOAN PROCESSING ===
+            // 1. Get Special Contribution (Source of funds)
+            $query_special_contri = sprintf("SELECT IFNULL(SUM(contribution),0) as amount FROM tbl_specialcontributions WHERE membersid = %s AND periodid = %s",
+                GetSQLValueString($cov, $row_member['memberid'], "text"),
+                GetSQLValueString($cov, $_GET["PeriodID"], "int")
+            );
+            $res_special_contri = db_query($cov, $query_special_contri);
+            $row_special_contri = db_fetch_assoc($res_special_contri);
+            $special_contribution = floatval($row_special_contri['amount'] ?? 0);
+            
+            // 2. Get Special Loan Balance & Interest History
+            $specialBalancesSQL = sprintf("SELECT 
+                IFNULL(SUM(specialLoanAmount), 0) as loanTotal,
+                IFNULL(SUM(specialLoanRepayment), 0) as repaidTotal,
+                IFNULL(SUM(specialInterest), 0) as interestTotal,
+                IFNULL(SUM(specialInterestPaid), 0) as interestPaidTotal
+                FROM tlb_mastertransaction 
+                WHERE memberid = %s", GetSQLValueString($cov, $row_member['memberid'], "text"));
+             
+            $res_sp_bal = db_query($cov, $specialBalancesSQL);
+            $row_sp_bal = db_fetch_assoc($res_sp_bal);
+            
+            $sp_loan_bal = $row_sp_bal['loanTotal'] - $row_sp_bal['repaidTotal'];
+            $sp_interest_bal = $row_sp_bal['interestTotal'] - $row_sp_bal['interestPaidTotal']; // Outstanding Interest (Arrears)
+
+             // Process if there is a loan balance OR there is money to contribute
+            if ($sp_loan_bal > 0 || $special_contribution > 0) {
+                 
+                 $sp_current_interest = 0;
+                 if ($sp_loan_bal > 0) {
+                     // Get Special Loan Interest Rate from Global Settings (ID 9)
+                     $query_sp_rate = "SELECT value FROM tbl_globa_settings WHERE setting_id = 9";
+                     $res_sp_rate = db_query($cov, $query_sp_rate);
+                     $row_sp_rate = db_fetch_assoc($res_sp_rate);
+                     $sp_interest_rate = floatval($row_sp_rate['value'] ?? 0.02); // Default to 2% if not found
+
+                     // Calculate Interest on OUTSTANDING BALANCE
+                     $sp_current_interest = $sp_loan_bal * ($sp_interest_rate);
+                 }
+                 
+                 $sp_total_interest_due = $sp_interest_bal + $sp_current_interest;
+                 
+                 $sp_interest_paid = 0;
+                 $sp_principal_paid = 0;
+                 $sp_shares_added = 0;
+                 
+                 if ($special_contribution == 0) {
+                     // Scenario A: No payment, just accrue interest
+                     $sp_interest_paid = 0;
+                     $sp_principal_paid = 0;
+                     $sp_shares_added = 0;
+                 } else {
+                     // Have funds
+                     if ($special_contribution < $sp_total_interest_due) {
+                         // Scenario B: Payment not enough for interest
+                         $sp_interest_paid = $special_contribution;
+                         $sp_principal_paid = 0;
+                         $sp_shares_added = 0;
+                     } else {
+                         // Scenario C: Payment covers interest
+                         $sp_interest_paid = $sp_total_interest_due;
+                         $remaining = $special_contribution - $sp_total_interest_due;
+                         
+                         if ($remaining > 0) {
+                             if ($sp_loan_bal > 0) {
+                                 if ($remaining < $sp_loan_bal) {
+                                     // Part of principal
+                                     $sp_principal_paid = $remaining;
+                                     $sp_shares_added = 0;
+                                 } else {
+                                     // Full principal + Surplus
+                                     $sp_principal_paid = $sp_loan_bal;
+                                     $surplus = $remaining - $sp_loan_bal;
+                                     $sp_shares_added = $surplus; // Add to Shares
+                                 }
+                             } else {
+                                 // No loan balance, everything to shares
+                                 $sp_principal_paid = 0;
+                                 $sp_shares_added = $remaining;
+                             }
+                         }
+                     }
+                 }
+                 
+                 // Insert Record
+                 // Only insert if there's something to record (interest accrued, payment made, or shares added)
+                 if ($sp_current_interest > 0 || $special_contribution > 0) {
+                     $insertSQL_Special = sprintf(
+                        "INSERT INTO tlb_mastertransaction 
+                        (periodid, memberid, specialInterest, specialInterestPaid, specialLoanRepayment, shares, completed) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                        GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+                        GetSQLValueString($cov, $row_member['memberid'], "text"),
+                        GetSQLValueString($cov, $sp_current_interest, "double"),
+                        GetSQLValueString($cov, $sp_interest_paid, "double"),
+                        GetSQLValueString($cov, $sp_principal_paid, "double"),
+                        GetSQLValueString($cov, $sp_shares_added, "double"), // Add to existing shares column? Or implies specific special shares? User said "add this remaining amount to shares", assuming standard shares.
+                        GetSQLValueString($cov, COMPLETED_STATUS, "int")
+                    );
+                    db_query($cov, $insertSQL_Special);
+                 }
+            }
+            
+            // Check for NEW special loans to disburse
+            $query_SpBatch = sprintf(
+				"SELECT loanamount, loanid, memberid, loan_date FROM tbl_special_loan WHERE memberid = %s AND periodid = %s",
+				GetSQLValueString($cov, $row_member['memberid'], "text"),
+				GetSQLValueString($cov, $_GET["PeriodID"], "int")
+			);
+			$SpBatch = db_query($cov, $query_SpBatch);
+			while ($row_SpBatch = db_fetch_assoc($SpBatch)) {
+                 $insertSQL_SpDisburse = sprintf(
+					"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid, specialLoanAmount, completed) VALUES (%s, %s, %s, %s, %s)",
+					GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+					GetSQLValueString($cov, $row_member['memberid'], "text"),
+					GetSQLValueString($cov, $row_SpBatch['loanid'], "int"),
+					GetSQLValueString($cov, doubleval($row_SpBatch['loanamount']), "double"),
+                    GetSQLValueString($cov, COMPLETED_STATUS, "int")
+				);
+				db_query($cov, $insertSQL_SpDisburse);
+            }
+            // ============================
+
+
 			// Insert late loans
 			foreach ($loans_late as $loan) {
 				$insertSQL_LateLoan = sprintf(

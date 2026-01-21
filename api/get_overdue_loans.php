@@ -22,6 +22,9 @@ header('Access-Control-Allow-Headers: Content-Type');
 mysqli_select_db($cov, $database_cov);
 
 try {
+    $months = isset($_GET['months']) ? intval($_GET['months']) : 12;
+    if ($months < 1) $months = 12; // validation
+
     // Get current period (MAX Periodid from tbpayrollperiods)
     $currentPeriodQuery = "SELECT MAX(Periodid) as current_period FROM tbpayrollperiods";
     $currentPeriodResult = mysqli_query($cov, $currentPeriodQuery);
@@ -74,7 +77,7 @@ try {
         INNER JOIN tbl_personalinfo p ON p.memberid = m.memberid
         LEFT JOIN tbpayrollperiods pr ON pr.Periodid = m.last_loan_period
         WHERE m.last_loan_period IS NOT NULL
-        AND ({$currentPeriod} - m.last_loan_period) > 10
+        AND ({$currentPeriod} - m.last_loan_period) > {$months}
         ORDER BY period_gap DESC, m.memberid ASC
     ";
     
@@ -114,6 +117,7 @@ try {
         'current_period' => intval($currentPeriod),
         'current_period_name' => $currentPeriodName,
         'total_overdue' => count($overdueLoans),
+        'threshold' => $months,
         'data' => $overdueLoans
     ]);
     

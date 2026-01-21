@@ -1,13 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    './*.{php,js,html}',
-    './getMasterTransaction.php',
-    './mastertransaction.php',
-  ],
+  content: ["./**/*.{php,js,html}", "!./node_modules/**/*"],
   theme: {
     extend: {},
   },
   plugins: [],
-}
-
+};

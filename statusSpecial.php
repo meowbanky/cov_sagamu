@@ -3,7 +3,7 @@
 if (!function_exists("GetSQLValueString")) {
 function GetSQLValueString($conn_vote, $theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "") 
     {
-      $theValue = get_magic_quotes_gpc() ? stripslashes($theValue) : $theValue;
+      $theValue = $theValue; // get_magic_quotes_gpc() removed
 
       $theValue = function_exists("mysqli_real_escape_string") ? mysqli_real_escape_string($conn_vote, $theValue) : mysqli_escape_string($conn_vote, $theValue);
 

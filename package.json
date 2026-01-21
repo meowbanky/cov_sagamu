@@ -7,5 +7,11 @@
     "build": "postcss css/input.css -o css/output.css --watch --verbose"
   },
   "author": "Emmaggi",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "tailwindcss": "^3.4.19"
+  }
 }

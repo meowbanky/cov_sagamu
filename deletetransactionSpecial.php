@@ -3,9 +3,9 @@
 if (!function_exists("GetSQLValueString")) {
 function GetSQLValueString($conn_vote, $theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "") 
     {
-      $theValue = get_magic_quotes_gpc() ? stripslashes($theValue) : $theValue;
+      $theValue = $theValue; // get_magic_quotes_gpc() removed
 
-      $theValue = function_exists("mysqli_real_escape_string") ? mysqli_real_escape_string($conn_vote, $theValue) : mysqli_escape_string($theValue);
+      $theValue = mysqli_real_escape_string($conn_vote, $theValue);
 
       switch ($theType) {
         case "text":
@@ -36,21 +36,21 @@ if ((isset($_GET['periodid']))) {
 					  GetSQLValueString($cov,$_GET['memberid'], "int"));
 					  
   mysqli_select_db($cov,$database_cov);
-  $Result1 = mysqli_query($cov,$deleteSQL) or die(mysql_error());
+  $Result1 = mysqli_query($cov,$deleteSQL) or die(mysqli_error($cov));
   
    $deleteSQL_loan = sprintf("DELETE FROM tbl_special_loan WHERE periodid=%s AND memberid=%s",
                       GetSQLValueString($cov,$_GET['periodid'], "int"),
 					  GetSQLValueString($cov,$_GET['memberid'], "int"));
 					  
   mysqli_select_db($cov,$database_cov);
-  $Result1 = mysqli_query($cov,$deleteSQL_loan) or die(mysql_error());
+  $Result1 = mysqli_query($cov,$deleteSQL_loan) or die(mysqli_error($cov));
   
 $deleteSQL_refund = sprintf("DELETE FROM tbl_refund WHERE periodid=%s AND membersid=%s",
                       GetSQLValueString($cov,$_GET['periodid'], "int"),
 					  GetSQLValueString($cov,$_GET['memberid'], "int"));
 					  
   mysqli_select_db($cov,$database_cov);
-  $Result1 = mysqli_query($cov,$deleteSQL_refund) or die(mysql_error());
+  $Result1 = mysqli_query($cov,$deleteSQL_refund) or die(mysqli_error($cov));
   
   }
 
