@@ -170,7 +170,7 @@ $current = basename($_SERVER['PHP_SELF']);
                 <span class="text-lg font-bold text-blue-900"><?= htmlspecialchars($row_title['value']) ?></span>
                 <button id="close-sidebar" class="text-gray-500 text-2xl focus:outline-none">&times;</button>
             </div>
-            <nav class="flex-1">
+            <nav class="flex-1 overflow-y-auto">
                 <ul class="space-y-2">
                     <li><a href="dashboard.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 font-medium text-blue-900 <?= $current=='dashboard.php'?'sidebar-active':'' ?>"><i
@@ -223,6 +223,9 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="email_queue_dashboard.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='email_queue_dashboard.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-envelope fa-fw mr-2"></i> Email Queue</a></li>
+                    <li><a href="coop_bulksms.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_bulksms.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-comment-sms fa-fw mr-2"></i> Bulk SMS</a></li>
 
                     <!-- Accounting Section -->
                     <li class="mt-4 pt-4 border-t border-gray-200">
@@ -260,9 +263,10 @@ $current = basename($_SERVER['PHP_SELF']);
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='coop_bank_reconciliation.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-university fa-fw mr-2"></i> Bank Reconciliation</a></li>
 
-                    <li><a href="queue_members_email.php"
-                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='queue_members_email.php'?'sidebar-active':'' ?>"><i
-                                class="fa fa-paper-plane fa-fw mr-2"></i> Queue Members Email</a></li>
+                    <li><a href="email_queue_dashboard.php"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='email_queue_dashboard.php'?'sidebar-active':'' ?>"><i
+                                class="fa fa-envelope fa-fw mr-2"></i> Email Queue</a></li>
+
                 </ul>
             </nav>
         </aside>

@@ -9,14 +9,13 @@ class NotificationService {
     public function __construct($db) {
         $this->db = $db;
         $this->oneSignalConfig = [
-            'appId' => '2ec0cda9-7643-471c-9b3f-f607768d243d',
-            'apiKey' => 'os_v2_app_f3am3klwindrzgz76ydxndjehwojhjtgmfdun24d3inh4lbrvlvtrxpvnvlxuj3p3a44ykijqmlz53ovuvial3twmiwtwzstfzcyo5y'
+            'appId' => $_ENV['ONESIGNAL_APP_ID'] ?? '',
+            'apiKey' => $_ENV['ONESIGNAL_API_KEY'] ?? ''
         ];
         $this->smsConfig = [
-            'sender' => 'VCMSSAGAMU',
-            'apiKey' => 'TLYa2oT5vTpT3X4r3fSv2lSfErDApbmhbOAjOP3ituAA2XnLYMFIqzrq3leU1y',
+            'sender' => $_ENV['TERMII_SENDER'] ?? ($_ENV['SMS_SENDER'] ?? ''),
+            'apiKey' => $_ENV['TERMII_API_KEY'] ?? ($_ENV['SMS_API_KEY'] ?? ''),
             'endpoint' => 'https://v3.api.termii.com/api/sms/send'
-
         ];
     }
 
@@ -255,5 +254,177 @@ LEFT JOIN tbpayrollperiods ON tlb_mastertransaction.periodid = tbpayrollperiods.
                   ('$memberId', '$message', NOW(), 'unread')";
 
         return mysqli_query($this->db, $query);
+    }
+
+    public function sendBulkSMS(array $phoneNumbers, $message, $channel = 'generic') {
+        if (empty($phoneNumbers)) {
+            throw new \Exception("Phone numbers are required");
+        }
+
+        // Re-index array to be safe JSON
+        // Using local formatPhoneNumber
+        $formattedNumbers = array_values(array_map([$this, 'formatPhoneNumber'], $phoneNumbers));
+
+        $data = [
+            "api_key" => $this->smsConfig['apiKey'],
+            "to" => $formattedNumbers,
+            "from" => $this->smsConfig['sender'],
+            "sms" => $message,
+            "type" => "plain",
+            "channel" => $channel
+        ];
+
+        // HARDCODED BULK URL to ensure correctness
+        $url = "https://v3.api.termii.com/api/sms/send/bulk";
+
+        return $this->executeCurlRequest($url, $data);
+    }
+
+    public function getSMSBalance() {
+        // Use the configured API key
+        $apiKey = $this->smsConfig['apiKey'];
+        
+        if (empty($apiKey)) {
+            error_log("Termii Balance Error: API Key is empty.");
+            return 0;
+        }
+
+        $url = "https://v3.api.termii.com/api/get-balance?api_key=" . urlencode(trim($apiKey));
+        
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false, 
+            CURLOPT_SSL_VERIFYHOST => 0,     
+            CURLOPT_TIMEOUT => 30 
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($response === false) {
+             error_log("Termii Balance Curl Exec Failed: " . curl_error($ch));
+             curl_close($ch);
+             return 0;
+        }
+
+        curl_close($ch);
+        
+        $data = json_decode($response, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log("Termii Balance JSON Decode Error: " . json_last_error_msg());
+            return 0;
+        }
+
+        if ($httpCode !== 200) {
+             error_log("Termii Balance Failed ($httpCode): " . $response);
+             return 0;
+        }
+        
+        if (isset($data['balance'])) {
+             return $data['balance'];
+        } else {
+             error_log("Termii Balance: 'balance' key missing in response.");
+             return 0;
+        }
+    }
+
+    public function getSMSInbox() {
+        // Use the configured API key
+        $apiKey = $this->smsConfig['apiKey'];
+        
+        if (empty($apiKey)) {
+            error_log("Termii Inbox Error: API Key is empty.");
+            return [];
+        }
+
+        $url = "https://v3.api.termii.com/api/sms/inbox?api_key=" . urlencode(trim($apiKey));
+
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_TIMEOUT => 60 
+        ]);
+
+        $response = curl_exec($ch);
+    
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($response === false) {
+             error_log("Termii Inbox Curl Exec Failed: " . curl_error($ch));
+             curl_close($ch);
+             return [];
+        }
+
+        curl_close($ch);
+        
+        $data = json_decode($response, true);
+
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log("Termii Inbox JSON Decode Error: " . json_last_error_msg());
+            return [];
+        }
+        
+        if (is_array($data)) {
+            return $data; 
+        }
+
+        return [];
+    }
+
+    private function executeCurlRequest($url, $data) {
+        $ch = curl_init();
+        
+        // Debug Log Payload
+        error_log("Termii Request Payload: " . json_encode($data));
+
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30, // Increased timeout for network latency
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "POST",
+            CURLOPT_POSTFIELDS => json_encode($data),
+            CURLOPT_HTTPHEADER => [
+                "Content-Type: application/json"
+            ]
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if (curl_errno($ch)) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            throw new \Exception("Curl error: $error");
+        }
+
+        curl_close($ch);
+
+        $responseData = json_decode($response, true);
+
+        // Termii can return various codes, strictly check for success indicators
+        if ($httpCode !== 200 && $httpCode !== 201) {
+             // Debug log
+             error_log("Termii API Error: URL: $url - Code: $httpCode - Response: $response");
+             $errorMessage = isset($responseData['message']) ? $responseData['message'] : $response;
+             // Include URL in error message for better debugging
+             throw new \Exception("SMS API Error ($httpCode): $errorMessage (URL: $url)");
+        }
+
+        // Return formatted numbers for debugging
+        $responseData['debug_numbers'] = $data['to'] ?? []; 
+
+        return $responseData;
     }
 }

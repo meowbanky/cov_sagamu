@@ -479,7 +479,12 @@ $entryFees = (int)($row_entrySettings['value']);
 				db_query($cov, $insertSQL_LateLoan);
 			}
 			// Notification
-			if (isset($_GET['sms']) && $_GET['sms'] == 1) {
+			// Check raw contributions (including special savings) to ensure SMS sends even if entry fees consume the main contribution
+			$hasContribution = ($row_deductions['contri'] > 0) || 
+                               ($row_deductions['special_savings'] > 0) || 
+                               ($special_contribution > 0);
+
+			if (isset($_GET['sms']) && $_GET['sms'] == 1 && $hasContribution) {
 				try {
 					$notificationService->sendTransactionNotification(
 						$row_member['memberid'],
