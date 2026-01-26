@@ -27,5 +27,6 @@ Thumbs.db
 Connections/cov.php
 cov_update/Connections/info.php
 rpc.php.*
-!.gitignore
+
 social_posts/
+*.sql
