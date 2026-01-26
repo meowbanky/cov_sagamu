@@ -8,6 +8,15 @@ use PHPMailer\PHPMailer\Exception;
 //Load Composer's autoloader
 require 'vendor/autoload.php';
 
+// Load environment variables from root (relative path: cov_update/mail/mail -> cov_update/mail -> cov_update -> cov_admin)
+if (file_exists(__DIR__ . '/../../../../vendor/autoload.php')) {
+    require_once __DIR__ . '/../../../../vendor/autoload.php';
+}
+if (class_exists('Dotenv\Dotenv')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../../../../');
+    $dotenv->safeLoad();
+}
+
 //Create an instance; passing `true` enables exceptions
 $mail = new PHPMailer(true);
 
@@ -15,10 +24,10 @@ try {
     //Server settings
     $mail->SMTPDebug = SMTP::DEBUG_SERVER;                      //Enable verbose debug output
     $mail->isSMTP();                                            //Send using SMTP
-    $mail->Host       = 'mail.oouthbid.com.ng';                 //Set the SMTP server to send through
+    $mail->Host       = $_ENV['SMTP_HOST'];      //Set the SMTP server to send through
     $mail->SMTPAuth   = true;                                   //Enable SMTP authentication
-    $mail->Username   = 'no-replyoouth@oouthbid.com.ng';        //SMTP username
-    $mail->Password   = 'no-replyoouth@123';                    //SMTP password
+    $mail->Username   = $_ENV['SMTP_USERNAME']; //SMTP username
+    $mail->Password   = $_ENV['SMTP_PASSWORD'];               //SMTP password
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            //Enable implicit TLS encryption
     $mail->Port       = 465;                                    //TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
 

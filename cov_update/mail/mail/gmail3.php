@@ -13,6 +13,15 @@ use PHPMailer\PHPMailer\SMTP;
 
 require 'vendor/autoload.php';
 
+// Load environment variables from root (relative path: cov_update/mail/mail -> cov_update/mail -> cov_update -> cov_admin)
+if (file_exists(__DIR__ . '/../../../../vendor/autoload.php')) {
+    require_once __DIR__ . '/../../../../vendor/autoload.php';
+}
+if (class_exists('Dotenv\Dotenv')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../../../../');
+    $dotenv->safeLoad();
+}
+
 //Create a new PHPMailer instance
 $mail = new PHPMailer();
 
@@ -26,7 +35,7 @@ $mail->isSMTP();
 $mail->SMTPDebug = SMTP::DEBUG_SERVER;
 
 //Set the hostname of the mail server
-$mail->Host = 'mail.oouth.com';
+$mail->Host = $_ENV['SMTP_HOST'];
 //Use `$mail->Host = gethostbyname('smtp.gmail.com');`
 //if your network does not support SMTP over IPv6,
 //though this may cause issues with TLS
@@ -46,10 +55,10 @@ $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
 $mail->SMTPAuth = true;
 
 //Username to use for SMTP authentication - use full email address for gmail
-$mail->Username = 'test@oouth.com';
+$mail->Username = $_ENV['SMTP_USERNAME'];
 
 //Password to use for SMTP authentication
-$mail->Password = 'Banzoo@7980';
+$mail->Password = $_ENV['SMTP_PASSWORD'];
 
 //Set who the message is to be sent from
 //Note that with gmail you can only use your account address (same as `Username`)

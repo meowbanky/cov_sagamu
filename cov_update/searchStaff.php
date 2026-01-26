@@ -1,9 +1,18 @@
 <?php
 //include_once('classes/functions.php');
-$dbHost = 'localhost';
-$dbUsername = 'emmaggic_root';
-$dbPassword = 'Oluwaseyi';
-$dbName = 'emmaggic_cofv';
+//include_once('classes/functions.php');
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+}
+if (class_exists('Dotenv\Dotenv')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+    $dotenv->safeLoad();
+}
+
+$dbHost = $_ENV['DB_HOST'];
+$dbUsername = $_ENV['DB_USERNAME'];
+$dbPassword = $_ENV['DB_PASSWORD'];
+$dbName = $_ENV['DB_NAME'];
 //connect with the database
 $return_arr = array();
 $db = new mysqli($dbHost,$dbUsername,$dbPassword,$dbName);

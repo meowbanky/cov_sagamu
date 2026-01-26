@@ -19,8 +19,8 @@ class Database {
 
         // Set database credentials from .env
         $this->host = $_ENV['DB_HOST'];
-        $this->db_name = $_ENV['DB_USERNAME'];
-        $this->username = $_ENV['DB_USER'];
+        $this->db_name = $_ENV['DB_NAME'];
+        $this->username = $_ENV['DB_USERNAME'];
         $this->password = $_ENV['DB_PASSWORD'];
     }
 

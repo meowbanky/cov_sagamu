@@ -9,12 +9,12 @@ class NotificationService {
     public function __construct($db) {
         $this->db = $db;
         $this->oneSignalConfig = [
-            'appId' => $_ENV['ONESIGNAL_APP_ID'] ?? '',
-            'apiKey' => $_ENV['ONESIGNAL_API_KEY'] ?? ''
+            'appId' => $_ENV['ONESIGNAL_APP_ID'],
+            'apiKey' => $_ENV['ONESIGNAL_API_KEY']
         ];
         $this->smsConfig = [
-            'sender' => $_ENV['TERMII_SENDER'] ?? ($_ENV['SMS_SENDER'] ?? ''),
-            'apiKey' => $_ENV['TERMII_API_KEY'] ?? ($_ENV['SMS_API_KEY'] ?? ''),
+            'sender' => $_ENV['TERMII_SENDER'],
+            'apiKey' => $_ENV['TERMII_API_KEY'],
             'endpoint' => 'https://v3.api.termii.com/api/sms/send'
         ];
     }

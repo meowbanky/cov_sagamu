@@ -1,4 +1,13 @@
 <?php
+// Load environment variables (relative path to root cov_admin)
+// Adjust path: mail/index.php -> mail -> cov_update -> cov_admin (3 levels up)
+if (file_exists(__DIR__ . '/../../vendor/autoload.php')) {
+    require_once __DIR__ . '/../../vendor/autoload.php';
+}
+if (class_exists('Dotenv\Dotenv')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../../');
+    $dotenv->safeLoad();
+}
 
 //Import PHPMailer classes into the global namespace
 use PHPMailer\PHPMailer\PHPMailer;
@@ -60,10 +69,10 @@ foreach ($res as $row => $link) {
 	$mail->SMTPAuth = true;
 
 	//Username to use for SMTP authentication - use full email address for gmail
-	$mail->Username = "vcms@emmaggi.com";
+	$mail->Username = $_ENV['SMTP_USERNAME'];
 
 	//Password to use for SMTP authentication
-	$mail->Password = "Banzoo@7980";
+	$mail->Password = $_ENV['SMTP_PASSWORD'];
 
 	//Set who the message is to be sent from
 	//Note that with gmail you can only use your account address (same as `Username`)

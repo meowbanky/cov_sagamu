@@ -1,6 +1,10 @@
 <?php
 require 'vendor/autoload.php';
 
+use Dotenv\Dotenv;
+$dotenv = Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PHPMailer\PHPMailer\PHPMailer;
@@ -51,12 +55,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     try {
         // Server settings
         $mail->isSMTP();
-        $mail->Host = 'mail.emmaggi.com' ; //$_ENV['SMTP_HOST'];  // Set the SMTP server to send through
+        $mail->Host = $_ENV['SMTP_HOST'];  // Set the SMTP server to send through
         $mail->SMTPAuth = true;
-        $mail->Username = 'cov@emmaggi.com' ; //$_ENV['SMTP_USER'];  // SMTP username
-        $mail->Password = 'Banzoo@7980'; // $_ENV['SMTP_PASS'];  // SMTP password
+        $mail->Username = $_ENV['SMTP_USERNAME'];  // SMTP username
+        $mail->Password = $_ENV['SMTP_PASSWORD']; // SMTP password
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = '587'; // $_ENV['SMTP_PORT'];
+        $mail->Port = $_ENV['SMTP_PORT'];
 
         // Recipients
         $mail->setFrom('cov@emmaggi.com', 'VCMS');
