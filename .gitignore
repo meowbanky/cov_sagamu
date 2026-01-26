@@ -26,4 +26,6 @@ Thumbs.db
 # Sensitive DB Configs
 Connections/cov.php
 cov_update/Connections/info.php
-rpc.php
+rpc.php.*
+!.gitignore
+social_posts/
