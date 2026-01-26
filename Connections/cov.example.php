@@ -3,9 +3,9 @@
 # Type="MYSQL"
 # HTTP="true"
 $hostname_cov = "localhost";
-$database_cov = "emmaggic_cofv";
-$username_cov = "emmaggic_root";
-$password_cov = "Oluwaseyi";
+$database_cov = "YOUR_DATABASE_NAME";
+$username_cov = "YOUR_DB_USERNAME";
+$password_cov = "YOUR_DB_PASSWORD";
 $cov = mysqli_connect($hostname_cov, $username_cov, $password_cov);
 if (!$cov) {
     trigger_error(mysqli_connect_error(), E_USER_ERROR);

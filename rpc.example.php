@@ -1,8 +1,8 @@
-﻿<?php
+<?php
 	
 	// PHP5 Implementation - uses MySQLi.
 	// mysqli('localhost', 'yourUsername', 'yourPassword', 'yourDatabase');
-$db = new mysqli('localhost', 'emmaggic_root', 'Oluwaseyi', 'emmaggic_cofv');
+$db = new mysqli('localhost', 'YOUR_DB_USERNAME', 'YOUR_DB_PASSWORD', 'YOUR_DATABASE_NAME');
 	
 	if(!$db) {
 		// Show error if we cannot connect.

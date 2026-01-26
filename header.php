@@ -111,11 +111,21 @@ $current = basename($_SERVER['PHP_SELF']);
             <marquee behavior="scroll" direction="left" scrollamount="3" class="text-xs md:text-sm text-gray-600">
                 <span class="text-red-600 font-semibold">SMS BALANCE:
                     <?php
-                    try{
-                        $response = curlPost('https://api.ng.termii.com/api/get-balance?api_key=TLYa2oT5vTpT3X4r3fSv2lSfErDApbmhbOAjOP3ituAA2XnLYMFIqzrq3leU1y');
-                        $jsonobj = $response;
-                        $obj = json_decode($jsonobj);
-                        echo number_format($obj->balance);
+                    try {
+                        if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+                            require_once __DIR__ . '/vendor/autoload.php';
+                        }
+                        // Load .env if not already loaded (check for a known key)
+                        if (!isset($_ENV['TERMII_API_KEY'])) {
+                            if (class_exists('Dotenv\Dotenv')) {
+                                $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+                                $dotenv->safeLoad();
+                            }
+                        }
+                        
+                        require_once __DIR__ . '/libs/services/NotificationService.php';
+                        $notifService = new App\Services\NotificationService($cov);
+                        echo number_format($notifService->getSMSBalance());
                     }
                     catch(Exception $e) {
                         echo '0';
