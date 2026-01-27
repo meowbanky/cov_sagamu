@@ -68,8 +68,18 @@ try {
             $recipients = explode(',', $recipientsStr);
             $recipients = array_map('trim', $recipients);
             $recipients = array_filter($recipients);
-
+            
             $notificationService = new NotificationService($conn);
+
+            // --- BALANCE CHECK ---
+            $recipientCount = count($recipients);
+            $totalCost = $notificationService->calculateTransactionCost($message, $recipientCount);
+            $currentBalance = $notificationService->getSMSBalance();
+            
+            if ($currentBalance < $totalCost) {
+                throw new Exception("Insufficient SMS Balance. Cost: NGN $totalCost, Balance: NGN $currentBalance.");
+            }
+            // ---------------------
 
             // Chunk recipients into batches of 100 (Termii API limit)
             $chunks = array_chunk($recipients, 100);
@@ -107,6 +117,32 @@ try {
                 'total_processed' => count($recipients),
                 'total_submitted' => $totalSubmitted,
                 'batches' => $batchResults
+            ];
+        }
+
+        elseif ($action === 'check_cost') {
+             $recipientsStr = $_POST['recipients'] ?? '';
+             $message = $_POST['message'] ?? '';
+             
+             if (!class_exists(NotificationService::class)) {
+                throw new Exception("Notification Service not available.");
+            }
+            
+            $recipients = explode(',', $recipientsStr);
+            $recipients = array_map('trim', $recipients);
+            $recipients = array_filter($recipients);
+            $recipientCount = count($recipients);
+            
+            $notificationService = new NotificationService($conn);
+            
+            $cost = $notificationService->calculateTransactionCost($message, $recipientCount);
+            $balance = $notificationService->getSMSBalance();
+            
+            $response['status'] = 'success';
+            $response['data'] = [
+                'cost' => $cost,
+                'balance' => $balance,
+                'can_send' => ($balance >= $cost)
             ];
         }
 

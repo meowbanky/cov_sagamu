@@ -486,10 +486,18 @@ $entryFees = (int)($row_entrySettings['value']);
 
 			if (isset($_GET['sms']) && $_GET['sms'] == 1 && $hasContribution) {
 				try {
-					$notificationService->sendTransactionNotification(
-						$row_member['memberid'],
-						$_GET["PeriodID"]
-					);
+                    // Check SMS Balance for Automated Notification
+                    $notifCost = 5.0; // Estimated cost for 1 page
+                    $currBalance = $notificationService->getSMSBalance();
+                    
+                    if ($currBalance >= $notifCost) {
+                        $notificationService->sendTransactionNotification(
+                            $row_member['memberid'],
+                            $_GET["PeriodID"]
+                        );
+                    } else {
+                        error_log("Skipping SMS for {$row_member['memberid']}: Insufficient Balance (Bal: $currBalance, Req: $notifCost)");
+                    }
 				} catch (Exception $e) {
 					error_log("Failed to send notification: " . $e->getMessage());
 				}

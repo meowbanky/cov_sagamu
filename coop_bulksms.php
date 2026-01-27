@@ -56,11 +56,14 @@ if (!isset($_SESSION['UserID'])) {
                     <div class="mb-6">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Message</label>
                         <textarea id="smsMessage" rows="5" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none" placeholder="Type your message here..."></textarea>
-                        <div class="flex justify-between items-center mt-2">
+                        <div class="flex justify-between items-center mt-2 flex-wrap">
                             <p class="text-xs text-gray-500">
                                 Count: <span id="charCount" class="font-bold text-gray-900">0</span> | 
                                 Pages: <span id="pageCount" class="font-bold text-gray-900">0</span>
                                 <span id="smsTypeDisp" class="ml-2 text-gray-400">(GSM: 160/page)</span>
+                            </p>
+                            <p class="text-xs text-gray-500 font-medium">
+                                Est. Cost: <span id="costEstimate" class="font-bold text-blue-600">₦0.00</span>
                             </p>
                         </div>
                     </div>
@@ -175,30 +178,32 @@ if (!isset($_SESSION['UserID'])) {
 
     // --- Counter & Recipient Logic ---
 
-    $('#recipientList').on('input', function() {
-        const text = $(this).val();
-        const count = text.split(',').filter(s => s.trim().length > 0).length;
-        $('#recipientCount').text(count);
-    });
+    // --- Counter & Recipient Logic --- //
 
-    $('#smsMessage').on('input', function() {
-        const val = $(this).val();
-        const len = val.length;
+    // Reusable function to update all counts and cost
+    function updateCounts() {
+        const messageVal = $('#smsMessage').val();
+        const recipientText = $('#recipientList').val();
+         // Filter empty strings to get accurate count
+        const recipientCount = recipientText.split(',').filter(s => s.trim().length > 0).length;
+        
+        $('#recipientCount').text(recipientCount);
+
+        // --- Message Logic ---
+        const len = messageVal.length;
         $('#charCount').text(len);
         
-        // Check for Special Characters reducing limit to 70
-        // List: ; ^ { } \ [ ~ ] | € ' ”
-        // Note: Regex escapes: \ for \, [ for [ etc.
+        // Special Char Check
         const specialRegex = /[;\^\/\{\}\\\\[~\]|€'”]/; 
-        const isSpecial = specialRegex.test(val);
+        const isSpecial = specialRegex.test(messageVal);
 
         let limit = 160;
-        let multiLimit = 153; // Standard GSM multipart
+        let multiLimit = 153; 
         let typeHtml = '<span class="text-gray-400">(GSM: 160/page)</span>';
 
         if (isSpecial) {
             limit = 70;
-            multiLimit = 67; // Unicode multipart
+            multiLimit = 67; 
             typeHtml = '<span class="text-amber-600 font-bold"><i class="fa fa-exclamation-triangle"></i> Special Char (70/page)</span>';
         }
         
@@ -209,6 +214,21 @@ if (!isset($_SESSION['UserID'])) {
         }
         $('#pageCount').text(pages);
         $('#smsTypeDisp').html(typeHtml);
+
+        // --- Cost Logic ---
+        const costPerPage = 5.0; // Fixed cost
+        const totalCost = pages * recipientCount * costPerPage;
+        const formattedCost = totalCost.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+        
+        $('#costEstimate').text(formattedCost);
+    }
+
+    $('#recipientList').on('input', function() {
+        updateCounts(); // triggers everything
+    });
+
+    $('#smsMessage').on('input', function() {
+        updateCounts();
     });
 
     window.clearRecipients = function() {
@@ -265,39 +285,88 @@ if (!isset($_SESSION['UserID'])) {
             return;
         }
 
-        Swal.fire({
-            title: 'Send Broadcast?',
-            text: `You are about to send an SMS to ${$('#recipientCount').text()} recipients.`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#0ea5e9',
-            confirmButtonText: 'Yes, Send',
-            showLoaderOnConfirm: true,
-            preConfirm: () => {
-                return $.post('coop_sms_action.php', {
-                    action: 'send_bulk_sms',
-                    recipients: recipients,
-                    message: message
-                }, null, 'json')
-                .then(response => {
-                    if (response.status !== 'success') {
-                        throw new Error(response.message);
-                    }
-                    return response;
-                })
-                .catch(error => {
-                    Swal.showValidationMessage(`Request failed: ${error}`);
-                });
-            },
-            allowOutsideClick: () => !Swal.isLoading()
-        }).then((result) => {
-            if (result.isConfirmed) {
+        // Check Cost First
+        const btn = $('#btnSend');
+        const originalText = btn.html();
+        btn.html('<i class="fa fa-spinner fa-spin"></i> Checking...');
+        btn.prop('disabled', true);
+
+        $.post('coop_sms_action.php', {
+            action: 'check_cost',
+            recipients: recipients,
+            message: message
+        }, function(res) {
+            btn.html(originalText);
+            btn.prop('disabled', false);
+
+            if (res.status === 'success') {
+                const cost = parseFloat(res.data.cost);
+                const balance = parseFloat(res.data.balance);
+                const canSend = res.data.can_send;
+                const formattedCost = cost.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+                const formattedBalance = balance.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+
+                let confirmTitle = 'Send Broadcast?';
+                let confirmText = `Send SMS to ${$('#recipientCount').text()} recipients?\n\nEstimated Cost: ${formattedCost}\nCurrent Balance: ${formattedBalance}`;
+                let confirmIcon = 'question';
+                let confirmButtonText = 'Yes, Send';
+                let confirmButtonColor = '#0ea5e9';
+
+                if (!canSend) {
+                     confirmTitle = 'Insufficient Balance';
+                     confirmText = `Estimated Cost: ${formattedCost}\nCurrent Balance: ${formattedBalance}\n\nPlease top up your account to send this broadcast.`;
+                     confirmIcon = 'error';
+                     confirmButtonText = 'Insufficient Balance';
+                     confirmButtonColor = '#ef4444'; // Red
+                }
+
                 Swal.fire({
-                    title: 'Broadcast Sent!',
-                    text: result.value.message,
-                    icon: 'success'
+                    title: confirmTitle,
+                    text: confirmText, // Using text for simple newline, or html for better formatting
+                    html: confirmText.replace(/\n/g, '<br>'),
+                    icon: confirmIcon,
+                    showCancelButton: true,
+                    confirmButtonColor: confirmButtonColor,
+                    confirmButtonText: confirmButtonText,
+                    showLoaderOnConfirm: true,
+                    allowOutsideClick: false,
+                    preConfirm: () => {
+                         if (!canSend) return false; // Block action
+                         
+                         return $.post('coop_sms_action.php', {
+                            action: 'send_bulk_sms',
+                            recipients: recipients,
+                            message: message
+                        }, null, 'json')
+                        .then(response => {
+                            if (response.status !== 'success') {
+                                throw new Error(response.message);
+                            }
+                            return response;
+                        })
+                        .catch(error => {
+                            Swal.showValidationMessage(`Request failed: ${error}`);
+                        });
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed && canSend) {
+                        Swal.fire({
+                            title: 'Broadcast Sent!',
+                            text: result.value.message,
+                            icon: 'success'
+                        });
+                        loadBalance(); // Refresh balance
+                        loadHistory(); // Refresh history
+                    }
                 });
+
+            } else {
+                Swal.fire('Error', 'Failed to calculate cost estimate.', 'error');
             }
+        }, 'json').fail(function() {
+             btn.html(originalText);
+             btn.prop('disabled', false);
+             Swal.fire('Error', 'Network error checking cost.', 'error');
         });
     }
     // Load data on start

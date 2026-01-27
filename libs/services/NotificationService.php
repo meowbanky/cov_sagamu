@@ -19,6 +19,22 @@ class NotificationService {
         ];
     }
 
+    public function calculateTransactionCost($message, $recipientCount) {
+        // Cost per page = 5 Naira
+        $costPerPage = 5.0;
+        
+        $len = strlen($message);
+        $pages = 1;
+        
+        if ($len > 160) {
+            // Standard multi-part calculation
+            // 153 chars per segment for concatenated SMS
+            $pages = ceil($len / 153);
+        }
+        
+        return $pages * $recipientCount * $costPerPage;
+    }
+
     public function sendTransactionNotification($memberId, $periodId) {
         try {
             // Get transaction details
