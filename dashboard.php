@@ -63,12 +63,13 @@ if ($currentPeriodId > 0) {
     $trialBalanceStatus = $trialBalance['is_balanced'] ? 'balanced' : 'unbalanced';
 }
 
+
 function curlPost($url) {
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
     $error = curl_error($ch);
-    curl_close($ch);
+    // curl_close() is deprecated in PHP 8.0+ and handles are automatically closed
     if ($error !== '') {
         throw new \Exception($error);
     }
@@ -189,7 +190,7 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
     </header>
     <div class="flex">
         <!-- Sidebar -->
-        <aside class="w-64 bg-white shadow-lg min-h-screen flex flex-col py-6 px-3 hidden md:flex">
+        <aside class="w-64 bg-white shadow-lg min-h-screen md:flex flex-col py-6 px-3 hidden">
             <nav class="flex-1">
                 <ul class="space-y-2">
                     <li><a href="dashboard.php"
@@ -222,6 +223,9 @@ $firstname = htmlspecialchars($_SESSION['FirstName'] ?? "User");
                     <li><a href="special_savings_management.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
                                 class="fa fa-star fa-fw mr-2"></i> Special Savings</a></li>
+                    <li><a href="editContributions.php?mode=special_repayment"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
+                                class="fa fa-money-bill-transfer fa-fw mr-2"></i> Special Loan Repayment</a></li>
                     <li><a href="email_queue_dashboard.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100"><i
                                 class="fa fa-envelope fa-fw mr-2"></i> Email Queue</a></li>

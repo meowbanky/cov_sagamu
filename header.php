@@ -227,6 +227,9 @@ $current = basename($_SERVER['PHP_SELF']);
                     <li><a href="special_savings_management.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='special_savings_management.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-star fa-fw mr-2"></i> Special Savings</a></li>
+                    <li><a href="editContributions.php?mode=special_repayment"
+                            class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='editContributions.php' && isset($_GET['mode']) && $_GET['mode']=='special_repayment'?'sidebar-active':'' ?>"><i
+                                class="fa fa-money-bill-transfer fa-fw mr-2"></i> Special Loan Repayment</a></li>
                     <li><a href="event-management.php"
                             class="flex items-center px-4 py-2 rounded-lg hover:bg-blue-100 <?= $current=='event-management.php' || $current=='event-details.php'?'sidebar-active':'' ?>"><i
                                 class="fa fa-calendar-check fa-fw mr-2"></i> Event Management</a></li>

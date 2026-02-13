@@ -8,6 +8,7 @@
         <li><a href="getoverdue.php">Overdue Loans</a></li>
         <li><a href="ai_bank_statement_upload.php">AI Bank Statement Upload</a></li>
         <li><a href="coop_bulksms.php">Bulk SMS</a></li>
+        <li><a href="editContributions.php?mode=special_repayment">Special Loan Repayment</a></li>
         <li><a href="index.php">Logout</a></li>
     </ul>
 </nav>

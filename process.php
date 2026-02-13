@@ -190,6 +190,7 @@ $entryFees = (int)($row_entrySettings['value']);
 			mysqli_free_result($deductions);
 			if ($totalRows_deductions == 0) {
 				$row_deductions['contri'] = 0;
+				$row_deductions['special_savings'] = 0;
 			}
 			// Entry fees
 			$query_entry = "SELECT tbl_entryfees.entryFee_id, tbl_entryfees.memberid, tbl_entryfees.periodid, tbl_entryfees.Amount FROM tbl_entryfees WHERE memberid = '" . $row_member['memberid'] . "'";

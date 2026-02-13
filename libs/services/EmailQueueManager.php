@@ -202,9 +202,9 @@ class EmailQueueManager {
     private function sendEmail($email) {
         try {
             // Load PHPMailer
-            require_once __DIR__ . '/../../mail/mail/vendor/phpmailer/phpmailer/src/Exception.php';
-            require_once __DIR__ . '/../../mail/mail/vendor/phpmailer/phpmailer/src/PHPMailer.php';
-            require_once __DIR__ . '/../../mail/mail/vendor/phpmailer/phpmailer/src/SMTP.php';
+            require_once __DIR__ . '/../../vendor/phpmailer/phpmailer/src/Exception.php';
+            require_once __DIR__ . '/../../vendor/phpmailer/phpmailer/src/PHPMailer.php';
+            require_once __DIR__ . '/../../vendor/phpmailer/phpmailer/src/SMTP.php';
             
             $mail = new PHPMailer(true);
             

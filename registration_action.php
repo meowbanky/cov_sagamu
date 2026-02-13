@@ -27,13 +27,7 @@ try {
     $memberId = $stmt->insert_id ? $stmt->insert_id : $cov->insert_id;
     $stmt->close();
 
-    // Users Table insert
-    $hash = password_hash($data['passwordGen'], PASSWORD_DEFAULT);
-    $stmt = $cov->prepare("INSERT INTO tblusers (UserID, firstname, middlename, lastname, Username, UPassword, CPassword, PlainPassword, dateofRegistration) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-    $username = $memberId;
-    $stmt->bind_param('isssssss', $memberId, $data['Fname'], $data['Mname'], $data['Lname'], $username, $hash, $hash, $data['passwordGen']);
-    $stmt->execute();
-    $stmt->close();
+   
 
     // Next of Kin insert
     $stmt = $cov->prepare("INSERT INTO tbl_nok (memberid, NOkName, NOKRelationship, NOKPhone, NOKAddress) VALUES (?, ?, ?, ?, ?)");
@@ -43,6 +37,15 @@ try {
 
     // (Optional) Send email if EmailAddress provided
     if($data['EmailAddress']) {
+
+         // Users Table insert
+        $hash = password_hash($data['passwordGen'], PASSWORD_DEFAULT);
+        $stmt = $cov->prepare("INSERT INTO tblusers (UserID, firstname, middlename, lastname, Username, UPassword, CPassword, PlainPassword, dateofRegistration) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        $username = $memberId;
+        $stmt->bind_param('isssssss', $memberId, $data['Fname'], $data['Mname'], $data['Lname'], $username, $hash, $hash, $data['passwordGen']);
+        $stmt->execute();
+        $stmt->close();
+
         $to = $data['EmailAddress'];
         $subject = "Login Credential";
         $message = "Your login details:\nUsername: $username\nPassword: ".$data['passwordGen'];

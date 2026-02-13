@@ -60,6 +60,21 @@ require_once('header.php');
     </div>
 
     <div class="bg-white rounded shadow p-4 mb-4">
+        <!-- Transaction Type Selector -->
+        <div class="mb-6 border-b pb-4">
+            <label class="block font-semibold mb-2 text-gray-700">Transaction Type</label>
+            <div class="flex gap-4">
+                <label class="inline-flex items-center cursor-pointer">
+                    <input type="radio" name="transactionType" value="regular" class="form-radio text-blue-600 h-5 w-5" checked>
+                    <span class="ml-2 text-gray-800">Regular Contribution</span>
+                </label>
+                <label class="inline-flex items-center cursor-pointer">
+                    <input type="radio" name="transactionType" value="special_repayment" class="form-radio text-purple-600 h-5 w-5">
+                    <span class="ml-2 text-gray-800">Special Loan Repayment</span>
+                </label>
+            </div>
+        </div>
+
         <form id="contributionForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block font-semibold mb-1">Member</label>
@@ -79,7 +94,7 @@ require_once('header.php');
             </div>
 
             <!-- Regular Contribution Section -->
-            <div class="md:col-span-2">
+            <div id="regularContributionSection" class="md:col-span-2">
                 <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                     <i class="fa fa-piggy-bank text-blue-600"></i>
                     Regular Contribution
@@ -99,7 +114,21 @@ require_once('header.php');
                 </div>
             </div>
 
-            <!-- Special Savings Section -->
+            <!-- Special Repayment Section (Hidden by default) -->
+            <div id="specialRepaymentSection" class="md:col-span-2 hidden">
+                <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <i class="fa fa-money-bill-transfer text-purple-600"></i>
+                    Special Loan Repayment
+                </h3>
+                <div class="bg-purple-50 border border-purple-200 rounded p-4">
+                    <label class="block font-semibold mb-1">Repayment Amount</label>
+                    <input type="number" id="RepaymentAmount" class="w-full border px-3 py-2 rounded"
+                        step="0.01" min="0" placeholder="0.00">
+                    <small class="text-gray-600">Enter the amount to repay for the special loan.</small>
+                </div>
+            </div>
+
+            <!-- Special Savings Section (For Regular Contributions) -->
             <div id="specialSavingsSection" class="md:col-span-2 hidden">
                 <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                     <i class="fa fa-star text-yellow-600"></i>
@@ -173,6 +202,50 @@ require_once('header.php');
 <script>
 $(function() {
     let specialSavingsData = null;
+    let currentMode = 'regular'; // 'regular' or 'special_repayment'
+
+    // Check URL for mode parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'special_repayment') {
+        currentMode = 'special_repayment';
+        $('input[name="transactionType"][value="special_repayment"]').prop('checked', true);
+        // Call updateFormMode() after DOM is ready (it's defined below, but we can call it if we move definition up or just wait)
+        // Since updateFormMode is defined inside $(function...), we can call it after definition.
+        // Let's just set the flag here and call updateFormMode() after function definition.
+    }
+    
+    // Toggle Transaction Type
+    $('input[name="transactionType"]').change(function() {
+        currentMode = $(this).val();
+        updateFormMode();
+    });
+
+    function updateFormMode() {
+        if (currentMode === 'regular') {
+            $('#regularContributionSection').removeClass('hidden');
+            $('#specialRepaymentSection').addClass('hidden');
+            $('#btnSave').html('<i class="fa fa-save mr-2"></i>Save Contribution');
+            
+            // Show special savings/summary if applicable
+            if (specialSavingsData) {
+                $('#specialSavingsSection').removeClass('hidden');
+                $('#contributionSummary').removeClass('hidden');
+            }
+        } else {
+            // Special Repayment Mode
+            $('#regularContributionSection').addClass('hidden');
+            $('#specialRepaymentSection').removeClass('hidden');
+            
+            // Hide Regular-specific sections
+            $('#specialSavingsSection').addClass('hidden');
+            $('#contributionSummary').addClass('hidden');
+            
+            $('#btnSave').html('<i class="fa fa-save mr-2"></i>Save Repayment');
+        }
+    }
+    
+    // Initialize mode
+    updateFormMode();
 
     // Load periods dropdown
     $.get('api/periods.php', function(periods) {
@@ -215,8 +288,12 @@ $(function() {
         // Check if member has special savings
         checkSpecialSavings(memberId);
 
-        // Focus on the total amount field
-        $('#Amount').focus();
+        // Focus on appropriate field
+        if (currentMode === 'regular') {
+             $('#Amount').focus();
+        } else {
+             $('#RepaymentAmount').focus();
+        }
 
         let periodId = $('#PeriodId').val();
         if (periodId) loadContributions(periodId);
@@ -229,10 +306,13 @@ $(function() {
         }, function(response) {
             if (response.success && response.hasSpecialSavings) {
                 specialSavingsData = response.data;
-                showSpecialSavingsSection();
                 $('#specialSavingsAlert').removeClass('hidden');
                 $('#specialsavings').val(response.data.special_savings_amount);
                 calculateContributions();
+                // Only show section if in regular mode
+                if (currentMode === 'regular') {
+                    showSpecialSavingsSection();
+                }
             } else {
                 hideSpecialSavingsSection();
                 $('#specialSavingsAlert').addClass('hidden');
@@ -256,7 +336,7 @@ $(function() {
         $('#specialsavings').val(0);
     }
 
-    // Calculate contributions when amount changes
+    // Calculate contributions for Regular Mode
     $('#Amount').on('input', calculateContributions);
 
     function calculateContributions() {
@@ -269,7 +349,7 @@ $(function() {
 
             // Set the values correctly
             $('#regularsavings').val(regularAmount.toFixed(2));
-            $('#specialsavings').val(specialAmount.toFixed(2)); // Fixed special savings amount
+            $('#specialsavings').val(specialAmount.toFixed(2));
             $('#totalContribution').val(totalAmount.toFixed(2));
 
             // Update summary
@@ -297,6 +377,9 @@ $(function() {
         specialSavingsData = null;
         $('#btnSave').show();
         $('#btnUpdate').hide();
+        
+        // Reset to default mode
+        $('input[name="transactionType"][value="regular"]').prop('checked', true).trigger('change');
     });
 
     function loadContributions(periodId) {
@@ -312,86 +395,157 @@ $(function() {
     }
 
 
-    // Save new contribution
+    // Save Handler (Handles both Regular and Special)
     $('#btnSave').click(function() {
-        let fd = $('#contributionForm').serialize();
-        let currentPeriodId = $('#PeriodId').val(); // Store current period
-        $.post('api/contribution_save.php', fd, function(resp) {
-            if (resp.success) {
-                Swal.fire('Saved', resp.success, 'success');
-                // Reset form but keep the period selected
-                $('#contributionForm')[0].reset();
-                $('#PeriodId').val(currentPeriodId); // Restore period
-                // Clear member info and special savings sections
-                $('#memberInfo').addClass('hidden');
-                hideSpecialSavingsSection();
-                $('#specialSavingsAlert').addClass('hidden');
-                specialSavingsData = null;
-                $('#btnSave').show();
-                $('#btnUpdate').hide();
-                // Reload contributions for the current period
-                if (currentPeriodId) loadContributions(currentPeriodId);
-            } else {
-                Swal.fire('Error', resp.error, 'error');
+        let memberId = $('#txtCoopid').val();
+        let periodId = $('#PeriodId').val();
+        
+        if (!memberId || !periodId) {
+            Swal.fire('Error', 'Please select a member and period.', 'error');
+            return;
+        }
+
+        if (currentMode === 'regular') {
+            // Regular Save
+            let fd = $('#contributionForm').serialize();
+            $.post('api/contribution_save.php', fd, function(resp) {
+                handleSaveResponse(resp, periodId);
+            }, 'json');
+        } else {
+            // Special Repayment Save
+            let amount = $('#RepaymentAmount').val();
+            if (!amount || amount <= 0) {
+                 Swal.fire('Error', 'Please enter a valid repayment amount.', 'error');
+                 return;
             }
-        }, 'json');
-    });
 
-    // Edit, Update, Delete logic can be bound here
-    $(document).on('click', '.btn-edit', function() {
-        // Populate form with the clicked contribution details
-        let row = $(this).closest('tr');
-        $('#txtContriId').val(row.data('id'));
-        $('#txtCoopid').val(row.data('memberid'));
-        $('#PeriodId').val(row.data('periodid'));
-        $(
-            '#CoopName').val(row.data('member_name'));
-        $('#Amount').val(row.data(
-            'amount'));
-        $(
-            '#specialsavings').val(row.data('specialsavings'));
-        $('#btnSave').hide();
-        $(
-            '#btnUpdate, #btnDelete').show();
-    });
-
-    $('#btnUpdate').click(function() {
-        let fd = $('#contributionForm').serialize();
-        let currentPeriodId = $('#PeriodId').val(); // Store current period
-        $.post('api/contribution_update.php', fd, function(resp) {
-            if (resp.success) {
-                Swal.fire('Updated', resp.success, 'success');
-                // Reset form but keep the period selected
-                $('#contributionForm')[0].reset();
-                $('#PeriodId').val(currentPeriodId); // Restore period
-                // Clear member info and special savings sections
-                $('#memberInfo').addClass('hidden');
-                hideSpecialSavingsSection();
-                $('#specialSavingsAlert').addClass('hidden');
-                specialSavingsData = null;
-                $('#btnUpdate, #btnDelete').hide();
-                $('#btnSave').show();
-                // Reload contributions for the current period
-                if (currentPeriodId) loadContributions(currentPeriodId);
-            } else {
-                Swal.fire('Error', resp.error, 'error');
-            }
-        }, 'json');
-    });
-
-    $('#PeriodId').change(function() {
-
-        // let memberId = $('#txtCoopid').val();
-        let periodId = $(this).val();
-        if (periodId) {
-            loadContributions(periodId);
+            $.post('api/contribution_special_save.php', {
+                txtCoopid: memberId,
+                PeriodId: periodId,
+                Amount: amount
+            }, function(resp) {
+                 handleSaveResponse(resp, periodId);
+            }, 'json');
         }
     });
 
+    // Update Handler
+    $('#btnUpdate').click(function() {
+        let currentPeriodId = $('#PeriodId').val();
+        
+        if (currentMode === 'regular') {
+            let fd = $('#contributionForm').serialize();
+            $.post('api/contribution_update.php', fd, function(resp) {
+                handleUpdateResponse(resp, currentPeriodId);
+            }, 'json');
+        } else {
+            // Special Repayment Update
+            let id = $('#txtContriId').val();
+            let amount = $('#RepaymentAmount').val();
+            
+            $.post('api/contribution_special_update.php', {
+                txtContriId: id,
+                Amount: amount
+            }, function(resp) {
+                handleUpdateResponse(resp, currentPeriodId);
+            }, 'json');
+        }
+    });
+
+    $('#PeriodId').change(function() {
+        let periodId = $(this).val();
+        if (periodId) {
+            loadContributions(periodId);
+        } else {
+            $('#contributionsList').html('');
+        }
+    });
+    
+    function handleSaveResponse(resp, periodId) {
+        if (resp.success) {
+            Swal.fire('Saved', resp.success, 'success');
+            resetForm(periodId);
+        } else {
+            Swal.fire('Error', resp.error, 'error');
+        }
+    }
+
+    function handleUpdateResponse(resp, periodId) {
+        if (resp.success) {
+            Swal.fire('Updated', resp.success, 'success');
+            resetForm(periodId);
+        } else {
+            Swal.fire('Error', resp.error, 'error');
+        }
+    }
+    
+    function resetForm(periodId) {
+        $('#contributionForm')[0].reset();
+        $('#PeriodId').val(periodId);
+        
+        // Clean up UI
+        $('#memberInfo').addClass('hidden');
+        hideSpecialSavingsSection();
+        $('#specialSavingsAlert').addClass('hidden');
+        specialSavingsData = null;
+        
+        $('#btnSave').show();
+        $('#btnUpdate').hide();
+        
+        // Restore mode checkbox based on currentMode variable 
+        // (reset() clears it, so we need to set it back)
+        $('input[name="transactionType"][value="' + currentMode + '"]').prop('checked', true);
+        updateFormMode(); // Ensure UI matches mode
+
+        if (periodId) loadContributions(periodId);
+    }
+
+    // Edit Button Click
+    $(document).on('click', '.btn-edit', function() {
+        let type = $(this).data('type') || 'regular'; // Default to regular if not set
+        
+        // Switch mode first
+        currentMode = type;
+        $('input[name="transactionType"][value="' + type + '"]').prop('checked', true).trigger('change');
+        
+        // Common fields
+        $('#txtContriId').val($(this).data('id'));
+        $('#txtCoopid').val($(this).data('memberid'));
+        $('#PeriodId').val($(this).data('periodid'));
+        $('#CoopName').val($(this).data('member_name'));
+        $('#memberInfo span').text($(this).data('member_name'));
+        $('#memberInfo').removeClass('hidden');
+
+        if (type === 'regular') {
+            $('#Amount').val($(this).data('amount'));
+            $('#specialsavings').val($(this).data('specialsavings'));
+            // Check special savings for regular calculations
+            checkSpecialSavings($(this).data('memberid'));
+        } else {
+            // Special Repayment
+            $('#RepaymentAmount').val($(this).data('amount'));
+        }
+
+        $('#btnSave').hide();
+        $('#btnUpdate').show();
+    });
+
+    // Delete Button Click
     $(document).on('click', '.btn-delete', function() {
-        let row = $(this).closest('tr');
-        let contriId = row.data('id');
+        let contriId = $(this).data('id');
+        let type = $(this).data('type');
         let currentPeriodId = $('#PeriodId').val(); // Store current period
+        
+        // Safety check for ID
+        if (!contriId) {
+             Swal.fire('Error', 'Invalid or missing contribution ID.', 'error');
+             return;
+        }
+        
+        let endpoint = (type === 'special_repayment') 
+            ? 'api/contribution_special_delete.php' 
+            : 'api/contribution_delete.php';
+
         Swal.fire({
             title: "Are you sure?",
             text: "This will delete the record!",
@@ -399,12 +553,11 @@ $(function() {
             showCancelButton: true,
         }).then(result => {
             if (result.isConfirmed) {
-                $.post('api/contribution_delete.php', {
-                    contriId
+                $.post(endpoint, {
+                    contriId: contriId
                 }, function(resp) {
                     if (resp.success) {
                         Swal.fire('Deleted', resp.success, 'success');
-                        // Refresh the contributions list for the current period
                         if (currentPeriodId) loadContributions(currentPeriodId);
                     } else {
                         Swal.fire('Error', resp.error, 'error');

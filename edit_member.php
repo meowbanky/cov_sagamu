@@ -74,22 +74,22 @@ $nokRels = mysqli_query($cov, $query_nokRelationship);
             <div>
                 <label class="block font-semibold mb-1">Date of Birth</label>
                 <input name="DOB" id="DOB" type="date" class="w-full border px-3 py-2 rounded"
-                    value="<?= htmlspecialchars($row_member['DOB']) ?>">
+                    value="<?= htmlspecialchars($row_member['DOB'] ?? '') ?>">
             </div>
             <div>
                 <label class="block font-semibold mb-1">House No.<span class="text-red-500">*</span></label>
                 <input name="Address" id="Address" type="text" class="w-full border px-3 py-2 rounded" required
-                    value="<?= htmlspecialchars($row_member['Address']) ?>">
+                    value="<?= htmlspecialchars($row_member['Address'] ?? '') ?>">
             </div>
             <div>
                 <label class="block font-semibold mb-1">Address 2</label>
                 <input name="Address2" id="Address2" type="text" class="w-full border px-3 py-2 rounded"
-                    value="<?= htmlspecialchars($row_member['Address2']) ?>">
+                    value="<?= htmlspecialchars($row_member['Address2'] ?? '') ?>">
             </div>
             <div>
                 <label class="block font-semibold mb-1">City<span class="text-red-500">*</span></label>
                 <input name="City" id="City" type="text" class="w-full border px-3 py-2 rounded" required
-                    value="<?= htmlspecialchars($row_member['City']) ?>">
+                    value="<?= htmlspecialchars($row_member['City'] ?? '') ?>">
             </div>
             <div>
                 <label class="block font-semibold mb-1">State<span class="text-red-500">*</span></label>

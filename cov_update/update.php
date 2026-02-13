@@ -2,16 +2,21 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 
+// Load environment variables
+require_once __DIR__ . '/../vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->load();
+
 include_once('classes/functions.php');
 
-$coop_no = filter_var($_POST['coop_no'], FILTER_SANITIZE_STRING);
-$mobile = filter_var($_POST['mobile'], FILTER_SANITIZE_STRING);
-$email = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL); 
-$account_no = filter_var($_POST['account_no'], FILTER_SANITIZE_STRING);
-$bank = filter_var($_POST['bank'], FILTER_SANITIZE_STRING);
-$surname = filter_var($_POST['surname'], FILTER_SANITIZE_STRING);
-$firstname = filter_var($_POST['firstname'], FILTER_SANITIZE_STRING);
-$middlename = filter_var($_POST['middlename'], FILTER_SANITIZE_STRING);
+$coop_no = htmlspecialchars($_POST['coop_no'] ?? '', ENT_QUOTES, 'UTF-8');
+$mobile = htmlspecialchars($_POST['mobile'] ?? '', ENT_QUOTES, 'UTF-8');
+$email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL); 
+$account_no = htmlspecialchars($_POST['account_no'] ?? '', ENT_QUOTES, 'UTF-8');
+$bank = htmlspecialchars($_POST['bank'] ?? '', ENT_QUOTES, 'UTF-8');
+$surname = htmlspecialchars($_POST['surname'] ?? '', ENT_QUOTES, 'UTF-8');
+$firstname = htmlspecialchars($_POST['firstname'] ?? '', ENT_QUOTES, 'UTF-8');
+$middlename = htmlspecialchars($_POST['middlename'] ?? '', ENT_QUOTES, 'UTF-8');
 $succes = 0;
 
 if(isset($coop_no)){
@@ -23,7 +28,7 @@ $query = $conn->prepare('SELECT tbl_personalinfo.memberid FROM tbl_personalinfo 
 					if ($existtrans) {
 
 						$queryupdate = $conn->prepare('UPDATE tbl_personalinfo SET tbl_personalinfo.mobilephone = ?,tbl_personalinfo.emailaddress = ?,lname = ?,fname = ?,mname = ? WHERE memberid = ?');
-							$res = $queryupdate->execute(array($mobile,$email,strtoupper($surname),strtoupper($firstname),strtoupper($middlename),$coop_no));
+						$res = $queryupdate->execute(array($mobile,$email,strtoupper($surname),strtoupper($firstname),strtoupper($middlename),$coop_no));
 
 
 					 }
@@ -34,12 +39,12 @@ $query = $conn->prepare('SELECT tbl_personalinfo.memberid FROM tbl_personalinfo 
 
 					if ($existtrans) {
 
-						$queryupdate = $conn->prepare('UPDATE tblaccountno SET accountNo = ?,bankcode = ? WHERE coopno = ?');
+						$queryupdate = $conn->prepare('UPDATE tblaccountno SET accountNo = ?,bank_code = ? WHERE coopno = ?');
 						$res = $queryupdate->execute(array($account_no,$bank,$coop_no));
 
 
 					 }else{
-					 	$queryupdate = $conn->prepare('INSERT INTO tblaccountno (accountNo,bankCode,coopno)VALUES (?,?,?)');
+					 	$queryupdate = $conn->prepare('INSERT INTO tblaccountno (accountNo,bank_code,coopno)VALUES (?,?,?)');
 						$res = $queryupdate->execute(array($account_no,$bank,$coop_no));
 
 
@@ -83,7 +88,7 @@ foreach ($res as $row => $link) {
 	$mail->SMTPDebug = SMTP::DEBUG_OFF;
 
 	//Set the hostname of the mail server
-	$mail->Host = "mail.emmaggi.com";
+	$mail->Host = $_ENV['SMTP_HOST'] ?? '';
 	//Use `$mail->Host = gethostbyname('smtp.gmail.com');`
 	//if your network does not support SMTP over IPv6,
 	//though this may cause issues with TLS
@@ -91,7 +96,7 @@ foreach ($res as $row => $link) {
 	//Set the SMTP port number:
 	// - 465 for SMTP with implicit TLS, a.k.a. RFC8314 SMTPS or
 	// - 587 for SMTP+STARTTLS
-	$mail->Port = 465;
+	$mail->Port = $_ENV['SMTP_PORT'] ?? 465;
 
 	//Set the encryption mechanism to use:
 	// - SMTPS (implicit TLS on port 465) or
@@ -102,10 +107,10 @@ foreach ($res as $row => $link) {
 	$mail->SMTPAuth = true;
 
 	//Username to use for SMTP authentication - use full email address for gmail
-	$mail->Username = "vcms@emmaggi.com";
+	$mail->Username = $_ENV['SMTP_USERNAME'] ?? '';
 
 	//Password to use for SMTP authentication
-	$mail->Password = "Banzoo@7980";
+	$mail->Password = $_ENV['SMTP_PASSWORD'] ?? '';
 
 	//Set who the message is to be sent from
 	//Note that with gmail you can only use your account address (same as `Username`)

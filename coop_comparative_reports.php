@@ -368,7 +368,7 @@ function exportToPDF() {
                                 <td class="px-6 py-4 pl-8 font-medium text-gray-700">New Members Registered (During Period)</td>
                                 <?php foreach ($selectedIds as $pid): ?>
                                     <td class="px-6 py-4 text-right font-mono text-lg font-bold text-indigo-600 border-l">
-                                        <?php echo number_format($comparativeData['statement'][$pid]['membership']['new_members']); ?>
+                                        <?php echo number_format($comparativeData['statement'][$pid]['membership']['new_members'] ?? 0); ?>
                                         <div class="text-xs font-normal text-gray-400 mt-1">new members</div>
                                     </td>
                                 <?php endforeach; ?>
@@ -377,7 +377,7 @@ function exportToPDF() {
                                 <td class="px-6 py-2 pl-8 font-medium">Total Membership Size (Cumulative)</td>
                                 <?php foreach ($selectedIds as $pid): ?>
                                     <td class="px-6 py-2 text-right font-mono text-gray-500 border-l">
-                                        <?php echo number_format($comparativeData['statement'][$pid]['membership']['total_members']); ?>
+                                        <?php echo number_format($comparativeData['statement'][$pid]['membership']['total_members'] ?? 0); ?>
                                     </td>
                                 <?php endforeach; ?>
                             </tr>

@@ -12,17 +12,9 @@ use PHPMailer\PHPMailer\Exception;
 // Custom PDF class with repeating header and footer - Define BEFORE using
 class CustomPDF extends TCPDF {
     public $customFilename = '';
-    public $tableHeaderHtml = '';
     
     public function Header() {
-        if (!empty($this->tableHeaderHtml)) {
-            // Position at top with small margin
-            $this->SetY(10);
-            $this->SetFont('helvetica', '', 7);
-            
-            // Write the table header HTML
-            $this->writeHTML($this->tableHeaderHtml, true, false, true, false, '');
-        }
+        // Header handled by <thead> in main HTML
     }
     
     public function Footer() {
@@ -82,11 +74,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         </style>';
         
         $html .= '<table cellpadding="2" cellspacing="0" border="1">';
+        $html .= '<thead>';
         
         // Process rows
         $rows = $table->getElementsByTagName('tr');
         $rowIndex = 0;
-        $headerRowHtml = '';
         
         foreach ($rows as $row) {
             $rowHtml = '<tr>';
@@ -133,16 +125,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
             
             $rowHtml .= '</tr>';
             
-            // Store header row for repetition
+            $html .= $rowHtml;
+            
             if ($rowIndex == 0) {
-                $headerRowHtml = $rowHtml;
+                $html .= '</thead><tbody>';
             }
             
-            $html .= $rowHtml;
             $rowIndex++;
         }
         
-        $html .= '</table>';
+        $html .= '</tbody></table>';
         
         // HTML is now prepared with header row stored separately
     } else {
@@ -153,18 +145,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     // Create PDF with custom header and footer - Only create ONCE
     $pdf = new CustomPDF('L', 'mm', 'A4', true, 'UTF-8', false);
     $pdf->customFilename = $filename;
-    
-    // Set the table header HTML for repetition on each page
-    if (!empty($headerRowHtml)) {
-        $styleTag = '<style>
-            table { border-collapse: collapse; width: 100%; font-size: 7pt; }
-            th { background-color: #1E40AF; color: #FFFFFF; font-weight: bold; text-align: center; 
-                 padding: 4px 2px; border: 1px solid #000000; font-size: 7pt; }
-            .text-left { text-align: left; }
-            .text-right { text-align: right; }
-        </style>';
-        $pdf->tableHeaderHtml = $styleTag . '<table cellpadding="2" cellspacing="0" border="1">' . $headerRowHtml . '</table>';
-    }
     
     $pdf->SetCreator('Cooperative Management System');
     $pdf->SetAuthor('VCMS');
@@ -182,16 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     
     $pdf->AddPage();
     
-    // Write only the data rows (skip the header row as it's now in Header())
-    // Only remove header if we have headerRowHtml defined (from table parsing)
-    if (!empty($headerRowHtml) && !empty($html)) {
-        // Remove the header row from the HTML before writing
-        $htmlWithoutHeader = preg_replace('/<tr>.*?<\/tr>/', '', $html, 1);
-        $pdf->writeHTML($htmlWithoutHeader, true, false, true, false, '');
-    } else {
-        // Use full HTML if no header separation was done
-        $pdf->writeHTML($html, true, false, true, false, '');
-    }
+    $pdf->writeHTML($html, true, false, true, false, '');
 
     // Set the filename
     $pdfFilename = $filename . '.pdf';

@@ -18,8 +18,7 @@ $row_logo = mysqli_fetch_assoc($logo);
     <meta charset="UTF-8">
     <title><?= htmlspecialchars($row_global_settings['value']) ?> - Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="shortcut icon" href="favicon (1).ico" type="image/x-icon">
-    <link rel="stylesheet" href="registration_files/oouth.css">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
     <style>
         body {
             background: #f4f7fa;
