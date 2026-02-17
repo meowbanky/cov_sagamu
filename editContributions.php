@@ -90,7 +90,10 @@ require_once('header.php');
             </div>
             <div>
                 <label class="block font-semibold mb-1">Period</label>
-                <select id="PeriodId" name="PeriodId" class="w-full border px-3 py-2 rounded"></select>
+                <select id="PeriodId" name="PeriodId" class="w-full border px-3 py-2 rounded mb-2"></select>
+                <button type="button" id="btnImportOverdueBulk" class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1 rounded border border-indigo-300 transition-colors w-full">
+                    <i class="fa fa-cloud-download-alt mr-1"></i> Import Overdue Dividends
+                </button>
             </div>
 
             <!-- Regular Contribution Section -->
@@ -100,17 +103,22 @@ require_once('header.php');
                     Regular Contribution
                 </h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block font-semibold mb-1">Total Amount</label>
-                        <input type="number" name="Amount" id="Amount" class="w-full border px-3 py-2 rounded"
-                            step="0.01" min="0" placeholder="0.00">
-                    </div>
-                    <div>
-                        <label class="block font-semibold mb-1">Regular Savings</label>
-                        <input type="number" name="regularsavings" id="regularsavings"
-                            class="w-full border px-3 py-2 rounded bg-gray-50" step="0.01" min="0" readonly>
-                        <small class="text-gray-500">Auto-calculated</small>
-                    </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Total Amount</label>
+                            <div class="flex gap-2">
+                                <input type="number" name="Amount" id="Amount" class="w-full border px-3 py-2 rounded"
+                                    step="0.01" min="0" placeholder="0.00">
+                                <button type="button" id="btnImportDividend" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded" title="Import Dividend as Contribution">
+                                    <i class="fa fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Regular Savings</label>
+                            <input type="number" name="regularsavings" id="regularsavings"
+                                class="w-full border px-3 py-2 rounded bg-gray-50" step="0.01" min="0" readonly>
+                            <small class="text-gray-500">Auto-calculated</small>
+                        </div>
                 </div>
             </div>
 
@@ -194,6 +202,14 @@ require_once('header.php');
             <input type="hidden" name="txtContriId" id="txtContriId">
         </form>
     </div>
+    
+    <!-- Bulk Delete Button (Hidden by default, shown when items selected) -->
+    <div id="bulkActions" class="mb-4 hidden justify-end">
+        <button id="btnBulkDelete" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-semibold flex items-center gap-2 shadow-lg transition-all">
+            <i class="fa fa-trash-alt"></i> Delete Selected (<span id="selectedCount">0</span>)
+        </button>
+    </div>
+
     <div id="contributionsList"></div>
 </div>
 
@@ -324,6 +340,141 @@ $(function() {
             specialSavingsData = null;
         });
     }
+
+    // Import Dividend Handler
+    $('#btnImportDividend').click(function() {
+        let memberId = $('#txtCoopid').val();
+        if (!memberId) {
+            Swal.fire('Error', 'Please select a member first.', 'error');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Import Dividend',
+            html: `
+                <div class="mb-3 text-left">
+                    <label class="block text-sm font-semibold mb-1">Base Period</label>
+                    <select id="swal-period" class="swal2-input w-full m-0"></select>
+                </div>
+                <div class="mb-3 text-left">
+                    <label class="block text-sm font-semibold mb-1">Percentage</label>
+                    <input type="number" id="swal-percentage" class="swal2-input w-full m-0" placeholder="e.g. 0.05" step="0.01">
+                </div>
+            `,
+            didOpen: () => {
+                // Clone options from main page period dropdown
+                $('#swal-period').html($('#PeriodId').html());
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Import',
+            preConfirm: () => {
+                const period = Swal.getPopup().querySelector('#swal-period').value;
+                const percentage = Swal.getPopup().querySelector('#swal-percentage').value;
+                if (!period || !percentage) {
+                    Swal.showValidationMessage('Please enter both period and percentage');
+                }
+                return { period: period, percentage: percentage };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.get('api/get_member_dividend.php', {
+                    memberId: memberId,
+                    period: result.value.period,
+                    percentage: result.value.percentage
+                }, function(response) {
+                    if (response.success) {
+                        $('#Amount').val(response.dividend).trigger('input');
+                        Swal.fire('Imported', `Dividend of ₦${response.dividend} imported.`, 'success');
+                    } else {
+                        Swal.fire('Error', response.error, 'error');
+                    }
+                }, 'json');
+            }
+        });
+    });
+
+    // Bulk Import Overdue Dividends Handler
+    $('#btnImportOverdueBulk').click(function() {
+        // Fetch available years
+        $.get('api/get_held_dividend_years.php', function(response) {
+            if (response.years && response.years.length > 0) {
+                let options = response.years.map(y => `<option value="${y.period_id}">${y.name}</option>`).join('');
+                
+                Swal.fire({
+                    title: 'Import Overdue Dividends',
+                    html: `
+                        <p class="text-sm text-gray-600 mb-4 text-left">Select the dividend year to import from.</p>
+                        
+                        <div class="mb-4 text-left">
+                            <label class="block text-sm font-semibold mb-1">Source Year</label>
+                            <select id="swalSourcePeriod" class="w-full border p-2 rounded focus:ring focus:ring-blue-200">
+                                ${options}
+                            </select>
+                        </div>
+
+                        <div class="mb-4 text-left">
+                            <label class="block text-sm font-semibold mb-1">Destination</label>
+                            <select id="swalDestination" class="w-full border p-2 rounded focus:ring focus:ring-blue-200">
+                                <option value="contribution">Regular Contribution (Savings)</option>
+                                <option value="special_repayment">Special Loan Repayment</option>
+                            </select>
+                        </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fa fa-file-import"></i> Import Now',
+                    confirmButtonColor: '#2563eb',
+                    preConfirm: () => {
+                        return {
+                            sourcePeriod: document.getElementById('swalSourcePeriod').value,
+                            destination: document.getElementById('swalDestination').value
+                        };
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        let sourcePeriod = result.value.sourcePeriod;
+                        let destination = result.value.destination;
+                        let targetPeriod = $('#PeriodId').val();
+                        
+                        if (!targetPeriod) {
+                            Swal.fire('Target Period Required', 'Please select a period in the main form first.', 'warning');
+                            return;
+                        }
+
+                        Swal.fire({
+                            title: 'Importing...',
+                            text: 'Processing records...',
+                            allowOutsideClick: false,
+                            didOpen: () => Swal.showLoading()
+                        });
+                        
+                        $.post('api/import_held_dividends.php', {
+                            sourcePeriodId: sourcePeriod,
+                            targetPeriodId: targetPeriod,
+                            destination: destination
+                        }, function(res) {
+                            Swal.close();
+                             if (res.success) {
+                                Swal.fire({
+                                    title: 'Success', 
+                                    html: res.success, 
+                                    icon: 'success'
+                                }).then(() => {
+                                    loadContributions(targetPeriod); // Refresh list
+                                });
+                            } else {
+                                Swal.fire('Error', res.error || 'Failed to import.', 'error');
+                            }
+                        }, 'json').fail(function() {
+                            Swal.close();
+                            Swal.fire('Error', 'Server communication failed.', 'error');
+                        });
+                    }
+                });
+            } else {
+                Swal.fire('No Pending Dividends', 'There are no saved overdue dividends waiting to be imported.', 'info');
+            }
+        }, 'json');
+    });
 
     function showSpecialSavingsSection() {
         $('#specialSavingsSection').removeClass('hidden');
@@ -563,6 +714,79 @@ $(function() {
                         Swal.fire('Error', resp.error, 'error');
                     }
                 }, 'json');
+            }
+        });
+    });
+
+    // Select All Checkbox Handler
+    $(document).on('change', '#selectAllContributions', function() {
+        $('.contribution-checkbox').prop('checked', $(this).prop('checked'));
+        updateBulkDeleteButton();
+    });
+    
+    // Individual Checkbox Handler
+    $(document).on('change', '.contribution-checkbox', function() {
+        let allChecked = $('.contribution-checkbox:checked').length === $('.contribution-checkbox').length;
+        $('#selectAllContributions').prop('checked', allChecked);
+        updateBulkDeleteButton();
+    });
+
+    function updateBulkDeleteButton() {
+        let count = $('.contribution-checkbox:checked').length;
+        $('#selectedCount').text(count);
+        if (count > 0) {
+            $('#bulkActions').removeClass('hidden').addClass('flex');
+        } else {
+            $('#bulkActions').addClass('hidden').removeClass('flex');
+        }
+    }
+
+    // Bulk Delete Action
+    $('#btnBulkDelete').click(function() {
+        let selectedItems = [];
+        $('.contribution-checkbox:checked').each(function() {
+            selectedItems.push({
+                id: $(this).val(),
+                type: $(this).data('type')
+            });
+        });
+
+        if (selectedItems.length === 0) return;
+
+        Swal.fire({
+            title: 'Delete Selected?',
+            text: `You are about to delete ${selectedItems.length} records. This action cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, Delete All'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.showLoading();
+                
+                $.post('api/contribution_bulk_delete.php', {
+                    items: JSON.stringify(selectedItems)
+                }, function(response) {
+                    Swal.close();
+                    if (response.success) {
+                        Swal.fire({
+                            title: 'Deleted!',
+                            text: response.success,
+                            icon: 'success'
+                        }).then(() => {
+                            let periodId = $('#PeriodId').val();
+                            loadContributions(periodId);
+                             $('#bulkActions').addClass('hidden').removeClass('flex');
+                             $('#selectAllContributions').prop('checked', false);
+                        });
+                    } else {
+                        Swal.fire('Error', response.error || 'Failed to delete records.', 'error');
+                    }
+                }, 'json').fail(function() {
+                     Swal.close();
+                    Swal.fire('Error', 'Server error during deletion.', 'error');
+                });
             }
         });
     });

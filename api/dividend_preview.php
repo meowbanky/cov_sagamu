@@ -59,7 +59,42 @@ while ($row = $result->fetch_assoc()) {
     $row['dividend'] = floatval($row['dividend']);
     $row['total_holdings'] = floatval($row['total_holdings']);
     
+    // Check for overdue status
+    // Logic adapted from get_overdue_loans.php
+    // 1. Get Loan Balance
+    $balanceQuery = "SELECT SUM(loanAmount) - SUM(loanRepayment) as balance FROM tlb_mastertransaction WHERE memberid = '{$row['memberid']}'";
+    $balanceResult = mysqli_query($cov, $balanceQuery);
+    $balanceRow = mysqli_fetch_assoc($balanceResult);
+    $loanBalance = floatval($balanceRow['balance'] ?? 0);
+
+    $isOverdue = false;
+    if ($loanBalance > 0) {
+        // 2. Get Last Loan Period
+        $lastLoanQuery = "SELECT MAX(periodid) as last_period FROM tlb_mastertransaction WHERE memberid = '{$row['memberid']}' AND loanAmount > 0";
+        $lastLoanResult = mysqli_query($cov, $lastLoanQuery);
+        $lastLoanRow = mysqli_fetch_assoc($lastLoanResult);
+        $lastLoanPeriod = intval($lastLoanRow['last_period'] ?? 0);
+
+        // 3. Get Current System Period (Max Period)
+        // We can optimize this by fetching it once outside the loop, but for now safe inside.
+        // Actually, let's fetch it once outside.
+        if (!isset($currentSystemPeriod)) {
+             $pQuery = "SELECT MAX(Periodid) as cur FROM tbpayrollperiods";
+             $pResult = mysqli_query($cov, $pQuery);
+             $pRow = mysqli_fetch_assoc($pResult);
+             $currentSystemPeriod = intval($pRow['cur'] ?? 0);
+        }
+
+        if ($lastLoanPeriod > 0 && ($currentSystemPeriod - $lastLoanPeriod) > 12) {
+            $isOverdue = true;
+        }
+    }
+
+    $row['is_overdue'] = $isOverdue;
+    $row['loan_balance'] = $loanBalance;
+
     $totalHoldings += $row['total_holdings'];
+
     $totalDividend += $row['dividend'];
     
     $data[] = $row;

@@ -53,6 +53,9 @@ echo '<div class="bg-white rounded-lg shadow-lg overflow-hidden mt-4">
         <table class="w-full text-sm">
             <thead class="bg-gray-50">
                 <tr class="border-b border-gray-200">
+                    <th class="px-4 py-3 text-center">
+                        <input type="checkbox" id="selectAllContributions" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                    </th>
                     <th class="px-4 py-3 text-left font-semibold text-gray-700">Type</th>
                     <th class="px-4 py-3 text-left font-semibold text-gray-700">Member Name</th>
                     <th class="px-4 py-3 text-right font-semibold text-gray-700">Amount</th>
@@ -83,6 +86,12 @@ while($row = $res->fetch_assoc()) {
         : '<span class="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded">Regular Contrib.</span>';
     
     echo "<tr class='{$rowClass} transition-colors duration-150'>";
+    
+    // Checkbox
+    echo "<td class='px-4 py-3 text-center'>
+            <input type='checkbox' class='contribution-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500' 
+            value='{$row['id']}' data-type='{$type}'>
+          </td>";
     
     echo "<td class='px-4 py-3'>{$typeBadge}</td>";
     echo "<td class='px-4 py-3 font-semibold text-gray-800'>{$row['member_name']}</td>";
@@ -137,7 +146,7 @@ while($row = $res->fetch_assoc()) {
 }
 
 echo "<tr class='bg-gradient-to-r from-green-50 to-green-100 border-t-2 border-green-200'>
-    <td colspan='4' class='px-4 py-4 text-right font-bold text-gray-700'>
+    <td colspan='5' class='px-4 py-4 text-right font-bold text-gray-700'>
         <i class='fa fa-calculator mr-2'></i>
         Grand Total
     </td>

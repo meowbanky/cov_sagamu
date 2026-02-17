@@ -79,15 +79,50 @@ $sn = 1;
 $totalHoldings = 0;
 $totalDividend = 0;
 
+$filter = $_GET['filter'] ?? 'all'; // all, overdue, normal
+
+// ... (existing helper function to get loan balance if needed, or query inside loop)
+// Since we are inside the loop, we can just run the queries.
+
 while ($row = $result->fetch_assoc()) {
     $dividend = floatval($row['dividend']);
     $holdings = floatval($row['total_holdings']);
+    $memberId = $row['memberid'];
+
+    // Check Overdue Status (Same logic as preview)
+    $balanceQuery = "SELECT SUM(loanAmount) - SUM(loanRepayment) as balance FROM tlb_mastertransaction WHERE memberid = '$memberId'";
+    $balanceResult = mysqli_query($cov, $balanceQuery);
+    $balanceRow = mysqli_fetch_assoc($balanceResult);
+    $loanBalance = floatval($balanceRow['balance'] ?? 0);
+
+    $isOverdue = false;
+    if ($loanBalance > 0) {
+        $lastLoanQuery = "SELECT MAX(periodid) as last_period FROM tlb_mastertransaction WHERE memberid = '$memberId' AND loanAmount > 0";
+        $lastLoanResult = mysqli_query($cov, $lastLoanQuery);
+        $lastLoanRow = mysqli_fetch_assoc($lastLoanResult);
+        $lastLoanPeriod = intval($lastLoanRow['last_period'] ?? 0);
+
+        if (!isset($currentSystemPeriod)) {
+             $pQuery = "SELECT MAX(Periodid) as cur FROM tbpayrollperiods";
+             $pResult = mysqli_query($cov, $pQuery);
+             $pRow = mysqli_fetch_assoc($pResult);
+             $currentSystemPeriod = intval($pRow['cur'] ?? 0);
+        }
+
+        if ($lastLoanPeriod > 0 && ($currentSystemPeriod - $lastLoanPeriod) > 12) {
+            $isOverdue = true;
+        }
+    }
+
+    // Apply Filter
+    if ($filter === 'overdue' && !$isOverdue) continue;
+    if ($filter === 'normal' && $isOverdue) continue;
     
     $totalHoldings += $holdings;
     $totalDividend += $dividend;
     
     $sheet->setCellValue('A' . $rowIndex, $sn);
-    $sheet->setCellValue('B' . $rowIndex, $row['memberid']);
+    $sheet->setCellValue('B' . $rowIndex, $memberId);
     $sheet->setCellValue('C' . $rowIndex, $row['name']);
     $sheet->setCellValue('D' . $rowIndex, $holdings);
     $sheet->setCellValue('E' . $rowIndex, $percentage);
@@ -159,7 +194,8 @@ $sheet->getStyle('D2:F' . $totalRow)->getAlignment()->setHorizontal(Alignment::H
 $sheet->getStyle('G2:I' . $totalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
 // Generate filename
-$filename = 'Dividend_Report_' . date('Y-m-d_His');
+$filterName = ($filter === 'all') ? '' : '_' . ucfirst($filter);
+$filename = 'Dividend_Report' . $filterName . '_' . date('Y-m-d_His');
 
 // Write to file
 $writer = new Xlsx($spreadsheet);
