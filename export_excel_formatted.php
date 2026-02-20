@@ -32,6 +32,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $lastColumn = 'A';
     
     foreach ($rows as $row) {
+        if (!$row instanceof DOMElement) {
+            continue;
+        }
+
         $colIndex = 'A'; // Start from column A now (no empty column)
         $cells = $row->getElementsByTagName('td');
         
@@ -153,24 +157,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         ],
     ]);
     
-    // 6. Set very narrow column widths to fit 15 columns (A-O) on one page
+    // 6. Set very narrow column widths to fit ~25 columns on one page
     // Total target width for A4 landscape: ~260mm or ~10.2 inches
-    // With 0.2" margins on each side = 9.8" usable width
-    // For 15 columns: 9.8 / 15 = 0.653" per column average
     
     $sheet->getColumnDimension('A')->setWidth(7);   // Coop No (shorter)
     $sheet->getColumnDimension('B')->setWidth(9);   // Period (Sep-2025)
-    $sheet->getColumnDimension('C')->setWidth(22);  // Name (much shorter)
+    $sheet->getColumnDimension('C')->setWidth(18);  // Name (much shorter)
     
-    // Set numeric columns to very narrow widths (9 units each)
+    // Set numeric columns to very narrow widths (8 units each)
     for ($col = 'D'; $col <= $lastColumn; $col++) {
-        $sheet->getColumnDimension($col)->setWidth(9); // Very narrow for numbers
+        $sheet->getColumnDimension($col)->setWidth(8); // Very narrow for numbers
     }
     
-    // 6b. Reduce font size to 9pt for better fit
+    // 6b. Reduce font size to 8pt for better fit
     $sheet->getStyle('A1:' . $lastColumn . $lastRow)
           ->getFont()
-          ->setSize(9);
+          ->setSize(8);
     
     // ===== PAGE SETUP FOR PRINTING =====
     

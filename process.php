@@ -102,6 +102,12 @@ $totalRows_entrySettings  = mysqli_num_rows($entrySettings);
 
 $entryFees = (int)($row_entrySettings['value']);
 
+mysqli_select_db($cov, $database_cov);
+$query_devLevySettings = "SELECT tbl_globa_settings.`value` FROM tbl_globa_settings where setting_id = 10";
+$devLevySettings  = mysqli_query($cov, $query_devLevySettings) or die(mysqli_error($cov));
+$row_devLevySettings  = mysqli_fetch_assoc($devLevySettings);
+$devLevyFee = (float)($row_devLevySettings['value']);
+
 // session_start();
 // $progressFile = __DIR__ . '/progress_' . session_id() . '.json';
 
@@ -174,7 +180,7 @@ $entryFees = (int)($row_entrySettings['value']);
 			return mysqli_fetch_assoc($result);
 		}
 
-		function processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService = null, $accountingEngine = null, $memberAccountManager = null) {
+		function processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $devLevyFee, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService = null, $accountingEngine = null, $memberAccountManager = null) {
 			$loans_early = [];
 			$loans_late = [];
 			// Check if already processed
@@ -223,12 +229,47 @@ $entryFees = (int)($row_entrySettings['value']);
 					$contribution_entry = $row_deductions['contri'];
 				}
 			}
+
+			// Development Fee Processing
+			$query_out_dev = sprintf("SELECT IFNULL(SUM(dev_fee), 0) as total_dev_fee, IFNULL(SUM(dev_fee_paid), 0) as total_dev_fee_paid FROM tlb_mastertransaction WHERE memberid = %s", GetSQLValueString($cov, $row_member['memberid'], "text"));
+			$res_out_dev = db_query($cov, $query_out_dev);
+			$row_out_dev = db_fetch_assoc($res_out_dev);
+			$outstanding_dev_fee = floatval($row_out_dev['total_dev_fee']) - floatval($row_out_dev['total_dev_fee_paid']);
+			
+			$current_month_dev_fee = $devLevyFee;
+			$total_dev_fee_due = $outstanding_dev_fee + $current_month_dev_fee;
+
+			$dev_fee_paid_this_month = 0;
+			$contribution_dev = $contribution_entry;
+			
+			if ($contribution_dev > 0 && $total_dev_fee_due > 0) {
+				if ($contribution_dev >= $total_dev_fee_due) {
+					$dev_fee_paid_this_month = $total_dev_fee_due;
+					$contribution_dev = $contribution_dev - $total_dev_fee_due;
+				} else {
+					$dev_fee_paid_this_month = $contribution_dev;
+					$contribution_dev = 0;
+				}
+			}
+
+			if ($current_month_dev_fee > 0 || $dev_fee_paid_this_month > 0) {
+				$insertSQLDevMaster = sprintf(
+					"INSERT INTO tlb_mastertransaction (periodid, memberid, dev_fee, dev_fee_paid, completed) VALUES (%s, %s, %s, %s, %s)",
+					GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+					GetSQLValueString($cov, $row_member['memberid'], "text"),
+					GetSQLValueString($cov, $current_month_dev_fee, "double"),
+					GetSQLValueString($cov, $dev_fee_paid_this_month, "double"),
+					GetSQLValueString($cov, COMPLETED_STATUS, "int")
+				);
+				db_query($cov, $insertSQLDevMaster);
+			}
+
 			// Online payment check
 			$query_OnlinePaymentCheck = "SELECT tlb_mastertransaction.memberid,IFNULL(tlb_mastertransaction.pay_method,1) AS pay_method FROM tlb_mastertransaction WHERE memberid = '" . $row_member['memberid'] . "' AND periodid = " . $_GET["PeriodID"] . " AND pay_method = 1";
 			$OnlinePaymentCheck = db_query($cov, $query_OnlinePaymentCheck);
 			$totalRows_OnlinePaymentCheck = mysqli_num_rows($OnlinePaymentCheck);
 			mysqli_free_result($OnlinePaymentCheck);
-			$contribution = $contribution_entry;
+			$contribution = $contribution_dev;
 			// Already processed?
 			if ($totalRows_completed > 0) {
 				file_put_contents($progressFile, json_encode([
@@ -543,7 +584,8 @@ $entryFees = (int)($row_entrySettings['value']);
 					                         SUM(shares) as shares, 
 					                         SUM(loanRepayment) as loanRepayment, 
 					                         SUM(loanAmount) as loanAmount, 
-					                         SUM(interestPaid) as interestPaid
+					                         SUM(interestPaid) as interestPaid,
+					                         SUM(dev_fee_paid) as dev_fee_paid
 					                     FROM tlb_mastertransaction 
 					                     WHERE memberid = '" . $row_member['memberid'] . "' 
 					                     AND periodid = " . $_GET["PeriodID"] . " 
@@ -554,6 +596,7 @@ $entryFees = (int)($row_entrySettings['value']);
 					
 					if ($transaction_data) {
 						$entryFee = floatval($transaction_data['entryFee'] ?? 0);
+						$devFeePaid = floatval($transaction_data['dev_fee_paid'] ?? 0);
 						$savings = floatval($transaction_data['savings'] ?? 0); // This now includes special savings
 						$shares = floatval($transaction_data['shares'] ?? 0);
 						$loanRepayment = floatval($transaction_data['loanRepayment'] ?? 0);
@@ -561,7 +604,7 @@ $entryFees = (int)($row_entrySettings['value']);
 						$interestPaid = floatval($transaction_data['interestPaid'] ?? 0);
 						
 						// Calculate total contribution (money received)
-						$total_contribution = $entryFee + $savings + $shares + $loanRepayment + $interestPaid;
+						$total_contribution = $entryFee + $devFeePaid + $savings + $shares + $loanRepayment + $interestPaid;
 						
 						// Only create journal entry if there are contributions
 						if ($total_contribution > 0 || $loanDisbursed > 0) {
@@ -587,6 +630,18 @@ $entryFees = (int)($row_entrySettings['value']);
 									'debit_amount' => 0,
 									'credit_amount' => $entryFee,
 									'description' => 'Entrance fee',
+									'reference_type' => 'member',
+									'reference_id' => $row_member['memberid']
+								];
+							}
+							
+							// CREDIT: Development Fee Income (Revenue) - Temporarily mapped to Entry Fees Income account
+							if ($devFeePaid > 0) {
+								$journal_lines[] = [
+									'account_id' => 49, // Entrance/Development Fees Income
+									'debit_amount' => 0,
+									'credit_amount' => $devFeePaid,
+									'description' => 'Development Levy',
 									'reference_type' => 'member',
 									'reference_id' => $row_member['memberid']
 								];
@@ -764,7 +819,7 @@ $entryFees = (int)($row_entrySettings['value']);
 		do {
 			set_time_limit(0);
 			try {
-				processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService, $accountingEngine, $memberAccountManager);
+				processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $devLevyFee, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService, $accountingEngine, $memberAccountManager);
 			} catch (Exception $e) {
 				error_log("Error processing member {$row_member['memberid']}: " . $e->getMessage());
 			}

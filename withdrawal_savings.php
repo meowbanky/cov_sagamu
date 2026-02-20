@@ -105,6 +105,7 @@ $(function() {
     function fetchContribution(memberid) {
         if (!memberid) {
             $('#availableContribution').val('0.00');
+            $('#availableContribution').data('raw', '0');
             return;
         }
         $.get('getContribution_withdrawal.php', {
@@ -115,8 +116,10 @@ $(function() {
             if (match && match[1]) {
                 let amount = parseFloat(match[1]).toFixed(2);
                 $('#availableContribution').val('₦' + amount.replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+                $('#availableContribution').data('raw', amount);
             } else {
                 $('#availableContribution').val('₦0.00');
+                $('#availableContribution').data('raw', '0');
             }
         });
     }
@@ -126,7 +129,10 @@ $(function() {
         e.preventDefault();
         var pid = $("#PeriodId").val();
         var memberid = $('#txtCoopid').val();
-        var amount = $('#Amount').val();
+        var amountInput = $('#Amount').val();
+        var amount = amountInput ? parseFloat(amountInput.replace(/,/g, '')) : 0;
+        var memberName = $('#CoopName').val();
+
         if (!pid) {
             sweetMsg("Please select a period.", "error");
             return false;
@@ -135,26 +141,44 @@ $(function() {
             sweetMsg("Please select a member.", "error");
             return false;
         }
-        if (!amount || parseFloat(amount) <= 0) {
+        if (amount <= 0 || isNaN(amount)) {
             sweetMsg("Please enter a valid withdrawal amount.", "error");
             return false;
         }
-        var available = parseFloat($('#availableContribution').val());
-        if (parseFloat(amount) > available) {
+        
+        var available = parseFloat($('#availableContribution').data('raw') || '0');
+        if (amount > available) {
             sweetMsg("Withdrawal amount exceeds available contribution.", "error");
             return false;
         }
+
+        // Temporarily remove formatting for serialization
+        $('#Amount').val(amount);
         var formData = $(this).serialize();
-        $.post("process_withdrawal.php", formData, function(resp) {
-            if (resp.success) {
-                sweetMsg(resp.success, "success");
-                resetForm();
-            } else if (resp.error) {
-                sweetMsg(resp.error, "error");
-            } else {
-                sweetMsg("Unknown response from server.", "error");
+        $('#Amount').val(amountInput); // Restore input
+
+        Swal.fire({
+            title: 'Confirm Withdrawal',
+            text: 'Are you sure you want to withdraw ₦' + amountInput + ' for ' + memberName + '?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, withdraw it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post("process_withdrawal.php", formData, function(resp) {
+                    if (resp.success) {
+                        sweetMsg(resp.success, "success");
+                        resetForm();
+                    } else if (resp.error) {
+                        sweetMsg(resp.error, "error");
+                    } else {
+                        sweetMsg("Unknown response from server.", "error");
+                    }
+                }, 'json');
             }
-        }, 'json');
+        });
     });
 
     // Reset button
@@ -167,6 +191,7 @@ $(function() {
         $('#CoopName').val('');
         $('#txtCoopid').val('');
         $('#availableContribution').val('0.00');
+        $('#availableContribution').data('raw', '0');
         $('#memberNameHint').text('');
         $('#CoopName').focus();
     });
@@ -187,12 +212,6 @@ $(function() {
         $(this).val(formatted);
     });
 
-    // Remove formatting before submit
-    $('#withdrawForm').on('submit', function() {
-        let amt = $('#Amount').val().replace(/,/g, '');
-        $('#Amount').val(amt);
-    });
-
     function sweetMsg(msg, type) {
         Swal.fire({
             icon: type,
@@ -207,6 +226,7 @@ $(function() {
         $("#withdrawForm")[0].reset();
         $('#txtCoopid').val('');
         $('#availableContribution').val('0.00');
+        $('#availableContribution').data('raw', '0');
         $('#memberNameHint').text('');
     }
 });

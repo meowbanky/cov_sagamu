@@ -48,6 +48,9 @@ SELECT
     SUM(tlb_mastertransaction.specialLoanRepayment) as specialLoanRepayment,
     SUM(tlb_mastertransaction.specialInterest) as specialInterest,
     SUM(tlb_mastertransaction.specialInterestPaid) as specialInterestPaid,
+    
+    SUM(tlb_mastertransaction.dev_fee) as dev_fee,
+    SUM(tlb_mastertransaction.dev_fee_paid) as dev_fee_paid,
 
     (
         SELECT SUM(m2.interest) - SUM(m2.interestPaid)
@@ -85,8 +88,15 @@ SELECT
         WHERE m2.memberid = tlb_mastertransaction.memberid
         AND m2.periodid <= tlb_mastertransaction.periodid
     ) as specialInterestBalance,
+    (
+        SELECT SUM(m2.dev_fee) - SUM(m2.dev_fee_paid)
+        FROM tlb_mastertransaction m2
+        WHERE m2.memberid = tlb_mastertransaction.memberid
+        AND m2.periodid <= tlb_mastertransaction.periodid
+    ) as devFeeBalance,
     SUM(
         tlb_mastertransaction.entryFee + 
+        IFNULL(tlb_mastertransaction.dev_fee_paid, 0) +
         tlb_mastertransaction.savings + 
         tlb_mastertransaction.shares + 
         tlb_mastertransaction.interestPaid + 
@@ -138,12 +148,14 @@ SELECT
     IFNULL(SUM(tlb_mastertransaction.specialInterestPaid), 0) AS specialInterestPaid,
 
     IFNULL(SUM(tlb_mastertransaction.withdrawal), 0) AS withdrawals,
-    (IFNULL(SUM(tlb_mastertransaction.loanRepayment), 0) + IFNULL(SUM(tlb_mastertransaction.entryFee), 0) + IFNULL(SUM(tlb_mastertransaction.savings), 0) + 
+    (IFNULL(SUM(tlb_mastertransaction.loanRepayment), 0) + IFNULL(SUM(tlb_mastertransaction.entryFee), 0) + IFNULL(SUM(tlb_mastertransaction.dev_fee_paid), 0) + IFNULL(SUM(tlb_mastertransaction.savings), 0) + 
     IFNULL(SUM(tlb_mastertransaction.shares), 0) + IFNULL(SUM(tlb_mastertransaction.interestPaid), 0) + 
     IFNULL(SUM(tlb_mastertransaction.specialLoanRepayment), 0) + IFNULL(SUM(tlb_mastertransaction.specialInterestPaid), 0)) AS total,
     MAX(tbpayrollperiods.PayrollPeriod) AS PayrollPeriod,
     MAX(tlb_mastertransaction.periodid) AS periodid,
     IFNULL(SUM(tlb_mastertransaction.entryFee), 0) AS entryFee,
+    IFNULL(SUM(tlb_mastertransaction.dev_fee), 0) AS dev_fee,
+    IFNULL(SUM(tlb_mastertransaction.dev_fee_paid), 0) AS dev_fee_paid,
     IFNULL(SUM(tlb_mastertransaction.savings), 0) AS savings,
     IFNULL(SUM(tlb_mastertransaction.shares), 0) AS shares,
     IFNULL(SUM(tlb_mastertransaction.interestPaid), 0) AS interestPaid,
@@ -311,6 +323,9 @@ $row_totalsum = $totalsum->fetch_assoc();
                 <th class="py-3 px-2 text-left font-semibold">Period</th>
                 <th class="py-3 px-2 text-left font-semibold">Name</th>
                 <th class="py-3 px-2  font-semibold">Entry Fee</th>
+                <th class="py-3 px-2  font-semibold">Dev Fee</th>
+                <th class="py-3 px-2  font-semibold">Dev Paid</th>
+                <th class="py-3 px-2  font-semibold">Out. Dev Fee</th>
                 <th class="py-3 px-2  font-semibold">Savings</th>
                 <th class="py-3 px-2  font-semibold">Savings Bal.</th>
                 <th class="py-3 px-2  font-semibold">Shares</th>
@@ -351,6 +366,12 @@ $row_totalsum = $totalsum->fetch_assoc();
                     <?= htmlspecialchars($row_status['namess']); ?></td>
                 <td data-label="Entry Fee" class="py-2 px-2  ">
                     <?= number_format($row_status['entryFee'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Dev Fee" class="py-2 px-2  ">
+                    <?= number_format($row_status['dev_fee'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Dev Paid" class="py-2 px-2  ">
+                    <?= number_format($row_status['dev_fee_paid'] ?? 0, 2, '.', ','); ?></td>
+                <td data-label="Out. Dev Fee" class="py-2 px-2  ">
+                    <?= number_format($row_status['devFeeBalance'] ?? 0, 2, '.', ','); ?></td>
                 <td data-label="Savings" class="py-2 px-2  ">
                     <?= number_format($row_status['savingsAmount'] ?? 0, 2, '.', ','); ?></td>
                 <td data-label="Savings Bal." class="py-2 px-2  ">
@@ -393,9 +414,14 @@ $row_totalsum = $totalsum->fetch_assoc();
             <!-- Totals Row (Show as single card or row) -->
             <tr class="bg-gray-200 font-bold text-base border-t border-gray-300">
                 <td class="py-3 px-2 text-blue-700" data-label="Total">Total</td>
-                <td colspan="3"></td>
+                <td colspan="6"></td>
                 <td class="py-3 px-2 " data-label="Entry Fee">
                     <?= number_format($row_totalsum['entryFee'] ?? 0, 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Dev Fee">
+                    <?= number_format($row_totalsum['dev_fee'] ?? 0, 2, '.', ','); ?></td>
+                <td class="py-3 px-2 " data-label="Dev Paid">
+                    <?= number_format($row_totalsum['dev_fee_paid'] ?? 0, 2, '.', ','); ?></td>
+                <td></td>
                 <td class="py-3 px-2 " data-label="Savings">
                     <?= number_format($row_totalsum['savings'] ?? 0, 2, '.', ','); ?></td>
                 <td></td>

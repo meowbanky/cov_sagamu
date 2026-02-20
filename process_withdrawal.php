@@ -39,8 +39,8 @@ if ($amount > $available) {
 }
 
 // Calculate withdrawal split
-$savings_withdraw = -($amount * 0.6);
-$shares_withdraw = -($amount * 0.4);
+$savings_withdraw = -($amount * 0.4);
+$shares_withdraw = -($amount * 0.6);
 
 // Insert withdrawal as negative savings and shares in one row
 $insert = $cov->prepare("INSERT INTO tlb_mastertransaction (memberid, periodid, savings, shares, DateOfPayment, withdrawal) VALUES (?, ?, ?, ?, NOW(), ?)");

@@ -49,21 +49,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
             table { 
                 border-collapse: collapse; 
                 width: 100%; 
-                font-size: 7pt;
+                font-size: 6pt;
             }
             th { 
                 background-color: #1E40AF; 
                 color: #FFFFFF; 
                 font-weight: bold; 
                 text-align: center; 
-                padding: 4px 2px;
+                padding: 3px 1px;
                 border: 1px solid #000000;
-                font-size: 7pt;
+                font-size: 6pt;
             }
             td { 
-                padding: 3px 2px;
+                padding: 3px 1px;
                 border: 1px solid #000000;
-                font-size: 7pt;
+                font-size: 6pt;
             }
             tr:last-child td {
                 background-color: #E5E7EB;
@@ -81,6 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         $rowIndex = 0;
         
         foreach ($rows as $row) {
+            if (!$row instanceof DOMElement) {
+                continue;
+            }
+
             $rowHtml = '<tr>';
             
             // Get cells (th or td)
@@ -158,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $pdf->SetHeaderMargin(5);
     $pdf->SetFooterMargin(10);
     $pdf->SetAutoPageBreak(TRUE, 15);
-    $pdf->SetFont('helvetica', '', 7);
+    $pdf->SetFont('helvetica', '', 6);
     
     $pdf->AddPage();
     
