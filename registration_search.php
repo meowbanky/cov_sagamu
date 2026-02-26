@@ -9,7 +9,7 @@ header("Location:index.php");} else{
 if (!function_exists("GetSQLValueString")) {
 function GetSQLValueString($conn_vote, $theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "") 
     {
-      $theValue = get_magic_quotes_gpc() ? stripslashes($theValue) : $theValue;
+      $theValue = $theValue; // getting rid of magic quotes
 
       $theValue = function_exists("mysqli_real_escape_string") ? mysqli_real_escape_string($conn_vote, $theValue) : mysqli_escape_string($conn_vote, $theValue);
 
@@ -53,7 +53,7 @@ if ((isset($_POST["ButtonSearch"])) && ($_POST["ButtonSearch"] == "Search")) {
 }
 function GetSQLValueString($theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "") 
 {
-  $theValue = (!get_magic_quotes_gpc()) ? addslashes($theValue) : $theValue;
+  $theValue = addslashes($theValue);
 
   switch ($theType) {
     case "text":

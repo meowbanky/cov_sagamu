@@ -3,7 +3,7 @@ session_start();
 require_once('Connections/cov.php'); // Ensure this file uses MySQLi for database connection
 
 // Create a MySQLi connection
-$mysqli = new mysqli('localhost', 'emmaggic_root', 'Oluwaseyi', 'emmaggic_cofv');
+$mysqli = new mysqli($hostname_cov, $username_cov, $password_cov, $database_cov);
 if ($mysqli->connect_error) {
 	die("Connection failed: " . $mysqli->connect_error);
 }

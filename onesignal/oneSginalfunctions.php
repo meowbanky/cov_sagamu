@@ -1,7 +1,6 @@
 <?php
 
 $file =  __DIR__ . '/../vendor/autoload.php';
-//require_once '/Users/mac/Desktop/Project/64_folder/cov/vendor/autoload.php';
 require_once $file;
 require_once('Connections/cov.php');
 

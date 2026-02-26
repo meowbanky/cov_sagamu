@@ -2,7 +2,7 @@
 <?php
 $colname_Recordset1 = "-1";
 if (isset($_GET['employ_id'])) {
-  $colname_Recordset1 = (get_magic_quotes_gpc()) ? $_GET['employ_id'] : addslashes($_GET['employ_id']);
+  $colname_Recordset1 = addslashes($_GET['employ_id']);
 }
 mysql_select_db($database_myConn, $myConn);
 $query_Recordset1 = sprintf("SELECT LG FROM state_local_govt WHERE StateID = '%s'", $colname_Recordset1);

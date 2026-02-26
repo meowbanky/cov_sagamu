@@ -3,11 +3,10 @@
 if (!function_exists("GetSQLValueString")) {
 function GetSQLValueString($theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "") 
 {
-  if (PHP_VERSION < 6) {
-    $theValue = get_magic_quotes_gpc() ? stripslashes($theValue) : $theValue;
-  }
 
-  $theValue = function_exists("mysql_real_escape_string") ? mysql_real_escape_string($theValue) : mysql_escape_string($theValue);
+
+  global $cov;
+  $theValue = function_exists("mysqli_real_escape_string") ? mysqli_real_escape_string($cov, $theValue) : mysqli_escape_string($cov, $theValue);
 
   switch ($theType) {
     case "text":
@@ -35,11 +34,11 @@ $col_state = "-1";
 if (isset($_GET['Country'])) {
   $col_state = $_GET['Country'];
 }
-mysql_select_db($database_hms, $hms);
+mysqli_select_db($cov, $database_cov);
 $query_state = sprintf("SELECT sjx_gen_countrystate.Country, sjx_gen_countrystate.`State` FROM sjx_gen_countrystate WHERE sjx_gen_countrystate.Country = %s ORDER BY sjx_gen_countrystate.`State` asc", GetSQLValueString($col_state, "text"));
-$state = mysql_query($query_state, $hms) or die(mysql_error());
-$row_state = mysql_fetch_assoc($state);
-$totalRows_state = mysql_num_rows($state);
+$state = mysqli_query($cov, $query_state) or die(mysqli_error($cov));
+$row_state = mysqli_fetch_assoc($state);
+$totalRows_state = mysqli_num_rows($state);
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -57,11 +56,11 @@ do {
 ?>
   <option value="<?php echo $row_state['State']?>"><?php echo $row_state['State']?></option>
   <?php
-} while ($row_state = mysql_fetch_assoc($state));
-  $rows = mysql_num_rows($state);
+} while ($row_state = mysqli_fetch_assoc($state));
+  $rows = mysqli_num_rows($state);
   if($rows > 0) {
-      mysql_data_seek($state, 0);
-	  $row_state = mysql_fetch_assoc($state);
+      mysqli_data_seek($state, 0);
+	  $row_state = mysqli_fetch_assoc($state);
   }
 ?>
 </select>
@@ -69,5 +68,5 @@ do {
 </body>
 </html>
 <?php
-mysql_free_result($state);
+mysqli_free_result($state);
 ?>
