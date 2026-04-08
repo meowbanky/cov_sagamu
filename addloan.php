@@ -72,6 +72,16 @@ if (isset($_GET['period'])) {
         </div>
         <input type="hidden" id="txtCoopid" name="txtCoopid" required readonly>
         <div id="memberNameHint" class="text-gray-500 text-sm mb-1"></div>
+        <div id="memberLoanInfo" style="display:none;" class="loan-balance-box">
+            <div class="loan-balance-row">
+                <span class="loan-balance-label">Regular Loan Balance:</span>
+                <span id="loanBalanceAmt" class="loan-balance-value"></span>
+            </div>
+            <div class="loan-balance-row">
+                <span class="loan-balance-label">Special Loan Balance:</span>
+                <span id="specialLoanBalanceAmt" class="loan-balance-value"></span>
+            </div>
+        </div>
 
         <label for="txtAmountGranted" class="block font-medium">Amount Granted:</label>
         <input type="text" id="txtAmountGranted" name="txtAmountGranted" required pattern="\d+(\.\d{1,2})?"
@@ -114,6 +124,8 @@ $(function() {
             $('#CoopName').val(ui.item.label);
             $('#memberNameHint').text(ui.item.membername + (ui.item.mobile ? ' (' + ui.item.mobile +
                 ')' : ''));
+            // Fetch loan balance for selected member
+            fetchMemberLoanBalance(ui.item.memberid);
             return false;
         }
     }).autocomplete("instance")._renderItem = function(ul, item) {
@@ -128,6 +140,7 @@ $(function() {
         $('#CoopName').val('');
         $('#txtCoopid').val('');
         $('#memberNameHint').text('');
+        clearMemberLoanBalance();
         $('#CoopName').focus();
     });
 
@@ -327,14 +340,80 @@ $(function() {
         $("#txtAmountGranted").val('');
         $("#loan_date").val('');
         $("#memberNameHint").text('');
+        clearMemberLoanBalance();
         
         // Reset buttons
         toggleTypeUI(loanType);
         $("#cancelEditBtn").hide();
     }
+
+    function fetchMemberLoanBalance(memberid) {
+        if (!memberid) { clearMemberLoanBalance(); return; }
+        $('#memberLoanInfo').html('<div class="loan-balance-loading">Loading balance...</div>').show();
+        $.get('api/get_member_financial_status.php', { memberid: memberid }, function(data) {
+            if (data && data.success) {
+                var regBal  = parseFloat(data.loan_balance) || 0;
+                var spBal   = parseFloat(data.special_loan_balance) || 0;
+                var fmt = function(n) { return '\u20a6' + n.toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+                var regClass  = regBal > 0 ? 'has-balance' : 'no-balance';
+                var spClass   = spBal  > 0 ? 'has-balance' : 'no-balance';
+                $('#memberLoanInfo').html(
+                    '<div class="loan-balance-row">'
+                    + '<span class="loan-balance-label">Regular Loan Balance:</span>'
+                    + '<span class="loan-balance-value ' + regClass + '">' + fmt(regBal) + '</span>'
+                    + '</div>'
+                    + '<div class="loan-balance-row">'
+                    + '<span class="loan-balance-label">Special Loan Balance:</span>'
+                    + '<span class="loan-balance-value ' + spClass + '">' + fmt(spBal) + '</span>'
+                    + '</div>'
+                ).show();
+            } else {
+                clearMemberLoanBalance();
+            }
+        }, 'json').fail(function() { clearMemberLoanBalance(); });
+    }
+
+    function clearMemberLoanBalance() {
+        $('#memberLoanInfo').hide().html('');
+    }
 });
 </script>
 <style>
+/* ── Member Loan Balance Info Box ── */
+.loan-balance-box {
+    background: #f0f7ff;
+    border: 1px solid #bfdbfe;
+    border-left: 4px solid #3b82f6;
+    border-radius: 6px;
+    padding: 8px 14px;
+    margin-bottom: 10px;
+    font-size: 0.92em;
+}
+.loan-balance-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+}
+.loan-balance-label {
+    color: #475569;
+    font-weight: 500;
+    min-width: 170px;
+}
+.loan-balance-value {
+    font-weight: 700;
+}
+.loan-balance-value.has-balance {
+    color: #dc2626; /* red – outstanding balance */
+}
+.loan-balance-value.no-balance {
+    color: #16a34a; /* green – no outstanding */
+}
+.loan-balance-loading {
+    color: #6b7280;
+    font-style: italic;
+    font-size: 0.9em;
+}
 /* Responsive table style for mobile friendliness */
 #loansTableArea table {
     width: 100%;
