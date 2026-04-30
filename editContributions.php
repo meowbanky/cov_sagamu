@@ -78,14 +78,45 @@ require_once('header.php');
         <form id="contributionForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block font-semibold mb-1">Member</label>
-                <input type="text" name="CoopName" id="CoopName" class="w-full border px-3 py-2 rounded"
-                    autocomplete="off">
+                <div class="relative">
+                    <input type="text" name="CoopName" id="CoopName" class="w-full border px-3 py-2 rounded pr-8"
+                        autocomplete="off">
+                    <button type="button" id="btnClearMember" class="absolute right-2 top-2 text-gray-500 hover:text-red-500 hidden" title="Clear Member">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
                 <div id="suggestions" class="suggestionsBox" style="display:none">
                     <div id="autoSuggestionsList"></div>
                 </div>
                 <input type="hidden" name="txtCoopid" id="txtCoopid">
-                <div id="memberInfo" class="mt-2 p-2 bg-blue-50 rounded hidden">
-                    <span class="text-blue-800 font-semibold"></span>
+                <div id="memberInfo" class="mt-2 p-3 bg-blue-50 rounded hidden border border-blue-200">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fa fa-user text-blue-600"></i>
+                        <span class="text-blue-800 font-bold text-lg"></span>
+                    </div>
+                    <!-- Financial Status Segment -->
+                    <div id="financialStatus" class="hidden grid-cols-2 gap-2 text-sm bg-white p-2 rounded border border-blue-100 mt-2">
+                        <div class="text-gray-600">Total Savings:</div>
+                        <div class="font-bold text-green-600 text-right" id="fsTotalSavings">₦0.00</div>
+                        
+                        <div class="text-gray-600">Regular Loan Bal:</div>
+                        <div class="font-bold text-red-600 text-right" id="fsLoanBalance">₦0.00</div>
+                        
+                        <div class="text-gray-600">Regular Interest Bal:</div>
+                        <div class="font-bold text-orange-600 text-right" id="fsOutstandingInterest">₦0.00</div>
+                        
+                        <div class="text-gray-600">Special Loan Bal:</div>
+                        <div class="font-bold text-purple-600 text-right" id="fsSpecialLoanBalance">₦0.00</div>
+                        
+                        <div class="text-gray-600">Special Interest Bal:</div>
+                        <div class="font-bold text-pink-600 text-right" id="fsSpecialOutstandingInterest">₦0.00</div>
+                        
+                        <div class="text-gray-600">Dev Levy Bal:</div>
+                        <div class="font-bold text-teal-600 text-right" id="fsDevLevyBalance">₦0.00</div>
+                    </div>
+                    <div id="financialStatusLoading" class="hidden text-sm text-gray-500 mt-2">
+                        <i class="fa fa-spinner fa-spin mr-1"></i> Loading financials...
+                    </div>
                 </div>
             </div>
             <div>
@@ -273,6 +304,14 @@ $(function() {
     // Lookup member for auto-suggest
     $('#CoopName').keyup(function() {
         let val = $(this).val();
+        
+        // Show/hide clear button
+        if (val.length > 0) {
+            $('#btnClearMember').removeClass('hidden');
+        } else {
+            $('#btnClearMember').addClass('hidden');
+        }
+        
         if (val.length < 2) {
             $('#suggestions').hide();
             return;
@@ -296,10 +335,14 @@ $(function() {
         $('#txtCoopid').val(memberId);
         $('#CoopName').val(memberName);
         $('#suggestions').hide();
+        $('#btnClearMember').removeClass('hidden');
 
         // Show selected member info
         $('#memberInfo span').text(memberName);
         $('#memberInfo').removeClass('hidden');
+        
+        // Fetch and display financial status
+        loadMemberFinancialStatus(memberId);
 
         // Check if member has special savings
         checkSpecialSavings(memberId);
@@ -314,6 +357,54 @@ $(function() {
         let periodId = $('#PeriodId').val();
         if (periodId) loadContributions(periodId);
     });
+    
+    // Clear Member Button Handler
+    $('#btnClearMember').click(function() {
+        $('#CoopName').val('').focus();
+        $('#txtCoopid').val('');
+        $('#btnClearMember').addClass('hidden');
+        $('#suggestions').hide();
+        
+        // Hide member info and reset
+        $('#memberInfo').addClass('hidden');
+        $('#financialStatus').removeClass('grid').addClass('hidden');
+        
+        // Clear special savings
+        hideSpecialSavingsSection();
+        $('#specialSavingsAlert').addClass('hidden');
+        specialSavingsData = null;
+        
+        // If updating a record but cleared the member, maybe we shouldn't let them update it to 'nobody' easily
+        // But let's just clear the display for now
+    });
+
+    // Helper to load member financial status
+    function loadMemberFinancialStatus(memberId) {
+        $('#financialStatusLoading').removeClass('hidden');
+        $('#financialStatus').removeClass('grid').addClass('hidden');
+        
+        $.get('api/get_member_financial_status.php', { memberid: memberId }, function(res) {
+            $('#financialStatusLoading').addClass('hidden');
+            if (res.success) {
+                // Format currency
+                const formatter = new Intl.NumberFormat('en-NG', {
+                    style: 'currency',
+                    currency: 'NGN'
+                });
+                
+                $('#fsTotalSavings').text(formatter.format(res.total_savings));
+                $('#fsLoanBalance').text(formatter.format(res.loan_balance));
+                $('#fsOutstandingInterest').text(formatter.format(res.outstanding_interest));
+                $('#fsSpecialLoanBalance').text(formatter.format(res.special_loan_balance));
+                $('#fsSpecialOutstandingInterest').text(formatter.format(res.special_outstanding_interest));
+                $('#fsDevLevyBalance').text(formatter.format(res.dev_levy_balance));
+                
+                $('#financialStatus').removeClass('hidden').addClass('grid');
+            }
+        }, 'json').fail(function() {
+            $('#financialStatusLoading').addClass('hidden');
+        });
+    }
 
     // Check if member has special savings
     function checkSpecialSavings(memberId) {
@@ -523,6 +614,8 @@ $(function() {
     $('#btnClear').click(function() {
         $('#contributionForm')[0].reset();
         $('#memberInfo').addClass('hidden');
+        $('#financialStatus').removeClass('grid').addClass('hidden');
+        $('#btnClearMember').addClass('hidden');
         hideSpecialSavingsSection();
         $('#specialSavingsAlert').addClass('hidden');
         specialSavingsData = null;
@@ -636,6 +729,8 @@ $(function() {
         
         // Clean up UI
         $('#memberInfo').addClass('hidden');
+        $('#financialStatus').removeClass('grid').addClass('hidden');
+        $('#btnClearMember').addClass('hidden');
         hideSpecialSavingsSection();
         $('#specialSavingsAlert').addClass('hidden');
         specialSavingsData = null;
@@ -660,12 +755,20 @@ $(function() {
         $('input[name="transactionType"][value="' + type + '"]').prop('checked', true).trigger('change');
         
         // Common fields
+        let memberId = $(this).data('memberid');
+        let memberName = $(this).data('member_name');
         $('#txtContriId').val($(this).data('id'));
-        $('#txtCoopid').val($(this).data('memberid'));
+        $('#txtCoopid').val(memberId);
         $('#PeriodId').val($(this).data('periodid'));
-        $('#CoopName').val($(this).data('member_name'));
-        $('#memberInfo span').text($(this).data('member_name'));
+        $('#CoopName').val(memberName);
+        $('#memberInfo span').text(memberName);
         $('#memberInfo').removeClass('hidden');
+        $('#btnClearMember').removeClass('hidden');
+        
+        // Load financial status
+        if (memberId) {
+            loadMemberFinancialStatus(memberId);
+        }
 
         if (type === 'regular') {
             $('#Amount').val($(this).data('amount'));

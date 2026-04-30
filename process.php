@@ -156,6 +156,15 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 	$row_member = mysqli_fetch_assoc($member);
 	$totalRows_member = mysqli_num_rows($member);
 
+    // Fetch current period year
+    $query_period_year = sprintf("SELECT PhysicalYear FROM tbpayrollperiods WHERE Periodid = %s", GetSQLValueString($cov, $_GET['PeriodID'], "int"));
+    $period_year_res = mysqli_query($cov, $query_period_year) or die(mysqli_error($cov));
+    $row_period_year = mysqli_fetch_assoc($period_year_res);
+    $current_period_year = intval(trim($row_period_year['PhysicalYear'] ?? "0"));
+    mysqli_free_result($period_year_res);
+    
+    error_log("process.php - Processing PeriodID: " . $_GET['PeriodID'] . " | Year: [" . $current_period_year . "]");
+
 		file_put_contents($progressFile, json_encode([
 			"percent" => "0%",
 			"current" => 0,
@@ -180,7 +189,7 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			return mysqli_fetch_assoc($result);
 		}
 
-		function processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $devLevyFee, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService = null, $accountingEngine = null, $memberAccountManager = null) {
+		function processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $devLevyFee, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService = null, $accountingEngine = null, $memberAccountManager = null, $current_period_year = 0) {
 			$loans_early = [];
 			$loans_late = [];
 			// Check if already processed
@@ -188,6 +197,17 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			$completed = db_query($cov, $query_completed);
 			$totalRows_completed = mysqli_num_rows($completed);
 			mysqli_free_result($completed);
+
+			// Already processed? Stop here.
+			if ($totalRows_completed > 0) {
+				file_put_contents($progressFile, json_encode([
+					'percent' => intval($i / $totalRows_member * 100) . "%",
+					'current' => $i,
+					'total' => $totalRows_member,
+					'message' => "{$row_member['memberid']} already processed for Period {$_GET['PeriodID']}. Skipping..."
+				]));
+				return;
+			}
 			// Deductions
 			$query_deductions = "SELECT IFNULL(sum(tbl_contributions.contribution),0) as contri, IFNULL(sum(tbl_contributions.special_savings),0) as special_savings FROM tbl_contributions WHERE membersid = '" . $row_member['memberid'] . "' AND periodid = '" . $_GET['PeriodID'] . "' AND pay_method = 0 GROUP BY membersid";
 			$deductions = db_query($cov, $query_deductions);
@@ -236,7 +256,7 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			$row_out_dev = db_fetch_assoc($res_out_dev);
 			$outstanding_dev_fee = floatval($row_out_dev['total_dev_fee']) - floatval($row_out_dev['total_dev_fee_paid']);
 			
-			$current_month_dev_fee = $devLevyFee;
+			$current_month_dev_fee = ($current_period_year >= 2026) ? $devLevyFee : 0;
 			$total_dev_fee_due = $outstanding_dev_fee + $current_month_dev_fee;
 
 			$dev_fee_paid_this_month = 0;
@@ -253,15 +273,26 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			}
 
 			if ($current_month_dev_fee > 0 || $dev_fee_paid_this_month > 0) {
-				$insertSQLDevMaster = sprintf(
-					"INSERT INTO tlb_mastertransaction (periodid, memberid, dev_fee, dev_fee_paid, completed) VALUES (%s, %s, %s, %s, %s)",
-					GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+				// Additional check: Does this member already have a dev fee record for THIS SPECIFIC PERIOD?
+				$query_check_period_dev = sprintf("SELECT memberid FROM tlb_mastertransaction WHERE memberid = %s AND periodid = %s AND dev_fee > 0", 
 					GetSQLValueString($cov, $row_member['memberid'], "text"),
-					GetSQLValueString($cov, $current_month_dev_fee, "double"),
-					GetSQLValueString($cov, $dev_fee_paid_this_month, "double"),
-					GetSQLValueString($cov, COMPLETED_STATUS, "int")
+					GetSQLValueString($cov, $_GET["PeriodID"], "int")
 				);
-				db_query($cov, $insertSQLDevMaster);
+				$res_check_period_dev = db_query($cov, $query_check_period_dev);
+				$has_existing_period_dev = mysqli_num_rows($res_check_period_dev) > 0;
+				mysqli_free_result($res_check_period_dev);
+
+				if (!$has_existing_period_dev) {
+					$insertSQLDevMaster = sprintf(
+						"INSERT INTO tlb_mastertransaction (periodid, memberid, dev_fee, dev_fee_paid, completed) VALUES (%s, %s, %s, %s, %s)",
+						GetSQLValueString($cov, $_GET["PeriodID"], "int"),
+						GetSQLValueString($cov, $row_member['memberid'], "text"),
+						GetSQLValueString($cov, $current_month_dev_fee, "double"),
+						GetSQLValueString($cov, $dev_fee_paid_this_month, "double"),
+						GetSQLValueString($cov, COMPLETED_STATUS, "int")
+					);
+					db_query($cov, $insertSQLDevMaster);
+				}
 			}
 
 			// Online payment check
@@ -270,16 +301,6 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			$totalRows_OnlinePaymentCheck = mysqli_num_rows($OnlinePaymentCheck);
 			mysqli_free_result($OnlinePaymentCheck);
 			$contribution = $contribution_dev;
-			// Already processed?
-			if ($totalRows_completed > 0) {
-				file_put_contents($progressFile, json_encode([
-					'percent' => intval($i / $totalRows_member * 100) . "%",
-					'current' => $i,
-					'total' => $totalRows_member,
-					'message' => "{$row_member['memberid']} already processed. Skipping..."
-				]));
-				return;
-			}
 			// Loan batch
 			$query_Batch = sprintf(
 				"SELECT tbl_loan.loanamount, tbl_loan.loanid, tbl_loan.periodid, tbl_loan.memberid, tbl_loan.loan_date FROM tbl_loan WHERE tbl_loan.memberid = %s AND periodid = %s",
@@ -299,7 +320,7 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			// Insert early loans
 			foreach ($loans_early as $loan) {
 				$insertSQL_MasterTransaction = sprintf(
-					"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid,loanAmount) VALUES (%s, %s, %s, %s)",
+					"INSERT INTO tlb_mastertransaction (periodid, memberid, loanID, loanAmount) VALUES (%s, %s, %s, %s)",
 					GetSQLValueString($cov, $_GET["PeriodID"], "int"),
 					GetSQLValueString($cov, $row_member['memberid'], "text"),
 					GetSQLValueString($cov, $loan['loanid'], "int"),
@@ -497,7 +518,7 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			$SpBatch = db_query($cov, $query_SpBatch);
 			while ($row_SpBatch = db_fetch_assoc($SpBatch)) {
                  $insertSQL_SpDisburse = sprintf(
-					"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid, specialLoanAmount, completed) VALUES (%s, %s, %s, %s, %s)",
+					"INSERT INTO tlb_mastertransaction (periodid, memberid, loanID, specialLoanAmount, completed) VALUES (%s, %s, %s, %s, %s)",
 					GetSQLValueString($cov, $_GET["PeriodID"], "int"),
 					GetSQLValueString($cov, $row_member['memberid'], "text"),
 					GetSQLValueString($cov, $row_SpBatch['loanid'], "int"),
@@ -512,7 +533,7 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			// Insert late loans
 			foreach ($loans_late as $loan) {
 				$insertSQL_LateLoan = sprintf(
-					"INSERT INTO tlb_mastertransaction (periodid, memberid, loanid, loanAmount) VALUES (%s, %s, %s, %s)",
+					"INSERT INTO tlb_mastertransaction (periodid, memberid, loanID, loanAmount) VALUES (%s, %s, %s, %s)",
 					GetSQLValueString($cov, $_GET["PeriodID"], "int"),
 					GetSQLValueString($cov, $row_member['memberid'], "text"),
 					GetSQLValueString($cov, $loan['loanid'], "int"),
@@ -819,7 +840,7 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 		do {
 			set_time_limit(0);
 			try {
-				processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $devLevyFee, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService, $accountingEngine, $memberAccountManager);
+				processMember($cov, $database_cov, $row_member, $row_interestRate, $row_sharesRate, $row_savingsRate, $entryFees, $devLevyFee, $progressFile, $i, $totalRows_member, $notificationService, $emailTemplateService, $accountingEngine, $memberAccountManager, $current_period_year);
 			} catch (Exception $e) {
 				error_log("Error processing member {$row_member['memberid']}: " . $e->getMessage());
 			}
@@ -848,6 +869,8 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			// Increment the counter		
 			$i++;
 		} while ($row_member = mysqli_fetch_assoc($member));
+
+		error_log("process.php - Finished processing all members for PeriodID: " . $_GET['PeriodID']);
 
 		file_put_contents($progressFile, json_encode([
 			'percent' => '100%',

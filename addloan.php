@@ -24,7 +24,7 @@ if (isset($_GET['period'])) {
         <h2 class="text-2xl font-semibold mb-4">Add / Edit Loan</h2>
         <a href="dashboard.php" class="btn btn-sm bg-blue-600 text-white px-3 py-1 rounded">Dashboard</a>
     </div>
-<?
+<?php
     // Fetch Special Interest Rate
     $sp_rate = 0.02; // Default
     $res_rate = $cov->query("SELECT value FROM tbl_globa_settings WHERE setting_id = 9");

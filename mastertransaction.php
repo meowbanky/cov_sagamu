@@ -67,7 +67,7 @@ if ($res) $periods = $res->fetch_all(MYSQLI_ASSOC);
             </div>
             <!-- Table Results -->
             <div id="status" class="rounded shadow bg-white p-3 overflow-x-auto"
-                style="width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: auto; overflow-y: visible;">
+                style="width: 100%; max-width: 1000px; box-sizing: border-box; overflow-x: auto; overflow-y: visible;">
                 <!-- Results table will appear here -->
             </div>
         </div>

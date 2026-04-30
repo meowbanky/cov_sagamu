@@ -1,14 +1,14 @@
 <?php
-require_once('../Connections/cov.php');
-require '../vendor/autoload.php';
+require_once __DIR__ . '/../Connections/cov.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
+global $cov, $database_cov;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-
-mysqli_select_db($cov, $database_cov);
 
 $period = intval($_GET['period'] ?? 0);
 $percentage = floatval($_GET['percentage'] ?? 0);

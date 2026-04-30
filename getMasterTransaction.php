@@ -300,8 +300,8 @@ $row_totalsum = $totalsum->fetch_assoc();
 </div>
 
 <!-- Table Responsive Wrapper -->
-<div class="overflow-x-auto rounded-lg shadow border border-slate-200 bg-white">
-    <table class="min-w-[1200px] w-full text-sm" id="sample_1">
+<div class="overflow-x-auto rounded-lg shadow border border-slate-200 bg-white" style="width: 100%;">
+    <table class="min-w-[200px] w-full text-sm" id="sample_1">
         <thead class="bg-blue-800 text-white sticky top-0 z-10">
             <tr>
                 <th class="py-3 px-2 text-left font-semibold">
@@ -414,7 +414,7 @@ $row_totalsum = $totalsum->fetch_assoc();
             <!-- Totals Row (Show as single card or row) -->
             <tr class="bg-gray-200 font-bold text-base border-t border-gray-300">
                 <td class="py-3 px-2 text-blue-700" data-label="Total">Total</td>
-                <td colspan="6"></td>
+                <td colspan="3"></td>
                 <td class="py-3 px-2 " data-label="Entry Fee">
                     <?= number_format($row_totalsum['entryFee'] ?? 0, 2, '.', ','); ?></td>
                 <td class="py-3 px-2 " data-label="Dev Fee">
