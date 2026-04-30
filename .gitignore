@@ -30,3 +30,6 @@ rpc.php.*
 
 social_posts/
 *.sql
+
+# Scratch files
+array.php
