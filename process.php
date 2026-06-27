@@ -350,8 +350,7 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			$baseInterestRate = floatval($row_interestRate['value']);
 			$interestRate = $baseInterestRate * floatval($row_member['interest']);
 			$currentInterest = ($totalRows_OnlinePaymentCheck > 0) ? 0 : $row_balances['Loanbalance'] * $interestRate;
-			// When interest is disabled for a member, don't carry forward the old unpaid balance into new periods
-			$interest = ($row_member['interest'] == 1) ? ($interestBalance + $currentInterest) : 0;
+			$interest = $interestBalance + $currentInterest;
 			if ($loanBalance > 0) {
 				if ($contribution == 0) {
 					$insertSQL = sprintf(
