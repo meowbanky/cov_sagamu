@@ -2,15 +2,26 @@
 
 class EnvConfig {
     private static $config = null;
-    
+
     /**
-     * Load configuration from config.env file
+     * Path to the environment file. Consolidated onto a single .env (the same
+     * file phpdotenv loads); falls back to the legacy config.env if .env is
+     * absent, so nothing breaks mid-migration.
+     */
+    private static function envFilePath() {
+        $env = __DIR__ . '/../.env';
+        $legacy = __DIR__ . '/../config.env';
+        return file_exists($env) ? $env : $legacy;
+    }
+
+    /**
+     * Load configuration from the .env file
      */
     private static function loadConfig() {
         if (self::$config === null) {
             self::$config = [];
-            
-            $config_file = __DIR__ . '/../config.env';
+
+            $config_file = self::envFilePath();
             
             if (file_exists($config_file)) {
                 $lines = file($config_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -220,18 +231,58 @@ class EnvConfig {
     }
     
     /**
-     * Save configuration to file
+     * Save configuration to file.
+     *
+     * Surgical, in-place update: existing lines are replaced only when their
+     * value actually changed, new keys are appended, and all comments,
+     * ordering and untouched lines are preserved. (The previous version
+     * rewrote the whole file and dropped every comment.)
      */
     public static function saveConfig() {
-        $config_file = __DIR__ . '/../config.env';
-        $content = "# Configuration File\n";
-        $content .= "# Generated on " . date('Y-m-d H:i:s') . "\n\n";
-        
-        foreach (self::$config as $key => $value) {
-            $content .= "$key=$value\n";
+        self::loadConfig();
+        $config_file = self::envFilePath();
+
+        $lines = file_exists($config_file)
+            ? file($config_file, FILE_IGNORE_NEW_LINES)
+            : [];
+        $seen = [];
+
+        $unquote = function ($v) {
+            $v = trim($v);
+            if (strlen($v) >= 2 &&
+                (($v[0] === '"' && substr($v, -1) === '"') ||
+                 ($v[0] === "'" && substr($v, -1) === "'"))) {
+                $v = substr($v, 1, -1);
+            }
+            return $v;
+        };
+
+        foreach ($lines as $i => $line) {
+            $trimmed = ltrim($line);
+            if ($trimmed === '' || $trimmed[0] === '#' || strpos($line, '=') === false) {
+                continue;
+            }
+            $key = trim(explode('=', $line, 2)[0]);
+            if (!array_key_exists($key, self::$config)) {
+                continue;
+            }
+            $seen[$key] = true;
+            $currentValue = $unquote(explode('=', $line, 2)[1]);
+            // Only rewrite the line when the value genuinely changed, so
+            // untouched entries keep their exact original formatting.
+            if ((string) $currentValue !== (string) self::$config[$key]) {
+                $lines[$i] = $key . '=' . self::$config[$key];
+            }
         }
-        
-        return file_put_contents($config_file, $content);
+
+        // Append any brand-new keys that were not already in the file.
+        foreach (self::$config as $key => $value) {
+            if (empty($seen[$key])) {
+                $lines[] = $key . '=' . $value;
+            }
+        }
+
+        return file_put_contents($config_file, implode("\n", $lines) . "\n", LOCK_EX);
     }
     
     /**
