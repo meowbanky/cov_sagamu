@@ -39,7 +39,7 @@ try {
         if ($action === 'fetch_all_contacts') {
             // Fetch all active numbers
             // Using PDO $conn from Connections/cov.php
-            $query = "SELECT MobilePhone FROM tbl_personalinfo WHERE Status = 'Active' AND MobilePhone IS NOT NULL AND MobilePhone != ''";
+            $query = "SELECT MobilePhone FROM tbl_personalinfo WHERE TRIM(LOWER(Status)) = 'active' AND MobilePhone IS NOT NULL AND TRIM(MobilePhone) != ''";
             $stmt = $conn->query($query);
             $numbers = $stmt->fetchAll(PDO::FETCH_COLUMN);
 

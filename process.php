@@ -151,7 +151,9 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 	}
 
 	mysqli_select_db($cov, $database_cov);
-	$query_member = "SELECT * FROM tbl_personalinfo where status = 'Active'";
+	// Tolerant status match: ignore case and surrounding whitespace so members
+	// stored as "active", "Active " etc. are still processed and notified.
+	$query_member = "SELECT * FROM tbl_personalinfo WHERE TRIM(LOWER(status)) = 'active'";
 	$member = mysqli_query($cov, $query_member) or die(mysqli_error($cov));
 	$row_member = mysqli_fetch_assoc($member);
 	$totalRows_member = mysqli_num_rows($member);
@@ -547,27 +549,49 @@ $devLevyFee = (float)($row_devLevySettings['value']);
                                ($row_deductions['special_savings'] > 0) || 
                                ($special_contribution > 0);
 
-			if (isset($_GET['sms']) && $_GET['sms'] == 1 && $hasContribution) {
-				try {
-                    // Check SMS Balance for Automated Notification
-                    $notifCost = 5.0; // Estimated cost for 1 page
-                    $currBalance = $notificationService->getSMSBalance();
-                    
-                    if ($currBalance >= $notifCost) {
-                        $notificationService->sendTransactionNotification(
-                            $row_member['memberid'],
-                            $_GET["PeriodID"]
-                        );
-                    } else {
-                        error_log("Skipping SMS for {$row_member['memberid']}: Insufficient Balance (Bal: $currBalance, Req: $notifCost)");
-                    }
-				} catch (Exception $e) {
-					error_log("Failed to send notification: " . $e->getMessage());
+			if (isset($_GET['sms']) && $_GET['sms'] == 1) {
+				global $notificationReport, $smsBalanceRemaining;
+				$memberLabel = trim($row_member['Lname'] . ', ' . $row_member['Fname']) . " (#{$row_member['memberid']})";
+
+				if (!$hasContribution) {
+					// No deduction this period, so there is nothing to report by SMS.
+					$notificationReport['sms_skipped'][] = ['member' => $memberLabel, 'reason' => 'No contribution this period'];
+				} else {
+					// Estimated cost of one transaction SMS (long multi-page message).
+					// Balance is fetched ONCE before the run (see below) and decremented
+					// locally, so we no longer make a slow getSMSBalance() call per member.
+					$estimatedSmsCost = 15.0;
+
+					if ($smsBalanceRemaining !== null && $smsBalanceRemaining < $estimatedSmsCost) {
+						$notificationReport['sms_skipped'][] = ['member' => $memberLabel, 'reason' => 'SMS balance exhausted - please top up'];
+						error_log("Skipping SMS for {$row_member['memberid']}: estimated SMS balance exhausted (remaining ~NGN {$smsBalanceRemaining})");
+					} else {
+						try {
+							$sent = $notificationService->sendTransactionNotification(
+								$row_member['memberid'],
+								$_GET["PeriodID"]
+							);
+
+							if ($sent) {
+								$notificationReport['sms_sent']++;
+								if ($smsBalanceRemaining !== null) {
+									$smsBalanceRemaining -= $estimatedSmsCost;
+								}
+							} else {
+								$notificationReport['sms_skipped'][] = ['member' => $memberLabel, 'reason' => 'Send failed - check phone number / no transaction data'];
+							}
+						} catch (Exception $e) {
+							$notificationReport['sms_skipped'][] = ['member' => $memberLabel, 'reason' => 'Send error: ' . $e->getMessage()];
+							error_log("Failed to send notification: " . $e->getMessage());
+						}
+					}
 				}
 			}
 			
 			// Queue email notification
 			if ($emailTemplateService && isset($_GET['email']) && $_GET['email'] == 1) {
+				global $notificationReport;
+				$emailMemberLabel = trim($row_member['Lname'] . ', ' . $row_member['Fname']) . " (#{$row_member['memberid']})";
 				try {
 					$emailData = $emailTemplateService->generateTransactionSummaryEmail(
 						$row_member['memberid'],
@@ -577,7 +601,7 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 					if ($emailData) {
 						require_once __DIR__ . '/libs/services/EmailQueueManager.php';
 						global $emailQueueManager;
-						$emailQueueManager->addToQueue(
+						$queueId = $emailQueueManager->addToQueue(
 							$row_member['memberid'],
 							$_GET["PeriodID"],
 							'transaction_summary',
@@ -589,8 +613,16 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 							null, // Send immediately
 							$emailData['metadata']
 						);
+						if ($queueId) {
+							$notificationReport['email_queued']++;
+						} else {
+							$notificationReport['email_skipped'][] = ['member' => $emailMemberLabel, 'reason' => 'Failed to add to email queue'];
+						}
+					} else {
+						$notificationReport['email_skipped'][] = ['member' => $emailMemberLabel, 'reason' => 'No email address on file'];
 					}
 				} catch (Exception $e) {
+					$notificationReport['email_skipped'][] = ['member' => $emailMemberLabel, 'reason' => 'Queue error: ' . $e->getMessage()];
 					error_log("Failed to queue email for member {$row_member['memberid']}: " . $e->getMessage());
 				}
 			}
@@ -836,6 +868,26 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			]));
 		}
 
+		// --- Notification run report + one-time SMS balance check ---
+		// Fetch the SMS balance ONCE here instead of once per member. We warn up
+		// front if it cannot cover everyone, and decrement a local estimate as we go.
+		$notificationReport = ['sms_sent' => 0, 'sms_skipped' => [], 'email_queued' => 0, 'email_skipped' => []];
+		$smsBalanceRemaining = null;
+		$smsBalanceWarning = null;
+		if (isset($_GET['sms']) && $_GET['sms'] == 1 && isset($notificationService)) {
+			try {
+				$smsBalanceRemaining = (float) $notificationService->getSMSBalance();
+				$estimatedTotalCost = $totalRows_member * 15.0; // ~NGN15 per member (multi-page SMS)
+				if ($smsBalanceRemaining < $estimatedTotalCost) {
+					$smsBalanceWarning = 'SMS balance (NGN ' . number_format($smsBalanceRemaining, 2) . ') may not cover all ' . $totalRows_member . ' members (estimated NGN ' . number_format($estimatedTotalCost, 2) . '). Some members may be skipped - please top up your SMS credit.';
+					error_log('process.php - ' . $smsBalanceWarning);
+					echo '<div style="margin:8px 0;padding:10px;border:1px solid #f5c000;background:#fff8e1;color:#7a5b00;font-family:Arial,sans-serif;">&#9888; ' . htmlspecialchars($smsBalanceWarning) . '</div>';
+				}
+			} catch (Exception $e) {
+				error_log('process.php - Could not fetch SMS balance: ' . $e->getMessage());
+			}
+		}
+
 		$i = 1;
 		do {
 			set_time_limit(0);
@@ -880,6 +932,35 @@ $devLevyFee = (float)($row_devLevySettings['value']);
 			'done' => true
 		]));
 		
+		// --- Visible notification summary so skipped members are not lost silently ---
+		if (isset($_GET['sms']) && $_GET['sms'] == 1 || isset($_GET['email']) && $_GET['email'] == 1) {
+			$smsSkipped = $notificationReport['sms_skipped'];
+			$emailSkipped = $notificationReport['email_skipped'];
+			echo '<div style="margin:16px 0;padding:16px;border:1px solid #ccc;border-radius:8px;font-family:Arial,sans-serif;max-width:800px;">';
+			echo '<h3 style="margin-top:0;">Notification Summary - Period ' . htmlspecialchars($_GET['PeriodID']) . '</h3>';
+			if (isset($_GET['sms']) && $_GET['sms'] == 1) {
+				echo '<p><strong>SMS:</strong> ' . intval($notificationReport['sms_sent']) . ' sent, ' . count($smsSkipped) . ' skipped.</p>';
+			}
+			if (isset($_GET['email']) && $_GET['email'] == 1) {
+				echo '<p><strong>Email:</strong> ' . intval($notificationReport['email_queued']) . ' queued, ' . count($emailSkipped) . ' skipped.</p>';
+			}
+			if (!empty($smsSkipped) || !empty($emailSkipped)) {
+				echo '<details open><summary style="cursor:pointer;font-weight:bold;color:#b00;">Members who did NOT receive an alert (' . (count($smsSkipped) + count($emailSkipped)) . ')</summary>';
+				echo '<table style="border-collapse:collapse;width:100%;margin-top:8px;font-size:13px;"><thead><tr>' .
+					'<th style="text-align:left;border-bottom:1px solid #ccc;padding:4px;">Channel</th>' .
+					'<th style="text-align:left;border-bottom:1px solid #ccc;padding:4px;">Member</th>' .
+					'<th style="text-align:left;border-bottom:1px solid #ccc;padding:4px;">Reason</th></tr></thead><tbody>';
+				foreach ($smsSkipped as $row) {
+					echo '<tr><td style="padding:4px;">SMS</td><td style="padding:4px;">' . htmlspecialchars($row['member']) . '</td><td style="padding:4px;">' . htmlspecialchars($row['reason']) . '</td></tr>';
+				}
+				foreach ($emailSkipped as $row) {
+					echo '<tr><td style="padding:4px;">Email</td><td style="padding:4px;">' . htmlspecialchars($row['member']) . '</td><td style="padding:4px;">' . htmlspecialchars($row['reason']) . '</td></tr>';
+				}
+				echo '</tbody></table></details>';
+			}
+			echo '</div>';
+		}
+
 		echo '<script language="javascript">document.getElementById("information").innerHTML="Process completed"</script>';
 		echo '<script language="javascript">setTimeout(function (){window.location.href = \'mastertransaction.php\';}, 5000);</script>';
 	}

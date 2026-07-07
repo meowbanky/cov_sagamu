@@ -15,7 +15,12 @@ class NotificationService {
         $this->smsConfig = [
             'sender' => $_ENV['TERMII_SENDER'],
             'apiKey' => $_ENV['TERMII_API_KEY'],
-            'endpoint' => 'https://v3.api.termii.com/api/sms/send'
+            'endpoint' => 'https://v3.api.termii.com/api/sms/send',
+            // Delivery route: 'dnd' reaches Do-Not-Disturb numbers, 'generic' does not.
+            // Configurable so the route can change without a code deploy; defaults to dnd.
+            'channel' => (isset($_ENV['TERMII_CHANNEL']) && $_ENV['TERMII_CHANNEL'] !== '')
+                ? trim($_ENV['TERMII_CHANNEL'])
+                : 'dnd'
         ];
     }
 
@@ -165,6 +170,9 @@ LEFT JOIN tbpayrollperiods ON tlb_mastertransaction.periodid = tbpayrollperiods.
         }
 
         $phone = $this->formatPhoneNumber($phone);
+        if ($phone === null) {
+            throw new \Exception("Invalid phone number format");
+        }
 
         $data = [
             "api_key" => $this->smsConfig['apiKey'],
@@ -172,7 +180,9 @@ LEFT JOIN tbpayrollperiods ON tlb_mastertransaction.periodid = tbpayrollperiods.
             "from" => $this->smsConfig['sender'],
             "sms" => $message,
             "type" => "plain",
-            "channel" => "generic"
+            // Delivery route from config (TERMII_CHANNEL). 'dnd' reaches numbers on
+            // the Do-Not-Disturb list; 'generic' silently drops them.
+            "channel" => $this->smsConfig['channel']
         ];
 
         $ch = curl_init();
@@ -250,14 +260,43 @@ LEFT JOIN tbpayrollperiods ON tlb_mastertransaction.periodid = tbpayrollperiods.
         return json_decode($response, true);
     }
 
+    /**
+     * Normalize a Nigerian phone number to international format (234XXXXXXXXXX).
+     * Handles leading 0, +234, 00234, bare 10-digit numbers, embedded spaces /
+     * hyphens, and fields that contain more than one number (takes the first).
+     * Returns null when the value cannot be parsed into a valid mobile number,
+     * so callers can skip/report it instead of sending garbage to the API.
+     */
     private function formatPhoneNumber($phone) {
-        $phone = trim($phone);
-        if (substr($phone, 0, 1) === '0') {
-            return '234' . substr($phone, 1);
-        } elseif (substr($phone, 0, 1) === '+') {
-            return substr($phone, 1);
+        // If several numbers are stored in one field, use the first one.
+        $parts = preg_split('/[\/,;]+/', (string) $phone);
+        $candidate = isset($parts[0]) ? $parts[0] : '';
+
+        // Keep digits only (drops spaces, hyphens, parentheses, leading +, etc.)
+        $digits = preg_replace('/\D+/', '', $candidate);
+
+        if ($digits === '') {
+            return null;
         }
-        return $phone;
+
+        // Strip international prefixes down to the 10-digit national number.
+        if (substr($digits, 0, 2) === '00') {
+            $digits = substr($digits, 2); // 00234803... -> 234803...
+        }
+        if (substr($digits, 0, 3) === '234') {
+            $national = substr($digits, 3);
+        } elseif (substr($digits, 0, 1) === '0') {
+            $national = substr($digits, 1); // 0803... -> 803...
+        } else {
+            $national = $digits; // assume already a national number
+        }
+
+        // A valid Nigerian mobile national number is exactly 10 digits.
+        if (strlen($national) !== 10) {
+            return null;
+        }
+
+        return '234' . $national;
     }
 
     private function logNotification($memberId, $message) {
@@ -272,14 +311,23 @@ LEFT JOIN tbpayrollperiods ON tlb_mastertransaction.periodid = tbpayrollperiods.
         return mysqli_query($this->db, $query);
     }
 
-    public function sendBulkSMS(array $phoneNumbers, $message, $channel = 'generic') {
+    public function sendBulkSMS(array $phoneNumbers, $message, $channel = null) {
         if (empty($phoneNumbers)) {
             throw new \Exception("Phone numbers are required");
         }
 
-        // Re-index array to be safe JSON
-        // Using local formatPhoneNumber
-        $formattedNumbers = array_values(array_map([$this, 'formatPhoneNumber'], $phoneNumbers));
+        // Fall back to the configured channel (TERMII_CHANNEL) when none is passed.
+        if ($channel === null) {
+            $channel = $this->smsConfig['channel'];
+        }
+
+        // Re-index array to be safe JSON. Normalize each number and drop any
+        // that cannot be parsed into a valid Nigerian mobile number.
+        $formattedNumbers = array_values(array_filter(array_map([$this, 'formatPhoneNumber'], $phoneNumbers)));
+
+        if (empty($formattedNumbers)) {
+            throw new \Exception("No valid phone numbers to send to");
+        }
 
         $data = [
             "api_key" => $this->smsConfig['apiKey'],
