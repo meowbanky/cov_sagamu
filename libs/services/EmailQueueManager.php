@@ -117,8 +117,18 @@ class EmailQueueManager {
         }
         
         foreach ($emails as $email) {
+            // Skip rows with no valid recipient. Cancel them (not retry) so a
+            // member with a blank/invalid email doesn't churn the queue and
+            // burn the hourly rate-limit budget on guaranteed failures.
+            if (trim((string) $email['recipient_email']) === '' ||
+                !filter_var($email['recipient_email'], FILTER_VALIDATE_EMAIL)) {
+                $this->updateEmailStatus($email['id'], 'cancelled', null, null, null, 'No valid recipient email');
+                $this->logQueueAction($email['id'], 'cancelled', 'Skipped: empty or invalid recipient email');
+                continue;
+            }
+
             $result = $this->processEmail($email);
-            
+
             if ($result['success']) {
                 $processed++;
                 $this->updateEmailStatus($email['id'], 'sent', null, date('Y-m-d H:i:s'));
