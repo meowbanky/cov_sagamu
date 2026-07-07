@@ -126,19 +126,19 @@ $recentResult = mysqli_query($cov, $recentQuery);
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            <table id="queueTable" class="w-full text-sm">
                 <thead class="bg-gray-50">
                     <tr class="border-b border-gray-200">
-                        <th class="px-4 py-3 text-left font-semibold text-gray-700">ID</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-700">Member</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-700">Period</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-700">Type</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-700">Recipient</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-700">Subject</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-700">Priority</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-700">Created</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-700">Scheduled</th>
+                        <th data-type="number" class="sortable px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer select-none hover:bg-gray-100">ID <span class="sort-arrow ml-1 text-gray-400"></span></th>
+                        <th data-type="text" class="sortable px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer select-none hover:bg-gray-100">Member <span class="sort-arrow ml-1 text-gray-400"></span></th>
+                        <th data-type="text" class="sortable px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer select-none hover:bg-gray-100">Period <span class="sort-arrow ml-1 text-gray-400"></span></th>
+                        <th data-type="text" class="sortable px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer select-none hover:bg-gray-100">Type <span class="sort-arrow ml-1 text-gray-400"></span></th>
+                        <th data-type="text" class="sortable px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer select-none hover:bg-gray-100">Recipient <span class="sort-arrow ml-1 text-gray-400"></span></th>
+                        <th data-type="text" class="sortable px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer select-none hover:bg-gray-100">Subject <span class="sort-arrow ml-1 text-gray-400"></span></th>
+                        <th data-type="text" class="sortable px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer select-none hover:bg-gray-100">Status <span class="sort-arrow ml-1 text-gray-400"></span></th>
+                        <th data-type="number" class="sortable px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer select-none hover:bg-gray-100">Priority <span class="sort-arrow ml-1 text-gray-400"></span></th>
+                        <th data-type="date" class="sortable px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer select-none hover:bg-gray-100">Created <span class="sort-arrow ml-1 text-gray-400"></span></th>
+                        <th data-type="date" class="sortable px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer select-none hover:bg-gray-100">Scheduled <span class="sort-arrow ml-1 text-gray-400"></span></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -159,45 +159,45 @@ $recentResult = mysqli_query($cov, $recentQuery);
                             ];
                             ?>
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 font-mono text-gray-600"><?= $row['id'] ?></td>
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-3 font-mono text-gray-600" data-sort="<?= (int)$row['id'] ?>"><?= $row['id'] ?></td>
+                        <td class="px-4 py-3" data-sort="<?= htmlspecialchars($row['member_name'] ?? '') ?>">
                             <div>
                                 <p class="font-semibold text-gray-800"><?= htmlspecialchars($row['member_name']) ?></p>
                                 <p class="text-xs text-gray-500">ID: <?= $row['member_id'] ?></p>
                             </div>
                         </td>
-                        <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($row['PayrollPeriod']) ?></td>
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-3 text-gray-600" data-sort="<?= htmlspecialchars($row['PayrollPeriod'] ?? '') ?>"><?= htmlspecialchars($row['PayrollPeriod']) ?></td>
+                        <td class="px-4 py-3" data-sort="<?= htmlspecialchars($row['email_type'] ?? '') ?>">
                             <span
                                 class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                 <?= ucfirst(str_replace('_', ' ', $row['email_type'])) ?>
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($row['recipient_email']) ?></td>
-                        <td class="px-4 py-3 text-gray-800"><?= htmlspecialchars(substr($row['subject'], 0, 50)) ?>...
+                        <td class="px-4 py-3 text-gray-600" data-sort="<?= htmlspecialchars($row['recipient_email'] ?? '') ?>"><?= htmlspecialchars($row['recipient_email']) ?></td>
+                        <td class="px-4 py-3 text-gray-800" data-sort="<?= htmlspecialchars($row['subject'] ?? '') ?>"><?= htmlspecialchars(substr($row['subject'], 0, 50)) ?>...
                         </td>
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-3" data-sort="<?= htmlspecialchars($row['status'] ?? '') ?>">
                             <span
                                 class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $statusColors[$row['status']] ?>">
                                 <?= ucfirst($row['status']) ?>
                             </span>
                         </td>
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-3" data-sort="<?= (int)$row['priority'] ?>">
                             <span
                                 class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $priorityColors[$row['priority']] ?>">
                                 <?= $row['priority'] === 1 ? 'High' : ($row['priority'] === 2 ? 'Normal' : 'Low') ?>
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-gray-600">
+                        <td class="px-4 py-3 text-gray-600" data-sort="<?= htmlspecialchars($row['created_at'] ?? '') ?>">
                             <span class="utc-time" data-utc="<?= $row['created_at'] ?>"><?= $row['created_at'] ?></span>
                         </td>
-                        <td class="px-4 py-3 text-gray-600">
+                        <td class="px-4 py-3 text-gray-600" data-sort="<?= htmlspecialchars($row['scheduled_at'] ?? '') ?>">
                             <span class="utc-time" data-utc="<?= $row['scheduled_at'] ?>"><?= $row['scheduled_at'] ?></span>
                         </td>
                     </tr>
                     <?php endwhile; ?>
                     <?php else: ?>
-                    <tr>
+                    <tr data-empty="1">
                         <td colspan="10" class="px-4 py-8 text-center text-gray-500">
                             <i class="fa fa-inbox text-4xl mb-4"></i>
                             <p>No email queue items found.</p>
@@ -214,8 +214,8 @@ $recentResult = mysqli_query($cov, $recentQuery);
         <h3 class="text-lg font-bold text-gray-800 mb-4">System Information</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-                <p><strong>Rate Limit:</strong> 50 emails per hour</p>
-                <p><strong>Batch Size:</strong> 10 emails per batch</p>
+                <p><strong>Rate Limit:</strong> 80 emails per hour</p>
+                <p><strong>Batch Size:</strong> 40 emails per batch</p>
                 <p><strong>Retry Delay:</strong> 5 minutes between retries</p>
             </div>
             <div>
@@ -254,6 +254,55 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add tooltip showing original UTC time
             element.title = 'UTC: ' + utcTime;
         }
+    });
+});
+
+// Click any header to sort the table (toggles ascending/descending)
+document.addEventListener('DOMContentLoaded', function() {
+    const table = document.getElementById('queueTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const headers = Array.from(table.querySelectorAll('thead th.sortable'));
+    let sortCol = -1, sortDir = 1;
+
+    function cellValue(td, type) {
+        if (!td) return type === 'number' ? 0 : '';
+        const raw = td.dataset.sort !== undefined ? td.dataset.sort : td.textContent.trim();
+        if (type === 'number') {
+            const n = parseFloat(String(raw).replace(/[^0-9.\-]/g, ''));
+            return isNaN(n) ? -Infinity : n;
+        }
+        if (type === 'date') {
+            if (!raw || raw === 'NULL') return -Infinity;
+            const t = Date.parse(raw.replace(' ', 'T') + 'Z');
+            return isNaN(t) ? -Infinity : t;
+        }
+        return String(raw).toLowerCase();
+    }
+
+    headers.forEach(function(th, idx) {
+        th.addEventListener('click', function() {
+            const type = th.dataset.type || 'text';
+            sortDir = (sortCol === idx) ? -sortDir : 1;
+            sortCol = idx;
+
+            const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !r.dataset.empty);
+            rows.sort(function(a, b) {
+                const av = cellValue(a.children[idx], type);
+                const bv = cellValue(b.children[idx], type);
+                if (av < bv) return -1 * sortDir;
+                if (av > bv) return 1 * sortDir;
+                return 0;
+            });
+            rows.forEach(r => tbody.appendChild(r));
+
+            headers.forEach(function(h) {
+                const arrow = h.querySelector('.sort-arrow');
+                if (arrow) { arrow.textContent = ''; }
+            });
+            const arrow = th.querySelector('.sort-arrow');
+            if (arrow) { arrow.textContent = sortDir === 1 ? '▲' : '▼'; }
+        });
     });
 });
 </script>
