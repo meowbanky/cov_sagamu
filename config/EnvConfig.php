@@ -257,6 +257,17 @@ class EnvConfig {
             return $v;
         };
 
+        // Encode a value so phpdotenv can parse it. Bare values containing
+        // whitespace, comment or quote characters must be double-quoted,
+        // otherwise phpdotenv throws "unexpected whitespace" and fatals.
+        $encode = function ($v) {
+            $v = (string) $v;
+            if ($v === '' || preg_match('/[\s#"\']/', $v)) {
+                return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $v) . '"';
+            }
+            return $v;
+        };
+
         foreach ($lines as $i => $line) {
             $trimmed = ltrim($line);
             if ($trimmed === '' || $trimmed[0] === '#' || strpos($line, '=') === false) {
@@ -271,14 +282,14 @@ class EnvConfig {
             // Only rewrite the line when the value genuinely changed, so
             // untouched entries keep their exact original formatting.
             if ((string) $currentValue !== (string) self::$config[$key]) {
-                $lines[$i] = $key . '=' . self::$config[$key];
+                $lines[$i] = $key . '=' . $encode(self::$config[$key]);
             }
         }
 
         // Append any brand-new keys that were not already in the file.
         foreach (self::$config as $key => $value) {
             if (empty($seen[$key])) {
-                $lines[] = $key . '=' . $value;
+                $lines[] = $key . '=' . $encode($value);
             }
         }
 

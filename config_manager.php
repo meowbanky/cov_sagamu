@@ -15,29 +15,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $message_type = '';
     
     try {
-        $config_content = "# Database Configuration\n";
-        $config_content .= "DB_HOST=" . $_POST['db_host'] . "\n";
-        $config_content .= "DB_NAME=" . $_POST['db_name'] . "\n";
-        $config_content .= "DB_USER=" . $_POST['db_user'] . "\n";
-        $config_content .= "DB_PASSWORD=" . $_POST['db_password'] . "\n\n";
-        
-        $config_content .= "# OpenAI Configuration\n";
-        $config_content .= "OPENAI_API_KEY=" . $_POST['openai_key'] . "\n\n";
-        
-        $config_content .= "# Application Configuration\n";
-        $config_content .= "APP_NAME=" . $_POST['app_name'] . "\n";
-        $config_content .= "APP_ENV=" . $_POST['app_env'] . "\n";
-        $config_content .= "APP_DEBUG=" . $_POST['app_debug'] . "\n\n";
-        
-        $config_content .= "# File Upload Configuration\n";
-        $config_content .= "MAX_FILE_SIZE=" . $_POST['max_file_size'] . "\n";
-        $config_content .= "ALLOWED_FILE_TYPES=" . $_POST['allowed_file_types'] . "\n\n";
-        
-        $config_content .= "# Security Configuration\n";
-        $config_content .= "SESSION_TIMEOUT=" . $_POST['session_timeout'] . "\n";
-        $config_content .= "ENCRYPTION_KEY=" . $_POST['encryption_key'] . "\n";
-        
-        if (file_put_contents('config.env', $config_content)) {
+        // Update only these managed keys in .env, in place, via the surgical
+        // writer. This preserves every other key (TERMII_*, JWT_*, MAIL_*, ...)
+        // and correctly quotes values so phpdotenv can still parse the file.
+        $managed = [
+            'DB_HOST'            => $_POST['db_host'] ?? '',
+            'DB_NAME'            => $_POST['db_name'] ?? '',
+            'DB_USER'            => $_POST['db_user'] ?? '',
+            'DB_PASSWORD'        => $_POST['db_password'] ?? '',
+            'OPENAI_API_KEY'     => $_POST['openai_key'] ?? '',
+            'APP_NAME'           => $_POST['app_name'] ?? '',
+            'APP_ENV'            => $_POST['app_env'] ?? '',
+            'APP_DEBUG'          => $_POST['app_debug'] ?? '',
+            'MAX_FILE_SIZE'      => $_POST['max_file_size'] ?? '',
+            'ALLOWED_FILE_TYPES' => $_POST['allowed_file_types'] ?? '',
+            'SESSION_TIMEOUT'    => $_POST['session_timeout'] ?? '',
+            'ENCRYPTION_KEY'     => $_POST['encryption_key'] ?? '',
+        ];
+        foreach ($managed as $key => $value) {
+            EnvConfig::set($key, $value);
+        }
+
+        if (EnvConfig::saveConfig() !== false) {
             $message = "Configuration updated successfully!";
             $message_type = "success";
         } else {
