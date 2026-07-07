@@ -5,8 +5,9 @@ use PHPMailer\PHPMailer\Exception;
 
 class EmailQueueManager {
     private $db;
-    private $maxEmailsPerHour = 50; // Configurable rate limit
-    private $batchSize = 10; // Process 10 emails per batch
+    private $maxEmailsPerHour = 80; // Kept safely under the mail host's ~100/hr per-domain cap
+    private $batchSize = 40; // Process up to 40 emails per cron run
+    private $sendPaceMicroseconds = 500000; // 0.5s between sends to avoid bursts
     private $retryDelay = 300; // 5 minutes between retries
     private $emailConfig;
     
@@ -138,8 +139,11 @@ class EmailQueueManager {
                 $failed++;
                 $this->handleFailedEmail($email, $result['error']);
             }
+
+            // Pace sends so a single batch never bursts against the host's limits.
+            usleep($this->sendPaceMicroseconds);
         }
-        
+
         return ['processed' => $processed, 'failed' => $failed];
     }
     
