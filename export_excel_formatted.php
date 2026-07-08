@@ -244,19 +244,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $emailError = '';
     if ($needsEmail) {
         try {
+            // Load SMTP settings from the single .env (no hardcoded credentials)
+            require_once __DIR__ . '/config/EnvConfig.php';
+            $mc = EnvConfig::getMailConfig();
+
             $mail = new PHPMailer(true);
 
             // Server settings
             $mail->isSMTP();
-            $mail->Host = 'mail.emmaggi.com';
+            $mail->Host = $mc['host'];
             $mail->SMTPAuth = true;
-            $mail->Username = 'cov@emmaggi.com';
-            $mail->Password = 'Banzoo@7980';
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = 587;
+            $mail->Username = $mc['username'];
+            $mail->Password = $mc['password'];
+            $mail->SMTPSecure = $mc['encryption'] ?: PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = $mc['port'];
 
             // Recipients
-            $mail->setFrom('cov@emmaggi.com', 'VCMS');
+            $mail->setFrom($mc['from_address'], $mc['from_name']);
             $mail->addAddress($email);
 
             // Attachments
