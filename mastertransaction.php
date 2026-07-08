@@ -397,99 +397,121 @@ $(document).on('click', '#exportexcel', function() {
     var selectedToFilename = selectTo.options[selectTo.selectedIndex].text;
     var selectedFrFilename = selectFr.options[selectFr.selectedIndex].text;
     var filename = selectedFrFilename + '_' + selectedToFilename;
+
+    // Step 1: choose how to export
     Swal.fire({
-        title: "Recipient's Email",
-        input: "text",
-        inputLabel: "Please enter the email address where the Excel file will be sent:",
-        inputPlaceholder: "someone@email.com",
+        title: 'Export Excel',
+        input: 'radio',
+        inputOptions: {
+            download: 'Download only',
+            email: 'Send to email only',
+            both: 'Download & email'
+        },
+        inputValue: 'download',
         showCancelButton: true,
-        confirmButtonText: 'Send Excel',
+        confirmButtonText: 'Continue',
         cancelButtonText: 'Cancel',
-        allowEnterKey: false,
-        allowOutsideClick: false,
-        inputAttributes: {
-            type: 'email',
-            autocapitalize: 'off',
-            autocorrect: 'off',
-            autocomplete: 'email'
-        },
-        didOpen: () => {
-            setTimeout(() => {
-                const input = Swal.getInput();
-                const confirmButton = Swal.getConfirmButton();
-
-                if (input) {
-                    // Prevent Enter key from submitting
-                    input.addEventListener('keydown', function(e) {
-                        if (e.key === 'Enter' || e.keyCode === 13) {
-                            e.preventDefault();
-                            e.stopImmediatePropagation();
-                            return false;
-                        }
-                    }, true);
-
-                    // Disable confirm button until user manually clicks it
-                    if (confirmButton) {
-                        confirmButton.disabled = true;
-                        input.addEventListener('input', function() {
-                            confirmButton.disabled = false;
-                        });
-                        // Re-enable after a short delay to allow typing
-                        setTimeout(() => {
-                            if (confirmButton) confirmButton.disabled = false;
-                        }, 500);
-                    }
-
-                    input.focus();
-                }
-            }, 100);
-        },
-        preConfirm: (value) => {
-            if (!value || !value.trim()) {
-                Swal.showValidationMessage('You need to enter an email address!');
-                return false;
-            }
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(value.trim())) {
-                Swal.showValidationMessage('Please enter a valid email address!');
-                return false;
-            }
-            return value.trim();
+        inputValidator: function(value) {
+            if (!value) return 'Please choose an export option.';
         }
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            showBlockingLoader("Exporting Excel...");
-            $.ajax({
-                url: 'export_excel_formatted.php',
-                type: 'POST',
-                data: {
-                    html: table,
-                    email: result.value,
-                    filename: filename
-                },
-                xhrFields: {
-                    responseType: 'blob'
-                },
-                success: function(data) {
-                    hideBlockingLoader();
-                    var a = document.createElement('a');
-                    var url = window.URL.createObjectURL(data);
-                    a.href = url;
-                    a.download = filename + '.xlsx';
-                    document.body.append(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    a.remove();
-                    Swal.fire('Exported!', 'Excel file exported successfully.', 'success');
-                },
-                error: function() {
-                    hideBlockingLoader();
-                    Swal.fire('Failed', 'Failed to export table as Excel.', 'error');
-                }
-            });
+    }).then((choice) => {
+        if (!choice.isConfirmed || !choice.value) return;
+        var mode = choice.value;
+
+        // Download only needs no email
+        if (mode === 'download') {
+            runExcelExport(table, filename, mode, '');
+            return;
         }
+
+        // Step 2: email is required for 'email' or 'both'
+        Swal.fire({
+            title: "Recipient's Email",
+            input: "text",
+            inputLabel: "Enter the email address where the Excel file will be sent:",
+            inputPlaceholder: "someone@email.com",
+            showCancelButton: true,
+            confirmButtonText: (mode === 'both' ? 'Download & Send' : 'Send Excel'),
+            cancelButtonText: 'Cancel',
+            allowEnterKey: false,
+            allowOutsideClick: false,
+            inputAttributes: {
+                type: 'email',
+                autocapitalize: 'off',
+                autocorrect: 'off',
+                autocomplete: 'email'
+            },
+            preConfirm: (value) => {
+                if (!value || !value.trim()) {
+                    Swal.showValidationMessage('You need to enter an email address!');
+                    return false;
+                }
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(value.trim())) {
+                    Swal.showValidationMessage('Please enter a valid email address!');
+                    return false;
+                }
+                return value.trim();
+            }
+        }).then((res) => {
+            if (res.isConfirmed && res.value) {
+                runExcelExport(table, filename, mode, res.value);
+            }
+        });
     });
 });
+
+// Perform the Excel export in the chosen mode: 'download', 'email', or 'both'
+function runExcelExport(table, filename, mode, email) {
+    showBlockingLoader(mode === 'email' ? 'Sending Excel...' : 'Exporting Excel...');
+
+    if (mode === 'email') {
+        // Email only: expect a JSON result, no file download
+        $.ajax({
+            url: 'export_excel_formatted.php',
+            type: 'POST',
+            dataType: 'json',
+            data: { html: table, filename: filename, mode: mode, email: email },
+            success: function(resp) {
+                hideBlockingLoader();
+                if (resp && resp.success) {
+                    Swal.fire('Sent!', resp.message || ('Excel emailed to ' + email), 'success');
+                } else {
+                    Swal.fire('Failed', (resp && resp.message) || 'Failed to send Excel.', 'error');
+                }
+            },
+            error: function() {
+                hideBlockingLoader();
+                Swal.fire('Failed', 'Failed to send Excel.', 'error');
+            }
+        });
+        return;
+    }
+
+    // Download or both: expect a file blob
+    $.ajax({
+        url: 'export_excel_formatted.php',
+        type: 'POST',
+        data: { html: table, filename: filename, mode: mode, email: email },
+        xhrFields: { responseType: 'blob' },
+        success: function(data) {
+            hideBlockingLoader();
+            var a = document.createElement('a');
+            var url = window.URL.createObjectURL(data);
+            a.href = url;
+            a.download = filename + '.xlsx';
+            document.body.append(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            Swal.fire('Exported!', mode === 'both' ? ('Excel downloaded and emailed to ' + email) : 'Excel file exported successfully.', 'success');
+        },
+        error: function() {
+            hideBlockingLoader();
+            Swal.fire('Failed', 'Failed to export table as Excel.', 'error');
+        }
+    });
+}
 
 // Multi-select member functionality
 let selectedMembersList = [];

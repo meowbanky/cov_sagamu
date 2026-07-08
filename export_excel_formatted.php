@@ -7,6 +7,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -29,8 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     // Iterate Over Rows and Cells
     $rowIndex = 1;
     $isHeaderRow = true;
-    $lastColumn = 'A';
-    
+    // Track the widest row. Deriving the last column from the final (totals)
+    // row would cut styling short when that row has fewer cells than the header.
+    $maxColNum = 1;
+
     foreach ($rows as $row) {
         if (!$row instanceof DOMElement) {
             continue;
@@ -82,14 +85,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
                 $sheet->setCellValue($colIndex . $rowIndex, $value);
             }
             
-            $lastColumn = $colIndex;
+            $thisColNum = Coordinate::columnIndexFromString($colIndex);
+            if ($thisColNum > $maxColNum) {
+                $maxColNum = $thisColNum;
+            }
             $colIndex++;
         }
-        
+
         $isHeaderRow = false;
         $rowIndex++;
     }
-    
+
+    $lastColumn = Coordinate::stringFromColumnIndex($maxColNum);
     $lastRow = $rowIndex - 1;
     
     // ===== FORMATTING =====
@@ -218,14 +225,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $tempFileName = tempnam(sys_get_temp_dir(), 'xlsx');
     $writer->save($tempFileName);
     
-    // Get email from POST if provided
+    // Delivery mode: 'download' (default), 'email', or 'both'
+    $mode = $_POST['mode'] ?? 'download';
     $email = isset($_POST['email']) ? trim($_POST['email']) : '';
-    
-    // Send email if email address is provided
-    if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $needsEmail = in_array($mode, ['email', 'both'], true);
+
+    // Validate email up front when it's required
+    if ($needsEmail && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        unlink($tempFileName);
+        http_response_code(400);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'A valid email address is required for this option.']);
+        exit;
+    }
+
+    // Send email when requested
+    $emailSent = false;
+    $emailError = '';
+    if ($needsEmail) {
         try {
             $mail = new PHPMailer(true);
-            
+
             // Server settings
             $mail->isSMTP();
             $mail->Host = 'mail.emmaggi.com';
@@ -234,27 +254,41 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
             $mail->Password = 'Banzoo@7980';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port = 587;
-            
+
             // Recipients
             $mail->setFrom('cov@emmaggi.com', 'VCMS');
             $mail->addAddress($email);
-            
+
             // Attachments
             $mail->addAttachment($tempFileName, $filename . '.xlsx');
-            
+
             // Content
             $mail->isHTML(true);
             $mail->Subject = 'Master Transaction Report - ' . $filename;
             $mail->Body = 'Dear Recipient,<br><br>The Master Transaction Report "' . htmlspecialchars($filename) . '" is attached.<br><br>Best regards,<br>VCMS';
-            
+
             $mail->send();
+            $emailSent = true;
         } catch (Exception $e) {
-            // Continue with download even if email fails
-            error_log("Email sending failed: " . (isset($mail) ? $mail->ErrorInfo : $e->getMessage()));
+            $emailError = isset($mail) ? $mail->ErrorInfo : $e->getMessage();
+            error_log("Email sending failed: " . $emailError);
         }
     }
-    
-    // Send file to browser
+
+    // Email-only: return a JSON result, no file download
+    if ($mode === 'email') {
+        unlink($tempFileName);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $emailSent,
+            'message' => $emailSent
+                ? ('Excel report sent to ' . $email)
+                : ('Failed to send email' . ($emailError ? ': ' . $emailError : '.')),
+        ]);
+        exit;
+    }
+
+    // Download or both: stream the file to the browser
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment;filename="' . $filename . '.xlsx"');
     header('Cache-Control: max-age=0');
@@ -263,12 +297,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
     header('Cache-Control: cache, must-revalidate');
     header('Pragma: public');
-    
+
     readfile($tempFileName);
-    
+
     // Remove the temporary file
     unlink($tempFileName);
-    
+
     exit;
 }
 ?>

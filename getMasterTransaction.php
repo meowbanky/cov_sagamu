@@ -414,7 +414,9 @@ $row_totalsum = $totalsum->fetch_assoc();
             <!-- Totals Row (Show as single card or row) -->
             <tr class="bg-gray-200 font-bold text-base border-t border-gray-300">
                 <td class="py-3 px-2 text-blue-700" data-label="Total">Total</td>
-                <td colspan="3"></td>
+                <td></td>
+                <td></td>
+                <td></td>
                 <td class="py-3 px-2 " data-label="Entry Fee">
                     <?= number_format($row_totalsum['entryFee'] ?? 0, 2, '.', ','); ?></td>
                 <td class="py-3 px-2 " data-label="Dev Fee">
@@ -448,8 +450,9 @@ $row_totalsum = $totalsum->fetch_assoc();
                     <?= number_format($row_totalsum['specialInterest'] ?? 0, 2, '.', ','); ?></td>
                 <td class="py-3 px-2 " data-label="Sp. Int. Paid">
                     <?= number_format($row_totalsum['specialInterestPaid'] ?? 0, 2, '.', ','); ?></td>
-                <td></td>
-                
+                <td class="py-3 px-2 " data-label="Sp. Unpaid Interest">
+                    <?= number_format(($row_totalsum['specialInterest'] ?? 0) - ($row_totalsum['specialInterestPaid'] ?? 0), 2, '.', ','); ?></td>
+
                 <td class="py-3 px-2 " data-label="Total">
                     <?= number_format(round($row_totalsum['total'] ?? 0), 2, '.', ','); ?></td>
             </tr>
