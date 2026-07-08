@@ -1,4 +1,10 @@
 <?php
+// Large master-transaction reports (hundreds of rows x ~24 columns) need more
+// memory and time than the defaults for TCPDF's HTML rendering, otherwise it
+// fatals with "Allowed memory size exhausted" and the request returns 500.
+ini_set('memory_limit', '512M');
+set_time_limit(300);
+
 // Include the Composer autoload file
 require __DIR__ . '/vendor/autoload.php';
 
@@ -142,19 +148,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
                     }
                 }
                 
-                // Determine cell type and alignment
+                // Determine cell type and alignment (kept lightweight - heavy
+                // per-cell markup inflates memory use on large tables)
                 $cellTag = ($rowIndex == 0) ? 'th' : 'td';
+                $alignment = ($cellIndex <= 3) ? 'text-left' : 'text-right';
 
-                // Align text columns left (Coop No, Period, Name) and numbers right.
-                // TCPDF honours an inline text-align style on the cell most reliably
-                // (CSS classes and the align attribute are ignored for <td>).
-                if ($rowIndex == 0) {
-                    $align = 'center';
-                } else {
-                    $align = ($cellIndex <= 3) ? 'left' : 'right';
-                }
-
-                $rowHtml .= "<$cellTag style='text-align:$align;' align='$align'>$value</$cellTag>";
+                $rowHtml .= "<$cellTag class='$alignment'>$value</$cellTag>";
                 
                 $cellIndex++;
             }
