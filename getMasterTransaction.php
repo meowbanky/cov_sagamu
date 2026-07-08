@@ -501,112 +501,126 @@ $(document).on('change', 'input[name="memberid"][type="checkbox"]', function() {
 });
 
 // EXPORT PDF with Email
-$(document).on('click', '#exportpdf', function() {
+// EXPORT PDF - choose Download only / Send to email only / Download & email.
+$(document).off('click', '#exportpdf').on('click', '#exportpdf', function() {
     var table = document.getElementById('sample_1').outerHTML;
-    var filename = document.getElementById('filename') ? document.getElementById('filename').value :
-        'MasterTransaction';
 
-    // If filename is empty, try to get from URL parameters
-    if (!filename || filename === '') {
-        var urlParams = new URLSearchParams(window.location.search);
-        var periodFrom = urlParams.get('periodfrom') || '';
-        var periodTo = urlParams.get('periodTo') || '';
-        filename = 'MasterTransaction_' + periodFrom + '_' + periodTo;
+    var selectTo = document.getElementById('toPeriodId');
+    var selectFr = document.getElementById('fromPeriodId');
+    var filename = 'MasterTransaction';
+    if (selectTo && selectFr && selectTo.selectedIndex >= 0 && selectFr.selectedIndex >= 0) {
+        filename = selectFr.options[selectFr.selectedIndex].text + '_' + selectTo.options[selectTo.selectedIndex].text;
+    } else if (document.getElementById('filename') && document.getElementById('filename').value) {
+        filename = document.getElementById('filename').value;
     }
 
     Swal.fire({
-        title: "Recipient's Email",
-        input: "text",
-        inputLabel: "Please enter the email address where the PDF will be sent:",
-        inputPlaceholder: "someone@email.com",
+        title: 'Export PDF',
+        html: '<p style="margin:0 0 14px;color:#555;">How would you like to export?</p>' +
+            '<div style="display:flex;flex-direction:column;gap:10px;">' +
+            '<button type="button" id="pdfDownloadBtn" class="swal2-styled" style="margin:0;background:#2563eb;">&#11015; Download only</button>' +
+            '<button type="button" id="pdfEmailBtn" class="swal2-styled" style="margin:0;background:#7c3aed;">&#9993; Send to email only</button>' +
+            '<button type="button" id="pdfBothBtn" class="swal2-styled" style="margin:0;background:#059669;">&#11015; &#9993; Download &amp; email</button>' +
+            '</div>',
+        showConfirmButton: false,
         showCancelButton: true,
-        confirmButtonText: 'Send PDF',
         cancelButtonText: 'Cancel',
-        allowEnterKey: false,
-        allowOutsideClick: false,
-        inputAttributes: {
-            type: 'email',
-            autocapitalize: 'off',
-            autocorrect: 'off',
-            autocomplete: 'email'
-        },
         didOpen: () => {
-            setTimeout(() => {
-                const input = Swal.getInput();
-                const confirmButton = Swal.getConfirmButton();
+            document.getElementById('pdfDownloadBtn').addEventListener('click', function() {
+                Swal.close();
+                runPdfExport(table, filename, 'download', '');
+            });
+            document.getElementById('pdfEmailBtn').addEventListener('click', function() {
+                Swal.close();
+                askEmailThenExportPdf(table, filename, 'email');
+            });
+            document.getElementById('pdfBothBtn').addEventListener('click', function() {
+                Swal.close();
+                askEmailThenExportPdf(table, filename, 'both');
+            });
+        }
+    });
+});
 
-                if (input) {
-                    // Prevent Enter key from submitting
-                    input.addEventListener('keydown', function(e) {
-                        if (e.key === 'Enter' || e.keyCode === 13) {
-                            e.preventDefault();
-                            e.stopImmediatePropagation();
-                            return false;
-                        }
-                    }, true);
-
-                    // Disable confirm button until user manually clicks it
-                    if (confirmButton) {
-                        confirmButton.disabled = true;
-                        input.addEventListener('input', function() {
-                            confirmButton.disabled = false;
-                        });
-                        // Re-enable after a short delay to allow typing
-                        setTimeout(() => {
-                            if (confirmButton) confirmButton.disabled = false;
-                        }, 500);
-                    }
-
-                    input.focus();
-                }
-            }, 100);
-        },
-        preConfirm: (value) => {
+// Ask for a recipient email, then export the PDF in the given mode ('email' or 'both')
+function askEmailThenExportPdf(table, filename, mode) {
+    Swal.fire({
+        title: "Recipient's Email",
+        input: 'text',
+        inputLabel: 'Enter the email address where the PDF will be sent:',
+        inputPlaceholder: 'someone@email.com',
+        showCancelButton: true,
+        confirmButtonText: (mode === 'both' ? 'Download & Send' : 'Send PDF'),
+        cancelButtonText: 'Cancel',
+        allowOutsideClick: false,
+        inputAttributes: { type: 'email', autocapitalize: 'off', autocorrect: 'off', autocomplete: 'email' },
+        preConfirm: function(value) {
             if (!value || !value.trim()) {
                 Swal.showValidationMessage('You need to enter an email address!');
                 return false;
             }
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(value.trim())) {
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
                 Swal.showValidationMessage('Please enter a valid email address!');
                 return false;
             }
             return value.trim();
         }
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            showBlockingLoader("Exporting PDF...");
-            $.ajax({
-                url: 'export_pdf_formatted.php',
-                type: 'POST',
-                data: {
-                    html: table,
-                    email: result.value,
-                    filename: filename
-                },
-                xhrFields: {
-                    responseType: 'blob'
-                },
-                success: function(data) {
-                    hideBlockingLoader();
-                    var a = document.createElement('a');
-                    var url = window.URL.createObjectURL(data);
-                    a.href = url;
-                    a.download = filename + '.pdf';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    a.remove();
-                    Swal.fire('Exported!', 'PDF file exported successfully.', 'success');
-                },
-                error: function() {
-                    hideBlockingLoader();
-                    Swal.fire('Failed', 'Failed to export table as PDF.', 'error');
-                }
-            });
+    }).then(function(res) {
+        if (res.isConfirmed && res.value) {
+            runPdfExport(table, filename, mode, res.value);
         }
     });
-});
+}
+
+// Perform the PDF export in the chosen mode: 'download', 'email', or 'both'
+function runPdfExport(table, filename, mode, email) {
+    showBlockingLoader(mode === 'email' ? 'Sending PDF...' : 'Exporting PDF...');
+
+    if (mode === 'email') {
+        $.ajax({
+            url: 'export_pdf_formatted.php',
+            type: 'POST',
+            dataType: 'json',
+            data: { html: table, filename: filename, mode: mode, email: email },
+            success: function(resp) {
+                hideBlockingLoader();
+                if (resp && resp.success) {
+                    Swal.fire('Sent!', resp.message || ('PDF emailed to ' + email), 'success');
+                } else {
+                    Swal.fire('Failed', (resp && resp.message) || 'Failed to send PDF.', 'error');
+                }
+            },
+            error: function() {
+                hideBlockingLoader();
+                Swal.fire('Failed', 'Failed to send PDF.', 'error');
+            }
+        });
+        return;
+    }
+
+    $.ajax({
+        url: 'export_pdf_formatted.php',
+        type: 'POST',
+        data: { html: table, filename: filename, mode: mode, email: email },
+        xhrFields: { responseType: 'blob' },
+        success: function(data) {
+            hideBlockingLoader();
+            var a = document.createElement('a');
+            var url = window.URL.createObjectURL(data);
+            a.href = url;
+            a.download = filename + '.pdf';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            Swal.fire('Exported!', mode === 'both' ? ('PDF downloaded and emailed to ' + email) : 'PDF file exported successfully.', 'success');
+        },
+        error: function() {
+            hideBlockingLoader();
+            Swal.fire('Failed', 'Failed to export table as PDF.', 'error');
+        }
+    });
+}
 
 // EXPORT EXCEL - choose Download only / Send to email only / Download & email.
 // Use .off().on() so re-loading this table via AJAX never double-binds the handler.

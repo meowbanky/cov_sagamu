@@ -46,46 +46,72 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
         
         // Build formatted HTML table with inline styles
         $html = '<style>
-            table { 
-                border-collapse: collapse; 
-                width: 100%; 
+            .report-title { text-align: center; }
+            .report-title .t1 { font-size: 13pt; font-weight: bold; color: #1E40AF; }
+            .report-title .t2 { font-size: 9pt; color: #374151; }
+            .report-title .t3 { font-size: 7pt; color: #6B7280; }
+            table {
+                border-collapse: collapse;
+                width: 100%;
                 font-size: 6pt;
             }
-            th { 
-                background-color: #1E40AF; 
-                color: #FFFFFF; 
-                font-weight: bold; 
-                text-align: center; 
-                padding: 3px 1px;
-                border: 1px solid #000000;
-                font-size: 6pt;
-            }
-            td { 
-                padding: 3px 1px;
-                border: 1px solid #000000;
-                font-size: 6pt;
-            }
-            tr:last-child td {
-                background-color: #E5E7EB;
+            th {
+                background-color: #1E40AF;
+                color: #FFFFFF;
                 font-weight: bold;
+                text-align: center;
+                padding: 3px 1px;
+                border: 1px solid #93A3C4;
+                font-size: 6pt;
+            }
+            td {
+                padding: 3px 1px;
+                border: 1px solid #C7CDD6;
+                font-size: 6pt;
+            }
+            .alt td {
+                background-color: #EEF2FF;
+            }
+            .totals td {
+                background-color: #DBE3F4;
+                font-weight: bold;
+                border-color: #93A3C4;
             }
             .text-left { text-align: left; }
             .text-right { text-align: right; }
         </style>';
-        
+
+        // Report title block
+        $periodLabel = str_replace('_', ' to ', $filename);
+        $html .= '<div class="report-title">'
+            . '<span class="t1">Master Transaction Report</span><br/>'
+            . '<span class="t2">' . htmlspecialchars($periodLabel) . '</span><br/>'
+            . '<span class="t3">Generated: ' . date('d M Y, H:i') . '</span>'
+            . '</div><br/>';
+
         $html .= '<table cellpadding="2" cellspacing="0" border="1">';
         $html .= '<thead>';
-        
+
         // Process rows
         $rows = $table->getElementsByTagName('tr');
+        $totalRows = $rows->length;
         $rowIndex = 0;
-        
+
         foreach ($rows as $row) {
             if (!$row instanceof DOMElement) {
                 continue;
             }
 
-            $rowHtml = '<tr>';
+            // Row class: header (none), totals (last row), or zebra for alternate data rows
+            $trClass = '';
+            if ($rowIndex > 0) {
+                if ($rowIndex === $totalRows - 1) {
+                    $trClass = ' class="totals"';
+                } elseif ($rowIndex % 2 === 0) {
+                    $trClass = ' class="alt"';
+                }
+            }
+            $rowHtml = '<tr' . $trClass . '>';
             
             // Get cells (th or td)
             $cells = $row->getElementsByTagName('th');
@@ -118,11 +144,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
                 
                 // Determine cell type and alignment
                 $cellTag = ($rowIndex == 0) ? 'th' : 'td';
-                
-                // Align text columns left (Coop No, Period, Name) and numbers right
-                $alignment = ($cellIndex <= 3) ? 'text-left' : 'text-right';
-                
-                $rowHtml .= "<$cellTag class='$alignment'>$value</$cellTag>";
+
+                // Align text columns left (Coop No, Period, Name) and numbers right.
+                // TCPDF honours an inline text-align style on the cell most reliably
+                // (CSS classes and the align attribute are ignored for <td>).
+                if ($rowIndex == 0) {
+                    $align = 'center';
+                } else {
+                    $align = ($cellIndex <= 3) ? 'left' : 'right';
+                }
+
+                $rowHtml .= "<$cellTag style='text-align:$align;' align='$align'>$value</$cellTag>";
                 
                 $cellIndex++;
             }
@@ -175,44 +207,69 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['html'])) {
     $tempFilePath = sys_get_temp_dir() . '/' . uniqid('pdf_') . '.pdf';
     $pdf->Output($tempFilePath, 'F');
     
-    // Send email if email address is provided
-    if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    // Delivery mode: 'download' (default), 'email', or 'both'
+    $mode = $_POST['mode'] ?? 'download';
+    $needsEmail = in_array($mode, ['email', 'both'], true);
+
+    if ($needsEmail && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        @unlink($tempFilePath);
+        http_response_code(400);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'A valid email address is required for this option.']);
+        exit;
+    }
+
+    $emailSent = false;
+    $emailError = '';
+    if ($needsEmail) {
         try {
+            // Load SMTP settings from the single .env (no hardcoded credentials)
+            require_once __DIR__ . '/config/EnvConfig.php';
+            $mc = EnvConfig::getMailConfig();
+
             $mail = new PHPMailer(true);
-            
-            // Server settings
             $mail->isSMTP();
-            $mail->Host = 'mail.emmaggi.com';
+            $mail->Host = $mc['host'];
             $mail->SMTPAuth = true;
-            $mail->Username = 'cov@emmaggi.com';
-            $mail->Password = 'Banzoo@7980';
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = 587;
-            
-            // Recipients
-            $mail->setFrom('cov@emmaggi.com', 'VCMS');
+            $mail->Username = $mc['username'];
+            $mail->Password = $mc['password'];
+            $mail->SMTPSecure = $mc['encryption'] ?: PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = $mc['port'];
+
+            $mail->setFrom($mc['from_address'], $mc['from_name']);
             $mail->addAddress($email);
-            
-            // Attachments
             $mail->addAttachment($tempFilePath, $pdfFilename);
-            
-            // Content
+
             $mail->isHTML(true);
             $mail->Subject = 'Master Transaction Report - ' . $filename;
             $mail->Body = 'Dear Recipient,<br><br>The Master Transaction Report "' . htmlspecialchars($filename) . '" is attached.<br><br>Best regards,<br>VCMS';
-            
+
             $mail->send();
+            $emailSent = true;
         } catch (Exception $e) {
-            // Continue with download even if email fails
-            error_log("Email sending failed: " . (isset($mail) ? $mail->ErrorInfo : $e->getMessage()));
+            $emailError = isset($mail) ? $mail->ErrorInfo : $e->getMessage();
+            error_log("PDF email sending failed: " . $emailError);
         }
     }
 
-    // Output the PDF as a download
+    // Email-only: return a JSON result, no file download
+    if ($mode === 'email') {
+        @unlink($tempFilePath);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $emailSent,
+            'message' => $emailSent
+                ? ('PDF report sent to ' . $email)
+                : ('Failed to send email' . ($emailError ? ': ' . $emailError : '.')),
+        ]);
+        exit;
+    }
+
+    // Download or both: stream the PDF to the browser
     header('Content-Type: application/pdf');
     header('Content-Disposition: attachment; filename="' . $pdfFilename . '"');
     readfile($tempFilePath);
-    
+
     // Clean up temporary file
     @unlink($tempFilePath);
     exit;
