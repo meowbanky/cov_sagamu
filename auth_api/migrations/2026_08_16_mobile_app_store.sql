@@ -18,16 +18,33 @@
 SELECT DATABASE() AS current_database;
 
 
--- ===== STEP 1 — deletion audit trail =====
--- Kept separate from the member row so it survives the anonymisation in the
--- delete_account endpoint.
+-- ===== STEP 1 — account deletion requests =====
+-- A cooperative member cannot delete their own record while indebted, so
+-- deletion is a REQUEST that an officer approves, not a self-service action.
+-- Apple permits this for regulated financial services provided the member can
+-- always initiate the request in-app (Guideline 5.1.1(v)).
+--
+-- Kept separate from the member row so it survives the anonymisation that
+-- happens on approval.
+--
+-- status:
+--   pending             — no outstanding balance, awaiting officer approval
+--   pending_settlement  — member owes money; blocked until settled
+--   approved            — anonymisation carried out, access revoked
+--   rejected            — officer declined; member keeps their account
 CREATE TABLE IF NOT EXISTS tbl_account_deletions (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    memberid      VARCHAR(32)  NOT NULL,
-    requested_at  DATETIME     NOT NULL,
-    source        VARCHAR(32)  NOT NULL DEFAULT 'mobile_app',
-    notes         VARCHAR(255) NULL,
-    INDEX idx_account_deletions_member (memberid)
+    id                     INT AUTO_INCREMENT PRIMARY KEY,
+    memberid               VARCHAR(32)    NOT NULL,
+    requested_at           DATETIME       NOT NULL,
+    status                 VARCHAR(32)    NOT NULL DEFAULT 'pending',
+    outstanding_at_request DECIMAL(15,2)  NOT NULL DEFAULT 0,
+    source                 VARCHAR(32)    NOT NULL DEFAULT 'mobile_app',
+    member_note            VARCHAR(500)   NULL,
+    reviewed_at            DATETIME       NULL,
+    reviewed_by            VARCHAR(64)    NULL,
+    review_note            VARCHAR(500)   NULL,
+    INDEX idx_account_deletions_member (memberid),
+    INDEX idx_account_deletions_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
