@@ -57,13 +57,15 @@ class NotificationService {
 //            error_log("SMS Response: " . json_encode($smsResult));
 //            error_log("Mobile Number: " . json_encode($transactionData['MobilePhone']));
 
-            if (!empty($transactionData['onesignal_id'])) {
-                $this->sendPushNotification(
-                    $transactionData['onesignal_id'],
-                    "Transaction Update",
-                    $message
-                );
-            }
+            // Prefer FCM. Devices still running the OneSignal build have no
+            // fcm_token yet, so fall back rather than dropping their push.
+            $this->deliverPush(
+                $memberId,
+                $transactionData['fcm_token'] ?? null,
+                $transactionData['onesignal_id'] ?? null,
+                "Transaction Update",
+                $message
+            );
 
             // Log notification
             $this->logNotification($memberId, $message);
@@ -79,6 +81,8 @@ class NotificationService {
         $query = "SELECT tlb_mastertransaction.memberid,tbpayrollperiods.Periodid,
 CONCAT(tbl_personalinfo.Lname, ' , ', tbl_personalinfo.Fname, ' ', IFNULL(tbl_personalinfo.Mname, '')) AS namess,
     tbl_personalinfo.MobilePhone,
+    tbl_personalinfo.fcm_token,
+    tbl_personalinfo.onesignal_id,
     tbpayrollperiods.PayrollPeriod,
     SUM(tlb_mastertransaction.entryFee) as entryFee,
     SUM(tlb_mastertransaction.savings) as savingsAmount,
@@ -221,6 +225,51 @@ LEFT JOIN tbpayrollperiods ON tlb_mastertransaction.periodid = tbpayrollperiods.
         }
 
         return $responseData;
+    }
+
+    /**
+     * Delivers a push, preferring FCM and falling back to OneSignal for members
+     * whose device has not yet updated to the FCM build.
+     *
+     * A dead FCM token is cleared so we stop trying it on every payroll run.
+     */
+    private function deliverPush($memberId, $fcmToken, $oneSignalId, $title, $message) {
+        if (!empty($fcmToken)) {
+            try {
+                require_once __DIR__ . '/../../auth_api/utils/FcmSender.php';
+                $result = (new \FcmSender())->sendToToken($fcmToken, $title, $message);
+
+                if ($result['ok']) {
+                    return true;
+                }
+
+                if ($result['invalidToken']) {
+                    // $this->db is a mysqli handle in this class, not PDO.
+                    $stmt = mysqli_prepare(
+                        $this->db,
+                        'UPDATE tbl_personalinfo SET fcm_token = NULL WHERE memberid = ?'
+                    );
+                    if ($stmt) {
+                        mysqli_stmt_bind_param($stmt, 's', $memberId);
+                        mysqli_stmt_execute($stmt);
+                        mysqli_stmt_close($stmt);
+                    }
+                    error_log("FCM token for member {$memberId} was rejected and has been cleared");
+                }
+            } catch (\Exception $e) {
+                error_log('FCM send failed, falling back to OneSignal: ' . $e->getMessage());
+            }
+        }
+
+        if (!empty($oneSignalId)) {
+            try {
+                return (bool) $this->sendPushNotification($oneSignalId, $title, $message);
+            } catch (\Exception $e) {
+                error_log('OneSignal fallback failed: ' . $e->getMessage());
+            }
+        }
+
+        return false;
     }
 
     private function sendPushNotification($playerId, $title, $message) {
