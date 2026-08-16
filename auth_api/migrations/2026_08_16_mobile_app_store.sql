@@ -104,6 +104,18 @@ ALTER TABLE tbl_personalinfo
 CREATE INDEX idx_personalinfo_deleted_at ON tbl_personalinfo (deleted_at);
 
 
+-- ===== STEP 6b — rate limiting for unauthenticated endpoints =====
+-- Backs utils/RateLimiter.php. DB-backed rather than in-memory because shared
+-- hosting offers no guaranteed APCu/Redis, and a limiter that silently does
+-- nothing is worse than none.
+CREATE TABLE IF NOT EXISTS tbl_rate_limits (
+    id      INT AUTO_INCREMENT PRIMARY KEY,
+    bucket  VARCHAR(96) NOT NULL,
+    hit_at  DATETIME    NOT NULL,
+    INDEX idx_rate_limits_bucket_time (bucket, hit_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
 -- ===== STEP 7 — VERIFY (run last, paste me the output) =====
 -- Expect: 3 new columns on tbl_personalinfo, and 3 new tables.
 SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
@@ -116,5 +128,6 @@ SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
 SELECT TABLE_NAME
   FROM INFORMATION_SCHEMA.TABLES
  WHERE TABLE_SCHEMA = DATABASE()
-   AND TABLE_NAME IN ('tbl_account_deletions', 'tbl_complaints', 'tbl_payments')
+   AND TABLE_NAME IN ('tbl_account_deletions', 'tbl_complaints', 'tbl_payments',
+                      'tbl_rate_limits')
  ORDER BY TABLE_NAME;

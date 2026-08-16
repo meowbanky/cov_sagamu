@@ -24,12 +24,18 @@ header('Content-Type: application/json');
 
 try {
     $data = json_decode(file_get_contents('php://input'));
-    if (!isset($data->email) || !isset($data->otp) || !isset($data->new_password)) {
+    if (!isset($data->coop_id) || !isset($data->otp) || !isset($data->new_password)) {
         throw new Exception('All fields are required');
     }
 
     $database = new Database();
     $db = $database->getConnection();
+
+    $memberId = trim($data->coop_id);
+    $email = MemberLookup::emailForMember($db, $memberId);
+    if ($email === null) {
+        throw new Exception('Invalid or expired code');
+    }
 
     // Verify OTP
     $sql = "SELECT * FROM tbl_password_resets 
@@ -41,7 +47,7 @@ try {
             LIMIT 1";
 
     $stmt = $db->prepare($sql);
-    $stmt->bindParam(':email', $data->email);
+    $stmt->bindParam(':email', $email);
     $stmt->bindParam(':otp', $data->otp);
     $stmt->execute();
 
@@ -55,7 +61,7 @@ try {
             LIMIT 1";
 
     $stmt = $db->prepare($sql);
-    $stmt->bindParam(':email', $data->email);
+    $stmt->bindParam(':email', $email);
     $stmt->execute();
 
     $employee = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -89,7 +95,7 @@ try {
             WHERE email = :email AND otp = :otp";
 
     $stmt = $db->prepare($sql);
-    $stmt->bindParam(':email', $data->email);
+    $stmt->bindParam(':email', $email);
     $stmt->bindParam(':otp', $data->otp);
     $stmt->execute();
 
