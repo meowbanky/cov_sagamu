@@ -2,7 +2,7 @@
 <?php require_once('Connections/cov.php'); ?>
 <?php session_start();
 if (!isset($_SESSION['UserID'])){
-header("Location:index.php");} else{
+header("Location:index.php"); exit;} else{
  
 }
  
@@ -125,7 +125,7 @@ function GetSQLValueString($theValue, $theType, $theDefinedValue = "", $theNotDe
 
 //session_start();
 //if (!isset($_SESSION['UserID'])){
-//header("Location:index.php");}elseif (!isset($_GET['action'])){
+//header("Location:index.php"); exit;}elseif (!isset($_GET['action'])){
 //header("Location:mycv.php");} else{
 
 

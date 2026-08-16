@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION['UserID'])) header("Location:index.php");
+if (!isset($_SESSION['UserID'])) { header("Location:index.php"); exit; }
 require_once('Connections/cov.php');
 require_once('header.php');
 

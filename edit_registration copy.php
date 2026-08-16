@@ -1,7 +1,7 @@
 <?php require_once('Connections/cov.php'); ?>
 <?php session_start();
 if (!isset($_SESSION['UserID'])){
-header("Location:index.php");} else{
+header("Location:index.php"); exit;} else{
  
 }
 ?>

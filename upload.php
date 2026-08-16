@@ -1,7 +1,7 @@
 <?php require_once('Connections/hms.php'); ?>
 <?php session_start();
 if (!isset($_SESSION['UserID']) or ($_SESSION['roleId'] != 4)){
-header("Location:index.php");} else{
+header("Location:index.php"); exit;} else{
  
 }
 ?>
