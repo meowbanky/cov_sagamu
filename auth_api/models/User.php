@@ -27,7 +27,8 @@ class User {
         FROM tbl_personalinfo e
         INNER JOIN tblusers u ON e.memberid = u.UserID
         LEFT JOIN tbl_nok n ON e.memberid = n.memberid
-        WHERE e.memberid = :username OR e.MobilePhone = :mobile_number";
+        WHERE (e.memberid = :username OR e.MobilePhone = :mobile_number)
+          AND e.deleted_at IS NULL";
 
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':username', $username);
@@ -38,10 +39,8 @@ class User {
 
             if ($stmt->rowCount() > 0) {
                 $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                error_log("User found, checking password");
-                error_log("Stored password hash: " . $row['UPassword']);
-                error_log("Password being tested: " . $password);
-
+                // Never log the submitted password or the stored hash — the
+                // error log is not a secret store.
                 if (password_verify($password, $row['UPassword'])) {
                     error_log("Password verification successful");
                     return [
