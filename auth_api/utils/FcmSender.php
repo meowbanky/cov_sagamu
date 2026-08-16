@@ -83,7 +83,10 @@ class FcmSender
                     'title' => $title,
                     'body' => $body,
                 ],
-                'data' => $stringData,
+                // json_encode turns an empty PHP array into [], but FCM's
+                // `data` field is a map and rejects a list with
+                // INVALID_ARGUMENT. Cast so it serialises as {}.
+                'data' => (object) $stringData,
                 'android' => [
                     'priority' => 'high',
                     'notification' => ['sound' => 'default'],
@@ -117,7 +120,8 @@ class FcmSender
         $response = curl_exec($ch);
         $error = curl_error($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        // curl_close() is a no-op since PHP 8.0 and deprecated in 8.5; a stray
+        // deprecation notice would corrupt these JSON responses.
 
         if ($error !== '') {
             return self::result(false, true, false, 'FCM transport error: ' . $error);
@@ -130,9 +134,7 @@ class FcmSender
         $decoded = json_decode($response, true);
         $status = isset($decoded['error']['status']) ? $decoded['error']['status'] : 'UNKNOWN';
 
-        // UNREGISTERED / INVALID_ARGUMENT mean the token is dead — the caller
-        // should clear it rather than retrying forever.
-        $invalidToken = in_array($status, ['UNREGISTERED', 'NOT_FOUND', 'INVALID_ARGUMENT'], true);
+        $invalidToken = self::indicatesDeadToken($status, $decoded);
         $retryable = in_array($httpCode, [429, 500, 502, 503, 504], true);
 
         error_log('FCM send failed (HTTP ' . $httpCode . ', ' . $status . '): ' . substr((string) $response, 0, 300));
@@ -172,7 +174,8 @@ class FcmSender
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        // curl_close() is a no-op since PHP 8.0 and deprecated in 8.5; a stray
+        // deprecation notice would corrupt these JSON responses.
 
         $decoded = json_decode($response, true);
         if ($httpCode !== 200 || empty($decoded['access_token'])) {
@@ -186,6 +189,57 @@ class FcmSender
         ];
 
         return self::$cachedToken['token'];
+    }
+
+    /**
+     * Should the caller delete this device token?
+     *
+     * UNREGISTERED / NOT_FOUND are unambiguous — the app was uninstalled or the
+     * token expired.
+     *
+     * INVALID_ARGUMENT is the awkward one: FCM uses it BOTH for a malformed
+     * registration token (delete it) and for a malformed message payload (a bug
+     * in our own code — deleting would wipe every member's registration on the
+     * first mistake).
+     *
+     * The detail @type does NOT separate them — a bad token returns both
+     * FcmError and google.rpc.BadRequest. What does separate them is which
+     * field the violation names, confirmed against the live API:
+     *
+     *   bad token   -> field = "message.token"
+     *                  "The registration token is not a valid FCM registration token"
+     *   bad payload -> field = "message" (or message.data, …)
+     *                  "Invalid value at 'message' (Map), Cannot bind a list to map"
+     *
+     * Anything ambiguous is treated as NOT a dead token: wrongly keeping one
+     * costs a single wasted send, wrongly deleting one silences that member
+     * until they reinstall.
+     */
+    private static function indicatesDeadToken($status, $decoded)
+    {
+        if (in_array($status, ['UNREGISTERED', 'NOT_FOUND'], true)) {
+            return true;
+        }
+        if ($status !== 'INVALID_ARGUMENT') {
+            return false;
+        }
+
+        $details = isset($decoded['error']['details']) && is_array($decoded['error']['details'])
+            ? $decoded['error']['details']
+            : [];
+
+        foreach ($details as $detail) {
+            $violations = isset($detail['fieldViolations']) && is_array($detail['fieldViolations'])
+                ? $detail['fieldViolations']
+                : [];
+            foreach ($violations as $violation) {
+                if (isset($violation['field']) && $violation['field'] === 'message.token') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static function result($ok, $retryable, $invalidToken, $message)

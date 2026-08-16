@@ -86,7 +86,8 @@ class Paystack
         $body = curl_exec($ch);
         $error = curl_error($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        // curl_close() is a no-op since PHP 8.0 and deprecated in 8.5; a stray
+        // deprecation notice would corrupt these JSON responses.
 
         if ($error !== '') {
             error_log('Paystack transport error: ' . $error);
