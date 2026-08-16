@@ -205,13 +205,40 @@
 							<span class="focus-input3"></span>
 						</div>
 
+						<div id="otpSection" style="display: none; margin-top: 12px;">
+							<p style="font-size: 13px; color: #555;">
+								To protect your account, we will email a 6-digit
+								code to the address the cooperative already has on
+								file. Enter it below to save your changes.
+							</p>
+							<button
+								type="button"
+								class="btn btn-primary"
+								id="sendOtp"
+							>
+								Send verification code
+							</button>
+							<span id="otpMsg" style="margin-left: 10px; font-size: 13px;"></span>
+							<div style="margin-top: 10px;">
+								<input
+									class="input3"
+									type="text"
+									name="otp"
+									id="otp"
+									inputmode="numeric"
+									maxlength="6"
+									placeholder="Enter 6-digit code"
+								/>
+							</div>
+						</div>
+
 						<div id="divDispaly" class="container-contact3-form-btn" style="display: none;">
 							<button
 								class="ladda-button ladda-button btn btn-success block full-width m-b"
 								data-style="expand-left"
 								id="save"
 							>
-								<b>REGISTER</b>
+								<b>SAVE CHANGES</b>
 							</button>
 						</div>
 					</form>
@@ -273,30 +300,21 @@
 					minLength: 3,
 					select: function (event, ui) {
 						event.preventDefault();
+						// Only the member id and name come from search now. Phone,
+						// email, account and bank are withheld until the member
+						// verifies with a code, so those fields stay blank for the
+						// member to fill in with whatever they want to change.
 						$("#coop_no").val(ui.item.value);
-						$coop_no = $("#coop_no").val();
 						$("#name").val(ui.item.label);
-						$name = $("#name").val();
-						$("#mobile").val(ui.item.phone);
-						$mobile = $("#mobile").val();
-						$("#email").val(ui.item.emailaddress);
-						$email = $("#email").val();
-						$("#account_no").val(ui.item.accountno);
-						$account_no = $("#account_no").val();
-
 						$("#surname").val(ui.item.lname);
-						$surname = $("#surname").val();
-
 						$("#firstname").val(ui.item.fname);
-						$firstname = $("#firstname").val();
-
 						$("#middlename").val(ui.item.mname);
-						$middlename = $("#middlename").val();
-
-						$("#bank").val(ui.item.bankcode);
-						$("#bank").val(ui.item.bankcode).change();
-						$("#divDispaly").show();
-
+						$("#mobile").val("");
+						$("#email").val("");
+						$("#account_no").val("");
+						$("#bank").val("").change();
+						$("#otpSection").show();
+						$("#divDispaly").hide();
 					},
 				});
 			});
