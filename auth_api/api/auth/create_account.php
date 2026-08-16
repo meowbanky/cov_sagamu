@@ -52,13 +52,12 @@ try {
         // Create user account
         $hashedPassword = password_hash($data->password, PASSWORD_DEFAULT);
         $sql = "INSERT INTO tblusers 
-                (UserID, UPassword, PlainPassword, first_login, roleid, dateofRegistration) 
-                VALUES (:username, :password, :plain_password, 1, 2, CURDATE())";
+                (UserID, UPassword, first_login, roleid, dateofRegistration) 
+                VALUES (:username, :password, 1, 2, CURDATE())";
 
         $stmt = $db->prepare($sql);
         $stmt->bindParam(':username', $data->coopId);
         $stmt->bindParam(':password', $hashedPassword);
-        $stmt->bindParam(':plain_password', $data->password);
         $stmt->execute();
 
         // Mark OTP as used

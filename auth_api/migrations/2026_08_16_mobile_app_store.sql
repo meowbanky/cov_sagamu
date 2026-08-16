@@ -116,6 +116,27 @@ CREATE TABLE IF NOT EXISTS tbl_rate_limits (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+-- ===== STEP 6c — drop the plaintext password column =====
+-- ⚠️ RUN THIS ONLY AFTER the new PHP is deployed. The old code INSERTs into
+-- PlainPassword; dropping it while that code is still live makes registration
+-- and password changes error. Order: deploy code first, then run this.
+--
+-- Every reader and writer of tblusers.PlainPassword has been removed
+-- (registration, edit, create_account, change_password, reset_password,
+-- registeruser display, cov_update). Passwords remain stored as bcrypt hashes
+-- in UPassword.
+--
+-- Not idempotent — a second run errors "Can't DROP 'PlainPassword'"; harmless,
+-- means it was already dropped.
+ALTER TABLE tblusers DROP COLUMN PlainPassword;
+
+-- NOTE (separate, not done here): the legacy tblusers_online table also has a
+-- PlainPassword column with ~1354 rows. Nothing live reads it anymore (the only
+-- reader, cov_update/mail/index.php, has been retired). Consider scrubbing it:
+--   UPDATE tblusers_online SET PlainPassword = NULL;   -- or DROP COLUMN
+-- Left as a deliberate manual decision since it is a legacy table.
+
+
 -- ===== STEP 7 — VERIFY (run last, paste me the output) =====
 -- Expect: 3 new columns on tbl_personalinfo, and 3 new tables.
 SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
@@ -131,3 +152,10 @@ SELECT TABLE_NAME
    AND TABLE_NAME IN ('tbl_account_deletions', 'tbl_complaints', 'tbl_payments',
                       'tbl_rate_limits')
  ORDER BY TABLE_NAME;
+
+-- Expect ZERO rows: the plaintext column should be gone.
+SELECT COLUMN_NAME
+  FROM INFORMATION_SCHEMA.COLUMNS
+ WHERE TABLE_SCHEMA = DATABASE()
+   AND TABLE_NAME   = 'tblusers'
+   AND COLUMN_NAME  = 'PlainPassword';

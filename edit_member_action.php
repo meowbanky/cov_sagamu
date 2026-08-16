@@ -69,8 +69,9 @@ if (!$ok2) {
 // Optionally update password if provided
 if ($passwordGen) {
     $hashed = password_hash($passwordGen, PASSWORD_DEFAULT);
-    $stmt3 = $cov->prepare("UPDATE tblusers SET UPassword=?, PlainPassword=? WHERE UserID=?");
-    $stmt3->bind_param('ssi', $hashed, $passwordGen, $memberid);
+    // Store only the hash; the new password is emailed to the member below.
+    $stmt3 = $cov->prepare("UPDATE tblusers SET UPassword=? WHERE UserID=?");
+    $stmt3->bind_param('si', $hashed, $memberid);
     $stmt3->execute();
     $stmt3->close();
 }

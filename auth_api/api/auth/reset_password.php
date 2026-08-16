@@ -71,17 +71,14 @@ try {
 
     // Update password in users_online table
     $hashedPassword = password_hash($data->new_password, PASSWORD_DEFAULT);
-    $plainPassword = $data->new_password; // Store plain password as well
 
     $sql = "UPDATE tblusers
             SET UPassword = :hashed_password,
-                PlainPassword = :plain_password,
                 CPassword = :hashed_password
             WHERE UserID = :coop_id";
 
     $stmt = $db->prepare($sql);
     $stmt->bindParam(':hashed_password', $hashedPassword);
-    $stmt->bindParam(':plain_password', $plainPassword);
     $stmt->bindParam(':coop_id', $employee['memberid']);
     $stmt->execute();
 

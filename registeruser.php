@@ -91,7 +91,7 @@ if (isset($_GET['pageNum_username'])) {
 $startRow_username = $pageNum_username * $maxRows_username;
 
 mysqli_select_db($cov,$database_cov);
-$query_username = "SELECT tblusers.UserID, tblusers.PlainPassword,tblusers.firstname, tblusers.middlename, tblusers.lastname, tblusers.Username, tblusers.dateofRegistration FROM tblusers ";
+$query_username = "SELECT tblusers.UserID, tblusers.firstname, tblusers.middlename, tblusers.lastname, tblusers.Username, tblusers.dateofRegistration FROM tblusers ";
 $query_limit_username = sprintf("%s LIMIT %d, %d", $query_username, $startRow_username, $maxRows_username);
 $username = mysqli_query($cov,$query_limit_username) or die(mysqli_error($cov));
 $row_username = mysqli_fetch_assoc($username);
@@ -924,7 +924,6 @@ function GP_popupConfirmMsg(msg) { //v1.0
 					            <td class="greyBgdHeader" valign="middle"><strong>Surname</strong></td>
 					            <td class="greyBgdHeader" valign="middle"><strong>First Name</strong></td>
 					            <td class="greyBgdHeader" valign="middle"><strong>Middle Name</strong></td>
-					            <td class="greyBgdHeader" valign="middle"><strong>Password</strong></td>
                                   <td class="greyBgdHeader" valign="middle" height="35"><strong>Edit</strong></td> 
                                <td class="greyBgdHeader" valign="middle" height="35"><strong>Delete</strong></td>
                                 </tr>
@@ -934,7 +933,6 @@ function GP_popupConfirmMsg(msg) { //v1.0
                                   <td class="greyBgd" valign="middle"><?php echo $row_username['lastname']; ?></td>
                                   <td class="greyBgd" valign="middle"><?php echo $row_username['firstname']; ?></td>
                                   <td class="greyBgd" valign="middle"><?php echo $row_username['middlename']; ?></td>
-                                  <td class="greyBgd" valign="middle"><?php echo $row_username['PlainPassword']; ?></td>
                                   <td class="greyBgd" valign="middle"><a href="registeruser.php?userid=<?php echo $row_username['UserID']; ?>">Edit</a></td>
                                   <td class="greyBgd" valign="middle"><a href="registeruser.php?deleteid=<?php echo $row_username['UserID']; ?>" onClick="GP_popupConfirmMsg('Are you sure you want to delete this entry?\rTo continue, click \'Ok\' otherwise, click \'Cancel\'');return document.MM_returnValue">Delete</a></td>
                                 </tr><?php } while ($row_username = mysqli_fetch_assoc($username)); ?>

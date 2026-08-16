@@ -34,13 +34,11 @@ try {
     // Update password
     $hashedPassword = password_hash($input->new_password, PASSWORD_DEFAULT);
     $updateQuery = "UPDATE tblusers SET 
-        UPassword = :password,
-        PlainPassword = :plain_password
+        UPassword = :password
         WHERE UserID = :username";
 
     $updateStmt = $db->prepare($updateQuery);
     $updateStmt->bindParam(':password', $hashedPassword);
-    $updateStmt->bindParam(':plain_password', $input->new_password);
     $updateStmt->bindParam(':username', $input->coop_id);
 
     if($updateStmt->execute()) {

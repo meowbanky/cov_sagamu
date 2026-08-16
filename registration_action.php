@@ -40,9 +40,9 @@ try {
 
          // Users Table insert
         $hash = password_hash($data['passwordGen'], PASSWORD_DEFAULT);
-        $stmt = $cov->prepare("INSERT INTO tblusers (UserID, firstname, middlename, lastname, Username, UPassword, CPassword, PlainPassword, dateofRegistration) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        $stmt = $cov->prepare("INSERT INTO tblusers (UserID, firstname, middlename, lastname, Username, UPassword, CPassword, dateofRegistration) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
         $username = $memberId;
-        $stmt->bind_param('isssssss', $memberId, $data['Fname'], $data['Mname'], $data['Lname'], $username, $hash, $hash, $data['passwordGen']);
+        $stmt->bind_param('issssss', $memberId, $data['Fname'], $data['Mname'], $data['Lname'], $username, $hash, $hash);
         $stmt->execute();
         $stmt->close();
 
