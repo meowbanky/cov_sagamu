@@ -1,7 +1,12 @@
 {
-  "version": "1.5.1",
-  "build_number": "7",
-  "changelog": "- Bug fixes and improvements",
+  "version": "2.0.1",
+  "build_number": "10",
+  "changelog": "- Fixes password reset: searching your name now works again\n- General fixes and improvements",
   "force_update": false,
-  "download_url": "https://www.emmaggi.com/cov/download.html"
+  "download_url": "https://www.emmaggi.com/cov/download.html",
+  "apk_urls": {
+    "arm64-v8a": "https://www.emmaggi.com/cov/download/cov_coop_arm64-v8a_2.0.1.apk",
+    "armeabi-v7a": "https://www.emmaggi.com/cov/download/cov_coop_armeabi-v7a_2.0.1.apk",
+    "x86_64": "https://www.emmaggi.com/cov/download/cov_coop_x86_64_2.0.1.apk"
+  }
 }
