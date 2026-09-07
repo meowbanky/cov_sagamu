@@ -55,7 +55,8 @@ try {
     }
 
 } catch(Exception $e) {
-    http_response_code(500);
+    $code = $e->getCode();
+    http_response_code(is_int($code) && $code >= 400 && $code <= 599 ? $code : 500);
     echo json_encode([
         "success" => false,
         "message" => $e->getMessage()
