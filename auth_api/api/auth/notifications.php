@@ -27,40 +27,29 @@ try {
     require_once __DIR__ . '/../../config/Database.php';
     require_once __DIR__ . '/../../models/User.php';
     require_once __DIR__ . '/../../utils/JWTHandler.php';
+    require_once __DIR__ . '/../../utils/MobileAuth.php';
 
     // Initialize database connection
     $database = new Database();
     $db = $database->getConnection();
 
-    // Get the authorization header
-    $headers = getallheaders();
-    $authHeader = isset($headers['Authorization']) ? $headers['Authorization'] : '';
-
-    if (empty($authHeader) || !preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
-        throw new Exception('Authorization token required', 401);
-    }
-
-    $token = $matches[1];
-    $jwt = new JWTHandler();
-    $decodedToken = $jwt->validateToken($token);
-
-    if (!$decodedToken) {
-        throw new Exception('Invalid token', 401);
-    }
+    // The coop_id in the query string is ignored. It previously let any member
+    // read any other member's notifications by changing one number.
+    $coop_id = MobileAuth::requireMemberId();
 
     // Handle different request methods
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':
             if (isset($_GET['unread-count'])&& isset($_GET['count'])) {
-                getUnreadCount($db);
+                getUnreadCount($db, $coop_id);
             } else {
-                getNotifications($db);
+                getNotifications($db, $coop_id);
             }
             break;
 
         case 'PUT':
             if (preg_match('/\/notifications\.php\/(\d+)\/read$/', $_SERVER['REQUEST_URI'], $matches)) {
-                markAsRead($db, $matches[1]); // Pass the extracted notification ID
+                markAsRead($db, $matches[1], $coop_id); // Pass the extracted notification ID
             } else {
                 throw new Exception('Invalid endpoint', 404);
             }
@@ -82,14 +71,7 @@ try {
     ]);
 }
 
-function getNotifications($db) {
-    if (!isset($_GET['coop_id'])) {
-        throw new Exception('Coop ID is required');
-    }
-
-    error_log('Getting notifications');
-    $coop_id = $_GET['coop_id']; // Don't convert to int since CoopID is string
-    error_log($coop_id);
+function getNotifications($db, $coop_id) {
     try {
         $query = "SELECT id, memberid, title, message, status, created_at, updated_at 
               FROM notifications 
@@ -97,7 +79,7 @@ function getNotifications($db) {
               ORDER BY created_at DESC";
 
         $stmt = $db->prepare($query);
-        $stmt->bindParam(':coop_id', $coop_id, PDO::PARAM_INT); // Changed to PARAM_STR
+        $stmt->bindParam(':coop_id', $coop_id, PDO::PARAM_STR);
 
         $stmt->execute();
 
@@ -126,14 +108,8 @@ function getNotifications($db) {
     }
 }
 
-function getUnreadCount($db) {
-    error_log('Getting unread count');
+function getUnreadCount($db, $coop_id) {
     try {
-        if (!isset($_GET['coop_id'])) {
-            throw new Exception('Coop ID is required');
-        }
-
-        $coop_id = $_GET['coop_id']; // Don't convert to int
 
         $query = "SELECT COUNT(*) as count 
                   FROM notifications 
@@ -159,16 +135,19 @@ function getUnreadCount($db) {
 }
 
 
-function markAsRead($db, $notification_id) {
+function markAsRead($db, $notification_id, $coop_id) {
     try {
         $notification_id = intval($notification_id);
 
+        // Scoped to the caller: without the memberid clause any member could mark
+        // any other member's notification as read.
         $query = "UPDATE notifications 
                   SET status = 'read', updated_at = CURRENT_TIMESTAMP 
-                  WHERE id = :notification_id";
+                  WHERE id = :notification_id AND memberid = :coop_id";
 
         $stmt = $db->prepare($query);
         $stmt->bindParam(':notification_id', $notification_id, PDO::PARAM_INT);
+        $stmt->bindParam(':coop_id', $coop_id, PDO::PARAM_STR);
         $stmt->execute();
 
         if ($stmt->rowCount() > 0) {

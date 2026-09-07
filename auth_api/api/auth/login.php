@@ -38,6 +38,7 @@ try {
     require_once __DIR__ . '/../../config/Database.php';
     require_once __DIR__ . '/../../models/User.php';
     require_once __DIR__ . '/../../utils/JWTHandler.php';
+    require_once __DIR__ . '/../../utils/MobileAuth.php';
 
     $database = new Database();
     $db = $database->getConnection();
@@ -47,7 +48,7 @@ try {
 
     if ($result['success']) {
         $jwt = new JWTHandler();
-        $token = $jwt->generateToken($result['user']['CoopID']);
+        $token = $jwt->generateToken($result['user']['CoopID'], MobileAuth::TYPE_MEMBER);
 
 
     $query = "SELECT 

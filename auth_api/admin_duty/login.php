@@ -13,6 +13,7 @@ if (isset($_SESSION['user'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once '../config/Database.php';
     require_once '../utils/JWTHandler.php';
+    require_once __DIR__ . '/../utils/MobileAuth.php';
 
     try {
         $database = new Database();
@@ -39,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (password_verify($password, $user['password'])) {
                 $jwt = new JWTHandler();
-                $token = $jwt->generateToken($user['staff_id']);
+                $token = $jwt->generateToken($user['staff_id'], MobileAuth::TYPE_STAFF);
 
                 $_SESSION['user'] = [
                     'id' => $user['staff_id'],

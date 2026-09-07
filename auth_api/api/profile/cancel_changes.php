@@ -13,31 +13,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once '../../config/Database.php';
 require_once '../../utils/JWTHandler.php';
+require_once __DIR__ . '/../../utils/MobileAuth.php';
 
 try {
-    // Validate token
-    $headers = apache_request_headers();
-    $auth_header = isset($headers['Authorization']) ? $headers['Authorization'] : '';
-
-    if (!$auth_header || !preg_match('/Bearer\s(\S+)/', $auth_header, $matches)) {
-        throw new Exception('No token provided or invalid format', 401);
-    }
-
-    $jwt = new JWTHandler();
-    $token_data = $jwt->validateToken($matches[1]);
-
-    if (!$token_data) {
-        throw new Exception('Invalid token', 401);
-    }
+    // Identity comes from the signed token, never from the request. Taking a
+    // staff_id from the caller let any valid token read or change any other
+    // person's record.
+    $staff_id = MobileAuth::requireStaffId();
 
     // Get POST data
     $data = json_decode(file_get_contents('php://input'), true);
 
-    if (!isset($data['staff_id'])) {
-        throw new Exception('Staff ID is required', 400);
-    }
-
-    $staff_id = $data['staff_id'];
 
     $database = new Database();
     $db = $database->getConnection();

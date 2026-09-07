@@ -1,18 +1,15 @@
 <?php
 header('Content-Type: application/json');
 require_once __DIR__ . '/../../config/Database.php';
-
-
-$database = new Database();
-$db = $database->getConnection();
-
+require_once __DIR__ . '/../../utils/MobileAuth.php';
 
 try {
-    if (!isset($_GET['staff_id'])) {
-        throw new Exception('Staff ID is required');
-    }
+    // This returned name, email and mobile number for any staff ID with no token
+    // at all. Callers now get their own record, identified by the token.
+    $staff_id = MobileAuth::requireStaffId();
 
-    $staff_id = $_GET['staff_id'];
+    $database = new Database();
+    $db = $database->getConnection();
 
     $query = "SELECT staff_id, EMAIL, MOBILE_NO, NAME FROM employee WHERE staff_id = ?";
     $stmt = $db->prepare($query);
@@ -26,6 +23,7 @@ try {
             'data' => $employee
         ]);
     } else {
+        http_response_code(404);
         echo json_encode([
             'success' => false,
             'message' => 'Employee not found'
@@ -33,6 +31,8 @@ try {
     }
 
 } catch (Exception $e) {
+    $code = $e->getCode();
+    http_response_code(is_int($code) && $code >= 400 && $code <= 599 ? $code : 400);
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()

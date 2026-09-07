@@ -21,15 +21,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../../config/Database.php';
 require_once __DIR__ . '/../../models/User.php';
+require_once __DIR__ . '/../../utils/MobileAuth.php';
 
 try {
     $database = new Database();
     $db = $database->getConnection();
 
+    // Required a token: this took coop_id from the body with no authentication,
+    // so anyone could repoint another member's push notifications at their device.
+    $coop_id = MobileAuth::requireMemberId();
+
     $data = json_decode(file_get_contents("php://input"));
 
-    if (!isset($data->onesignal_id) || !isset($data->coop_id)) {
-        throw new Exception("Missing required parameters");
+    if (!isset($data->onesignal_id)) {
+        throw new Exception("Missing required parameters", 400);
     }
 
     $query = "UPDATE tbl_personalinfo 
@@ -38,7 +43,7 @@ try {
 
     $stmt = $db->prepare($query);
     $stmt->bindParam(":onesignal_id", $data->onesignal_id);
-    $stmt->bindParam(":coop_id", $data->coop_id);
+    $stmt->bindParam(":coop_id", $coop_id);
 
     if ($stmt->execute()) {
         echo json_encode([

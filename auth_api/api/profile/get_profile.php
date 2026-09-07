@@ -66,31 +66,16 @@ function calculateRetirementInfo($empDate, $dob) {
 try {
     require_once '../../config/Database.php';
     require_once '../../utils/JWTHandler.php';
+    require_once __DIR__ . '/../../utils/MobileAuth.php';
 
-    // Validate JWT token...
-    $headers = apache_request_headers();
-    $auth_header = isset($headers['Authorization']) ? $headers['Authorization'] : '';
-
-    if (!$auth_header || !preg_match('/Bearer\s(\S+)/', $auth_header, $matches)) {
-        throw new Exception('No token provided or invalid format', 401);
-    }
-
-    $token = $matches[1];
-    $jwt = new JWTHandler();
-    $token = $jwt->validateToken($token);
-
-    if (!$token) {
-        throw new Exception('Invalid token', 401);
-    }
+    // Identity comes from the signed token, never from the request. Taking a
+    // staff_id from the caller let any valid token read or change any other
+    // person's record.
+    $staff_id = MobileAuth::requireStaffId();
 
     $database = new Database();
     $db = $database->getConnection();
 
-    $staff_id = filter_var($_GET['staff_id'], FILTER_VALIDATE_INT);
-
-    if (!$staff_id) {
-        throw new Exception('Invalid staff ID', 400);
-    }
 
     // Get basic profile information
     $query = "SELECT

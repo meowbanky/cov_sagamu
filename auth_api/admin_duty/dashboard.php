@@ -16,8 +16,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
+require_once '../utils/AuthMiddleware.php';
+require_once __DIR__ . '/../utils/MobileAuth.php';
+
+// This page embeds a signed token into the response. Without a session check it
+// handed a working staff token to any anonymous visitor.
+$currentUser = AuthMiddleware::authenticate();
+
 $jwt = new JWTHandler();
-$token = $jwt->generateToken('1'); // Using default user ID 1
+$token = $jwt->generateToken($currentUser['id'], MobileAuth::TYPE_STAFF);
 
 
 // Get database connection

@@ -13,6 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once '../../config/Database.php';
 require_once '../../utils/JWTHandler.php';
+require_once __DIR__ . '/../../utils/ProfileFields.php';
+require_once __DIR__ . '/../../utils/MobileAuth.php';
 function logProfileChange($db, $staffId, $fieldName, $oldValue, $newValue, $changedBy, $source = 'approval', $approvalId = null) {
     $stmt = $db->prepare("
         INSERT INTO profile_change_log 
@@ -54,36 +56,22 @@ function logQualificationChange($db, $staffId, $changeType, $qualificationData, 
 }
 
 try {
-    // Validate token
-    $headers = apache_request_headers();
-    $auth_header = isset($headers['Authorization']) ? $headers['Authorization'] : '';
-
-    if (!$auth_header || !preg_match('/Bearer\s(\S+)/', $auth_header, $matches)) {
-        throw new Exception('No token provided or invalid format', 401);
-    }
-
-    $jwt = new JWTHandler();
-    $token_data = $jwt->validateToken($matches[1]);
-
-    if (!$token_data) {
-        throw new Exception('Invalid token', 401);
-    }
+    // Identity comes from the signed token, never from the request. Taking a
+    // staff_id from the caller let any valid token read or change any other
+    // person's record.
+    $staff_id = MobileAuth::requireStaffId();
 
     // Get POST data
     $data = json_decode(file_get_contents('php://input'), true);
 
-    $submitted_by = $data['staff_id'];
-    if (!$submitted_by) {
-        throw new Exception('User ID not found', 400);
-    }
+    // Both the subject and the submitter are the authenticated caller. A staff_id
+    // in the body previously let anyone file changes against a colleague's record.
+    $submitted_by = $staff_id;
 
-
-
-    if (!isset($data['staff_id']) || !isset($data['profile_changes'])) {
+    if (!isset($data['profile_changes'])) {
         throw new Exception('Invalid request data', 400);
     }
 
-    $staff_id = $data['staff_id'];
     $profile_changes = $data['profile_changes'];
     $qualification_changes = $data['qualification_changes'] ?? [];
 
@@ -110,6 +98,10 @@ try {
     ");
 
     foreach ($profile_changes as $field => $value) {
+        // $field is interpolated into the SELECT below, so it must be a known
+        // column and not caller-supplied SQL.
+        ProfileFields::assertEditable($field);
+
         // Get current value
         $current_stmt = $db->prepare("SELECT $field FROM employee WHERE staff_id = ?");
         $current_stmt->execute([$staff_id]);

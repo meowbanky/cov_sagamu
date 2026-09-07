@@ -9,9 +9,15 @@ class JWTHandler {
         $this->expiry = $config['jwt']['expiry'];
     }
 
-    public function generateToken($userId) {
+    /**
+     * @param string $type MobileAuth::TYPE_MEMBER or MobileAuth::TYPE_STAFF. The member
+     *   app and the staff portal share this secret, so the claim is what stops a
+     *   token from one being replayed against the other.
+     */
+    public function generateToken($userId, $type = 'member') {
         $payload = [
             'user_id' => $userId,
+            'typ' => $type,
             'iat' => time(),
             'exp' => time() + $this->expiry
         ];

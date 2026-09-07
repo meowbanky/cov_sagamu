@@ -13,14 +13,14 @@ header('Access-Control-Allow-Headers: Access-Control-Allow-Headers, Content-Type
 try {
     require_once __DIR__ . '/../../config/Database.php';
     require_once __DIR__ . '/../../utils/JWTHandler.php';
+    require_once __DIR__ . '/../../utils/MobileAuth.php';
 
     $database = new Database();
     $db = $database->getConnection();
 
-    $coopId = $_GET['coopId'] ?? null;
-    if (!$coopId) {
-        throw new Exception('CoopID is required');
-    }
+    // This endpoint previously took coopId from the query string with no token at
+    // all, so anyone could read any member's loan position by walking the IDs.
+    $coopId = MobileAuth::requireMemberId();
 
     // Get loan details with updated month calculation
     $query = "WITH LoanSummary AS (
@@ -115,7 +115,8 @@ try {
 } catch (Exception $e) {
     error_log("Loan tracking error: " . $e->getMessage());
     error_log("Stack trace: " . $e->getTraceAsString());
-    http_response_code(500);
+    $code = $e->getCode();
+    http_response_code(is_int($code) && $code >= 400 && $code <= 599 ? $code : 500);
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()

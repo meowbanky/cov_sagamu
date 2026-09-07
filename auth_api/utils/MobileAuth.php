@@ -6,11 +6,18 @@
 // The identity ALWAYS comes from the signed token, never from the request
 // body or query string. Endpoints that take a member id from the request are
 // trivially abusable by changing one number.
+//
+// Two systems issue tokens from the same secret: the cooperative member app and
+// the staff duty portal. Tokens carry a 'typ' claim so a member token cannot be
+// replayed against a staff endpoint, which exposes salary and personnel records.
 
 require_once __DIR__ . '/JWTHandler.php';
 
 class MobileAuth
 {
+    const TYPE_MEMBER = 'member';
+    const TYPE_STAFF  = 'staff';
+
     /**
      * Emits the standard CORS headers and short-circuits preflight requests.
      */
@@ -35,6 +42,44 @@ class MobileAuth
      */
     public static function requireMemberId()
     {
+        $payload = self::requireValidToken();
+
+        // Tokens minted before the 'typ' claim existed are still accepted here so
+        // that deploying this does not sign out the mobile app mid-session. They
+        // expire within the token lifetime, after which this fallback can go.
+        $type = isset($payload['typ']) ? $payload['typ'] : self::TYPE_MEMBER;
+
+        if ($type !== self::TYPE_MEMBER) {
+            throw new Exception('This token is not valid for member endpoints', 401);
+        }
+
+        return (string) $payload['user_id'];
+    }
+
+    /**
+     * Returns the authenticated staff member's id, or throws with a 401.
+     *
+     * Staff endpoints expose salary and personnel records, so the 'typ' claim is
+     * mandatory here with no legacy fallback. A member token can never satisfy it.
+     *
+     * @throws Exception
+     */
+    public static function requireStaffId()
+    {
+        $payload = self::requireValidToken();
+
+        if (!isset($payload['typ']) || $payload['typ'] !== self::TYPE_STAFF) {
+            throw new Exception('This token is not valid for staff endpoints', 401);
+        }
+
+        return (string) $payload['user_id'];
+    }
+
+    /**
+     * @throws Exception
+     */
+    private static function requireValidToken()
+    {
         $header = self::authorizationHeader();
 
         if (!$header || !preg_match('/Bearer\s(\S+)/', $header, $matches)) {
@@ -48,7 +93,7 @@ class MobileAuth
             throw new Exception('Invalid or expired session', 401);
         }
 
-        return (string) $payload['user_id'];
+        return $payload;
     }
 
     /**

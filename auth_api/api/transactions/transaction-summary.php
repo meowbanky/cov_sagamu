@@ -20,9 +20,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../../config/Database.php';
 require_once __DIR__ . '/../../utils/JWTHandler.php';
+require_once __DIR__ . '/../../utils/MobileAuth.php';
 header('Content-Type: application/json');
 
 try {
+    // The coopId in the body is ignored. It was previously trusted with no token
+    // at all, which exposed every member's savings and shares history.
+    $coopId = MobileAuth::requireMemberId();
+
     $data = json_decode(file_get_contents('php://input'));
 
     if (!isset($data->fromPeriod) || !isset($data->toPeriod)) {
@@ -69,7 +74,7 @@ GROUP BY tbpayrollperiods.Periodid, tbpayrollperiods.PayrollPeriod
 ORDER BY tbpayrollperiods.Periodid DESC";
 
     $stmt = $db->prepare($query);
-    $stmt->bindParam(':coopId', $data->coopId);
+    $stmt->bindParam(':coopId', $coopId);
     $stmt->bindParam(':fromPeriod', $data->fromPeriod);
     $stmt->bindParam(':toPeriod', $data->toPeriod);
     $stmt->execute();
@@ -82,7 +87,8 @@ ORDER BY tbpayrollperiods.Periodid DESC";
     ]);
     error_log(print_r($summaries, true));
 } catch(Exception $e) {
-    http_response_code(500);
+    $code = $e->getCode();
+    http_response_code(is_int($code) && $code >= 400 && $code <= 599 ? $code : 500);
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()

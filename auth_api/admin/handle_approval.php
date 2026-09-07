@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 session_start();
 
 require_once '../config/Database.php';
+require_once __DIR__ . '/../utils/ProfileFields.php';
 require_once '../utils/JWTHandler.php';
 
 require_once '../utils/EmailService.php';
@@ -48,6 +49,10 @@ try {
         foreach ($changes as $change) {
             $field = $change['field_name'];
             $value = $change['new_value'];
+
+            // Re-check here too: a row already stored by an older client is still
+            // untrusted, and $field goes straight into the UPDATE statement.
+            ProfileFields::assertEditable($field);
 
             $update_stmt = $db->prepare("
                 UPDATE employee 
