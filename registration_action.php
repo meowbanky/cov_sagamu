@@ -2,6 +2,8 @@
 require_once('Connections/cov.php');
 mysqli_select_db($cov, $database_cov);
 header('Content-Type: application/json');
+// Make mysqli throw on failure so the try/catch below actually rolls back.
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 // Collect & validate all POST values (server-side validation)
 $fields = [
@@ -26,8 +28,9 @@ try {
     $stmt->execute();
     $memberId = $stmt->insert_id ? $stmt->insert_id : $cov->insert_id;
     $stmt->close();
-
-   
+    if (!$memberId) {
+        throw new Exception('No member ID was assigned by the database.');
+    }
 
     // Next of Kin insert
     $stmt = $cov->prepare("INSERT INTO tbl_nok (memberid, NOkName, NOKRelationship, NOKPhone, NOKAddress) VALUES (?, ?, ?, ?, ?)");
@@ -53,7 +56,7 @@ try {
     }
 
     $cov->commit();
-    echo json_encode(['success'=>'Registration saved successfully!']);
+    echo json_encode(['success'=>'Registration saved successfully!', 'memberId'=>$memberId]);
 } catch(Exception $e) {
     $cov->rollback();
     echo json_encode(['error'=>'Database error: ' . $e->getMessage()]);

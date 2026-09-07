@@ -5,8 +5,8 @@ if (!isset($_SESSION['UserID'])) { header("Location:index.php"); exit; }
 require_once('header.php');
 
 // Fetch all dropdown data at the start (for simplicity)
-$query_coopNo = "SELECT MAX(memberid)+1 as coopNo FROM tbl_personalinfo";
-$row_coopNo = mysqli_fetch_assoc(mysqli_query($cov, $query_coopNo));
+// The Coop No is assigned by the database (auto-increment) on save and shown
+// in the success message; it is not guessed up front.
 $query_state2 = "SELECT * FROM state_nigeria";
 $states = mysqli_query($cov, $query_state2);
 $query_nokRelationship = "SELECT relationship FROM nok_relationship";
@@ -18,8 +18,8 @@ $nokRels = mysqli_query($cov, $query_nokRelationship);
         <div class="space-y-4">
             <div>
                 <label class="block font-semibold mb-1">Coop No:</label>
-                <input name="new_mrn" id="new_mrn" type="text" class="w-full border px-3 py-2 rounded" readonly
-                    value="<?= htmlspecialchars($row_coopNo['coopNo']) ?>">
+                <input id="new_mrn" type="text" class="w-full border px-3 py-2 rounded bg-gray-100" readonly
+                    value="Assigned automatically on save">
             </div>
             <div>
                 <label class="block font-semibold mb-1">Title<span class="text-red-500">*</span></label>
@@ -159,8 +159,8 @@ $('#regForm').submit(function(e) {
         if (resp.success) {
             Swal.fire({
                 icon: 'success',
-                title: 'Success',
-                text: resp.success
+                title: 'Member Registered',
+                html: resp.success + '<br><br>Coop No: <strong>' + resp.memberId + '</strong>'
             });
             $('#regForm')[0].reset();
         } else {
